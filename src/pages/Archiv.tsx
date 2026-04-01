@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import PdfButton from '../components/PdfButton'
 import type { PdfData } from '../lib/generatePdf'
 import { DEFAULT_CHECKLISTE, type ProtocolConditionData } from '../lib/protocols'
+import { SkeletonList } from '../components/Skeleton'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -211,11 +212,7 @@ export default function Archiv() {
 
       {/* List */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-        {loading && (
-          <div className="flex justify-center py-12">
-            <span className="inline-block w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          </div>
-        )}
+        {loading && <SkeletonList count={6} />}
         {error && (
           <div className="py-6 text-center space-y-2">
             <p className="text-sm text-red-500">{error}</p>
