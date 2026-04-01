@@ -52,6 +52,251 @@ function VehicleAvatar({ vehicleId, size = 48 }: { vehicleId: number; size?: num
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// New vehicle + protocol flow (bottom sheet)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function NewVehicleFlow({
+  onCancel,
+  onCreated,
+}: {
+  onCancel: () => void
+  onCreated: () => void
+}) {
+  const navigate = useNavigate()
+  const [plate, setPlate] = useState('')
+  const [brandModel, setBrandModel] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!plate.trim()) { setError('Kennzeichen ist Pflichtfeld.'); return }
+    setSaving(true)
+    setError(null)
+    try {
+      const saved = await createVehicle({
+        license_plate: plate.trim(),
+        brand_model: brandModel.trim(),
+        vin: '',
+      })
+      onCreated()
+      navigate('/annahme', {
+        state: {
+          vehicle_id: saved.id,
+          license_plate: saved.license_plate,
+          brand_model: saved.brand_model ?? '',
+          vin: saved.vin ?? '',
+          known_damages: [],
+        },
+      })
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Fehler beim Anlegen.')
+      setSaving(false)
+    }
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-30" onClick={onCancel} />
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white rounded-t-2xl shadow-2xl max-h-[85dvh] overflow-y-auto">
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 bg-gray-200 rounded-full" />
+        </div>
+        <form onSubmit={handleSubmit} className="px-4 pb-8 space-y-4">
+          <h2 className="text-lg font-bold text-gray-900 mt-1">Neues Fahrzeug & Protokoll</h2>
+          <p className="text-sm text-gray-500">Fahrzeug anlegen und direkt zum Annahmeprotokoll.</p>
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              ⚠️ {error}
+            </div>
+          )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Kennzeichen <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={plate}
+              onChange={(e) => setPlate(e.target.value)}
+              placeholder="M-AB 1234"
+              autoCapitalize="characters"
+              autoFocus
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 uppercase"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Marke / Modell <span className="text-gray-400 font-normal">(optional)</span>
+            </label>
+            <input
+              type="text"
+              value={brandModel}
+              onChange={(e) => setBrandModel(e.target.value)}
+              placeholder="BMW 3er, VW Golf …"
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm"
+            >
+              Abbrechen
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm disabled:opacity-60"
+            >
+              {saving ? 'Legt an …' : 'Anlegen & Protokoll →'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Existing vehicle → choose protocol type flow (bottom sheet)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ExistingVehicleFlow({
+  vehicles,
+  onCancel,
+}: {
+  vehicles: Vehicle[]
+  onCancel: () => void
+}) {
+  const navigate = useNavigate()
+  const [search, setSearch] = useState('')
+  const [selected, setSelected] = useState<Vehicle | null>(null)
+  const [protocolType, setProtocolType] = useState<'transfer' | 'intake'>('transfer')
+
+  const upper = search.toUpperCase()
+  const filtered = upper
+    ? vehicles.filter(
+        (v) =>
+          v.license_plate.toUpperCase().includes(upper) ||
+          (v.brand_model ?? '').toUpperCase().includes(upper)
+      )
+    : vehicles
+
+  function handleGo() {
+    if (!selected) return
+    const state = {
+      vehicle_id: selected.id,
+      license_plate: selected.license_plate,
+      brand_model: selected.brand_model ?? '',
+      vin: selected.vin ?? '',
+      known_damages: selected.known_damages ?? [],
+    }
+    navigate(protocolType === 'transfer' ? '/ueberfuehrung' : '/annahme', { state })
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-30" onClick={onCancel} />
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white rounded-t-2xl shadow-2xl max-h-[90dvh] flex flex-col">
+        <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+          <div className="w-10 h-1 bg-gray-200 rounded-full" />
+        </div>
+        <div className="px-4 pb-3 flex-shrink-0">
+          <h2 className="text-lg font-bold text-gray-900 mt-1 mb-3">
+            Protokoll für bestehendes Fahrzeug
+          </h2>
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setSelected(null) }}
+            placeholder="🔍 Kennzeichen, Marke …"
+            autoFocus
+            className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+        </div>
+
+        <div className="flex-1 overflow-y-auto min-h-0">
+          {filtered.length === 0 ? (
+            <p className="text-center text-gray-400 text-sm mt-8">Keine Treffer.</p>
+          ) : (
+            <ul className="divide-y divide-gray-100">
+              {filtered.map((v) => (
+                <li key={v.id}>
+                  <button
+                    onClick={() => setSelected(v)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
+                      selected?.id === v.id
+                        ? 'bg-blue-50'
+                        : 'hover:bg-gray-50 active:bg-gray-100'
+                    }`}
+                  >
+                    <VehicleAvatar vehicleId={v.id} size={40} />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 truncate">{v.license_plate}</p>
+                      <p className="text-sm text-gray-500 truncate">{v.brand_model || '—'}</p>
+                    </div>
+                    {selected?.id === v.id && (
+                      <span className="text-blue-600 text-lg">✓</span>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {selected && (
+          <div className="flex-shrink-0 border-t border-gray-100 px-4 pt-3 pb-2 bg-white space-y-3">
+            <p className="text-sm font-medium text-gray-700">
+              Protokolltyp für <strong>{selected.license_plate}</strong>:
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setProtocolType('transfer')}
+                className={`py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                  protocolType === 'transfer'
+                    ? 'bg-green-600 text-white'
+                    : 'bg-gray-100 text-gray-600'
+                }`}
+              >
+                🚙 Überführung
+              </button>
+              <button
+                onClick={() => setProtocolType('intake')}
+                className={`py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                  protocolType === 'intake'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-600'
+                }`}
+              >
+                📝 Annahme
+              </button>
+            </div>
+            <button
+              onClick={handleGo}
+              className="w-full py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm"
+            >
+              Weiter zum Protokoll →
+            </button>
+          </div>
+        )}
+
+        <div className="flex-shrink-0 px-4 pb-6 pt-2 bg-white">
+          <button
+            onClick={onCancel}
+            className="w-full py-2.5 rounded-xl border border-gray-300 text-gray-700 text-sm"
+          >
+            Abbrechen
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Vehicle list
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -61,12 +306,16 @@ function VehicleList({
   onSearchChange,
   onSelect,
   onNew,
+  onNewWithProtocol,
+  onExistingProtocol,
 }: {
   vehicles: Vehicle[]
   search: string
   onSearchChange: (v: string) => void
   onSelect: (v: Vehicle) => void
   onNew: () => void
+  onNewWithProtocol: () => void
+  onExistingProtocol: () => void
 }) {
   const upper = search.toUpperCase()
   const filtered = upper
@@ -83,6 +332,23 @@ function VehicleList({
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10">
         <h1 className="text-xl font-bold text-gray-900 mb-3">🚗 Fahrzeuge</h1>
+        {/* Protocol entry buttons */}
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <button
+            onClick={onNewWithProtocol}
+            className="flex flex-col items-center gap-1 py-3 px-2 rounded-xl bg-blue-600 text-white text-center active:bg-blue-700 shadow-sm"
+          >
+            <span className="text-xl leading-none">➕</span>
+            <span className="text-xs font-semibold leading-tight">Neues Fahrzeug<br />& Protokoll</span>
+          </button>
+          <button
+            onClick={onExistingProtocol}
+            className="flex flex-col items-center gap-1 py-3 px-2 rounded-xl bg-green-600 text-white text-center active:bg-green-700 shadow-sm"
+          >
+            <span className="text-xl leading-none">🚙</span>
+            <span className="text-xs font-semibold leading-tight">Protokoll für<br />bestehendes Fzg.</span>
+          </button>
+        </div>
         <input
           type="search"
           value={search}
@@ -523,6 +789,8 @@ export default function Fahrzeuge() {
   const [editTarget, setEditTarget] = useState<Vehicle | null>(null)
   const [showDelete, setShowDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [showNewFlow, setShowNewFlow] = useState(false)
+  const [showExistingFlow, setShowExistingFlow] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -581,10 +849,30 @@ export default function Fahrzeuge() {
       ) : view === 'detail' && selected ? (
         <VehicleDetail vehicle={selected} onBack={handleBack} onEdit={handleEdit} onDelete={() => setShowDelete(true)} />
       ) : (
-        <VehicleList vehicles={vehicles} search={search} onSearchChange={setSearch} onSelect={handleSelect} onNew={handleNew} />
+        <VehicleList
+          vehicles={vehicles}
+          search={search}
+          onSearchChange={setSearch}
+          onSelect={handleSelect}
+          onNew={handleNew}
+          onNewWithProtocol={() => setShowNewFlow(true)}
+          onExistingProtocol={() => setShowExistingFlow(true)}
+        />
       )}
       {showForm && <VehicleForm initial={editTarget} onSave={handleFormSave} onCancel={() => setShowForm(false)} />}
       {showDelete && selected && <DeleteConfirm vehicle={selected} onConfirm={handleDeleteConfirm} onCancel={() => setShowDelete(false)} deleting={deleting} />}
+      {showNewFlow && (
+        <NewVehicleFlow
+          onCancel={() => setShowNewFlow(false)}
+          onCreated={() => { setShowNewFlow(false); load() }}
+        />
+      )}
+      {showExistingFlow && (
+        <ExistingVehicleFlow
+          vehicles={vehicles}
+          onCancel={() => setShowExistingFlow(false)}
+        />
+      )}
     </div>
   )
 }
