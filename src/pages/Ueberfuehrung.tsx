@@ -16,6 +16,8 @@ import {
   type DamageItem,
   type OfflineEntry,
 } from '../lib/protocols'
+import PdfButton from '../components/PdfButton'
+import type { PdfData } from '../lib/generatePdf'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -402,6 +404,7 @@ export default function Ueberfuehrung() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [savedPdfData, setSavedPdfData] = useState<PdfData | null>(null)
   const [pendingCount, setPendingCount] = useState(0)
   const [syncing, setSyncing] = useState(false)
   const [syncMsg, setSyncMsg] = useState<string | null>(null)
@@ -564,6 +567,24 @@ export default function Ueberfuehrung() {
         await saveOffline(offlineEntry)
         await loadPendingCount()
       }
+      setSavedPdfData({
+        protocol_type: 'transfer',
+        status: basePayload.status,
+        inspector_name: basePayload.inspector_name,
+        location: basePayload.location,
+        odometer: basePayload.odometer,
+        fuel_level: basePayload.fuel_level,
+        battery: basePayload.condition_data.battery,
+        remarks: basePayload.remarks,
+        inspection_date: basePayload.inspection_date,
+        license_plate: prefill.license_plate,
+        brand_model: prefill.brand_model,
+        vin: prefill.vin,
+        photos: { ...basePayload.condition_data.photos },
+        conditions: basePayload.condition_data.conditions,
+        damage_records: basePayload.condition_data.damage_records,
+        checkliste: basePayload.condition_data.checkliste,
+      })
       setSuccess(true)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Speichern fehlgeschlagen.')
@@ -602,6 +623,7 @@ export default function Ueberfuehrung() {
               : 'Offline gespeichert — wird synchronisiert, sobald Internet verfügbar ist.'}
           </p>
         </div>
+        {savedPdfData && <PdfButton data={savedPdfData} accent="green" />}
         <div className="flex gap-3 w-full max-w-xs">
           <button
             onClick={resetForm}
