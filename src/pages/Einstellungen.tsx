@@ -63,7 +63,7 @@ export default function Einstellungen() {
               placeholder="Aktueller PIN"
               value={currentPin}
               onChange={e => setCurrentPin(e.target.value)}
-              className="border border-gray-300 rounded-xl px-4 py-3 text-lg tracking-widest w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="border border-gray-300 rounded-xl px-4 py-3 text-lg tracking-widest w-full focus:outline-none focus:ring-2 focus:ring-brand-500"
               autoComplete="current-password"
             />
             <input
@@ -72,7 +72,7 @@ export default function Einstellungen() {
               placeholder="Neuer PIN"
               value={newPin}
               onChange={e => setNewPin(e.target.value)}
-              className="border border-gray-300 rounded-xl px-4 py-3 text-lg tracking-widest w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="border border-gray-300 rounded-xl px-4 py-3 text-lg tracking-widest w-full focus:outline-none focus:ring-2 focus:ring-brand-500"
               autoComplete="new-password"
             />
             <input
@@ -81,7 +81,7 @@ export default function Einstellungen() {
               placeholder="Neuer PIN bestätigen"
               value={confirmPin}
               onChange={e => setConfirmPin(e.target.value)}
-              className="border border-gray-300 rounded-xl px-4 py-3 text-lg tracking-widest w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="border border-gray-300 rounded-xl px-4 py-3 text-lg tracking-widest w-full focus:outline-none focus:ring-2 focus:ring-brand-500"
               autoComplete="new-password"
             />
             {pinMsg && (
@@ -91,7 +91,7 @@ export default function Einstellungen() {
             )}
             <button
               type="submit"
-              className="w-full py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 active:scale-95 transition-all"
+              className="w-full py-3 rounded-xl bg-brand-600 text-white font-semibold hover:bg-brand-700 active:scale-95 transition-all"
             >
               PIN speichern
             </button>

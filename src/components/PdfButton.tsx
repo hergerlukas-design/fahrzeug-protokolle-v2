@@ -3,18 +3,18 @@ import { generatePdf, type PdfData } from '../lib/generatePdf'
 
 interface Props {
   data: PdfData
-  /** Accent colour: 'blue' (Annahme) | 'green' (Überführung) */
-  accent?: 'blue' | 'green'
+  /** Accent colour: 'brand' (Annahme) | 'green' (Überführung) */
+  accent?: 'brand' | 'green'
 }
 
-export default function PdfButton({ data, accent = 'blue' }: Props) {
+export default function PdfButton({ data, accent = 'brand' }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const btnClass =
     accent === 'green'
       ? 'flex-1 py-3 rounded-xl bg-green-600 text-white font-semibold text-sm active:bg-green-700 disabled:opacity-50'
-      : 'flex-1 py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm active:bg-blue-700 disabled:opacity-50'
+      : 'flex-1 py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm active:bg-brand-700 disabled:opacity-50'
 
   async function handleClick() {
     setLoading(true)

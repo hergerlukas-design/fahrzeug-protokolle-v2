@@ -146,7 +146,7 @@ export default function Archiv() {
           placeholder="Kennzeichen, Name, Datum…"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+          className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500 mb-2"
         />
 
         {/* Type filter pills */}
@@ -158,7 +158,7 @@ export default function Archiv() {
               className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
                 filterType === t
                   ? t === 'annahme'
-                    ? 'bg-blue-600 text-white border-blue-600'
+                    ? 'bg-brand-600 text-white border-brand-600'
                     : t === 'transfer'
                     ? 'bg-green-600 text-white border-green-600'
                     : 'bg-gray-700 text-white border-gray-700'
@@ -178,7 +178,7 @@ export default function Archiv() {
               type="date"
               value={filterFrom}
               onChange={e => setFilterFrom(e.target.value)}
-              className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
           <div className="flex-1">
@@ -187,7 +187,7 @@ export default function Archiv() {
               type="date"
               value={filterTo}
               onChange={e => setFilterTo(e.target.value)}
-              className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
           {(filterFrom || filterTo) && (
@@ -218,7 +218,7 @@ export default function Archiv() {
             <p className="text-sm text-red-500">{error}</p>
             <button
               onClick={load}
-              className="text-sm text-blue-600 underline"
+              className="text-sm text-brand-600 underline"
             >
               Erneut versuchen
             </button>
@@ -244,7 +244,7 @@ export default function Archiv() {
               <div className="flex flex-col items-end shrink-0 gap-1">
                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                   p.protocol_type === 'annahme'
-                    ? 'bg-blue-100 text-blue-700'
+                    ? 'bg-brand-100 text-brand-700'
                     : 'bg-green-100 text-green-700'
                 }`}>
                   {p.protocol_type === 'annahme' ? 'Annahme' : 'Überführung'}
@@ -299,7 +299,7 @@ export default function Archiv() {
             <div className="flex gap-2 flex-wrap">
               <span className={`text-sm font-medium px-3 py-1 rounded-full ${
                 selected.protocol_type === 'annahme'
-                  ? 'bg-blue-100 text-blue-700'
+                  ? 'bg-brand-100 text-brand-700'
                   : 'bg-green-100 text-green-700'
               }`}>
                 {selected.protocol_type === 'annahme' ? 'Annahme' : 'Überführung'}
@@ -374,7 +374,7 @@ export default function Archiv() {
             <div className="flex justify-center pt-2">
               <PdfButton
                 data={toPdfData(selected)}
-                accent={selected.protocol_type === 'annahme' ? 'blue' : 'green'}
+                accent={selected.protocol_type === 'annahme' ? 'brand' : 'green'}
               />
             </div>
 
@@ -389,7 +389,7 @@ export default function Archiv() {
                     vin: selected.vehicles?.vin,
                   },
                 })}
-                className="flex-1 py-2.5 rounded-xl border border-blue-500 text-blue-600 text-sm font-medium active:bg-blue-50"
+                className="flex-1 py-2.5 rounded-xl border border-brand-500 text-brand-600 text-sm font-medium active:bg-brand-50"
               >
                 + Annahme
               </button>

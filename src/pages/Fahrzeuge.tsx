@@ -121,7 +121,7 @@ function NewVehicleFlow({
               placeholder="M-AB 1234"
               autoCapitalize="characters"
               autoFocus
-              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 uppercase"
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 uppercase"
               required
             />
           </div>
@@ -134,7 +134,7 @@ function NewVehicleFlow({
               value={brandModel}
               onChange={(e) => setBrandModel(e.target.value)}
               placeholder="BMW 3er, VW Golf …"
-              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
             />
           </div>
           <div className="grid grid-cols-2 gap-3 pt-2">
@@ -148,7 +148,7 @@ function NewVehicleFlow({
             <button
               type="submit"
               disabled={saving}
-              className="py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm disabled:opacity-60"
+              className="py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm disabled:opacity-60"
             >
               {saving ? 'Legt an …' : 'Anlegen & Protokoll →'}
             </button>
@@ -213,7 +213,7 @@ function ExistingVehicleFlow({
             onChange={(e) => { setSearch(e.target.value); setSelected(null) }}
             placeholder="🔍 Kennzeichen, Marke …"
             autoFocus
-            className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
 
@@ -228,7 +228,7 @@ function ExistingVehicleFlow({
                     onClick={() => setSelected(v)}
                     className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
                       selected?.id === v.id
-                        ? 'bg-blue-50'
+                        ? 'bg-brand-50'
                         : 'hover:bg-gray-50 active:bg-gray-100'
                     }`}
                   >
@@ -238,7 +238,7 @@ function ExistingVehicleFlow({
                       <p className="text-sm text-gray-500 truncate">{v.brand_model || '—'}</p>
                     </div>
                     {selected?.id === v.id && (
-                      <span className="text-blue-600 text-lg">✓</span>
+                      <span className="text-brand-600 text-lg">✓</span>
                     )}
                   </button>
                 </li>
@@ -267,7 +267,7 @@ function ExistingVehicleFlow({
                 onClick={() => setProtocolType('intake')}
                 className={`py-2.5 rounded-xl text-sm font-medium transition-colors ${
                   protocolType === 'intake'
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-brand-600 text-white'
                     : 'bg-gray-100 text-gray-600'
                 }`}
               >
@@ -276,7 +276,7 @@ function ExistingVehicleFlow({
             </div>
             <button
               onClick={handleGo}
-              className="w-full py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm"
+              className="w-full py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm"
             >
               Weiter zum Protokoll →
             </button>
@@ -336,7 +336,7 @@ function VehicleList({
         <div className="grid grid-cols-2 gap-2 mb-3">
           <button
             onClick={onNewWithProtocol}
-            className="flex flex-col items-center gap-1 py-3 px-2 rounded-xl bg-blue-600 text-white text-center active:bg-blue-700 shadow-sm"
+            className="flex flex-col items-center gap-1 py-3 px-2 rounded-xl bg-brand-600 text-white text-center active:bg-brand-700 shadow-sm"
           >
             <span className="text-xl leading-none">➕</span>
             <span className="text-xs font-semibold leading-tight">Neues Fahrzeug<br />& Protokoll</span>
@@ -354,7 +354,7 @@ function VehicleList({
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="🔍 Kennzeichen, Marke, FIN …"
-          className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-400"
         />
       </div>
 
@@ -412,7 +412,7 @@ function VehicleList({
       {/* FAB */}
       <button
         onClick={onNew}
-        className="fixed bottom-20 right-4 w-14 h-14 rounded-full bg-blue-600 text-white text-2xl shadow-lg flex items-center justify-center active:bg-blue-700 z-20"
+        className="fixed bottom-20 right-4 w-14 h-14 rounded-full bg-brand-600 text-white text-2xl shadow-lg flex items-center justify-center active:bg-brand-700 z-20"
         aria-label="Fahrzeug anlegen"
       >
         +
@@ -446,7 +446,7 @@ function VehicleDetail({
     <div className="flex flex-col">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10 flex items-center gap-3">
-        <button onClick={onBack} className="text-blue-600 text-sm font-medium pr-1">
+        <button onClick={onBack} className="text-brand-600 text-sm font-medium pr-1">
           ← Zurück
         </button>
         <h1 className="text-lg font-bold text-gray-900 flex-1 truncate">{vehicle.license_plate}</h1>
@@ -479,7 +479,7 @@ function VehicleDetail({
                 },
               })
             }
-            className="py-3 rounded-xl bg-blue-50 text-blue-700 font-medium text-sm active:bg-blue-100"
+            className="py-3 rounded-xl bg-brand-50 text-brand-700 font-medium text-sm active:bg-brand-100"
           >
             📝 Neues Annahmeprotokoll
           </button>
@@ -681,7 +681,7 @@ function VehicleForm({
               onChange={(e) => setPlate(e.target.value)}
               placeholder="M-AB 1234"
               autoCapitalize="characters"
-              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 uppercase"
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 uppercase"
               required
             />
             {plateWarning && (
@@ -695,7 +695,7 @@ function VehicleForm({
               value={brandModel}
               onChange={(e) => setBrandModel(e.target.value)}
               placeholder="BMW 3er, VW Golf …"
-              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
             />
           </div>
           <div>
@@ -707,7 +707,7 @@ function VehicleForm({
               placeholder="17-stellige Fahrzeugidentnummer"
               autoCapitalize="characters"
               maxLength={17}
-              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 uppercase font-mono tracking-wider"
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 uppercase font-mono tracking-wider"
             />
           </div>
           <div>
@@ -727,7 +727,7 @@ function VehicleForm({
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
-                className="w-full border-2 border-dashed border-gray-300 rounded-xl py-5 text-gray-500 text-sm flex flex-col items-center gap-1 active:border-blue-400 active:text-blue-600"
+                className="w-full border-2 border-dashed border-gray-300 rounded-xl py-5 text-gray-500 text-sm flex flex-col items-center gap-1 active:border-brand-400 active:text-brand-600"
               >
                 <span className="text-2xl">📷</span>
                 <span>Foto aufnehmen oder auswählen</span>
@@ -739,7 +739,7 @@ function VehicleForm({
             <button type="button" onClick={onCancel} className="py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm active:bg-gray-50">
               Abbrechen
             </button>
-            <button type="submit" disabled={saving} className="py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm disabled:opacity-60 active:bg-blue-700">
+            <button type="submit" disabled={saving} className="py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm disabled:opacity-60 active:bg-brand-700">
               {saving ? 'Speichert …' : 'Speichern'}
             </button>
           </div>

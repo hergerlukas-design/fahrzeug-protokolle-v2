@@ -247,7 +247,7 @@ function LevelSlider({
         step={5}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full accent-blue-600"
+        className="w-full accent-brand-600"
       />
       <div className="flex justify-between text-xs text-gray-400 mt-0.5">
         <span>0 %</span>
@@ -296,7 +296,7 @@ function DamageRow({
       <select
         value={item.pos}
         onChange={(e) => onUpdate(item.key, { pos: e.target.value })}
-        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
       >
         <option value="">Position wählen …</option>
         {DAMAGE_POSITIONS.map((p) => (
@@ -307,7 +307,7 @@ function DamageRow({
         <select
           value={item.type}
           onChange={(e) => onUpdate(item.key, { type: e.target.value })}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
         >
           <option value="">Art …</option>
           {DAMAGE_TYPES.map((t) => (
@@ -317,7 +317,7 @@ function DamageRow({
         <select
           value={item.int}
           onChange={(e) => onUpdate(item.key, { int: e.target.value })}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
         >
           <option value="">Intensität …</option>
           {DAMAGE_INTENSITIES.map((i) => (
@@ -345,7 +345,7 @@ function DamageRow({
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            className="flex items-center gap-1.5 text-sm text-blue-600 border border-blue-200 rounded-lg px-3 py-2 bg-blue-50 active:bg-blue-100"
+            className="flex items-center gap-1.5 text-sm text-brand-600 border border-brand-200 rounded-lg px-3 py-2 bg-brand-50 active:bg-brand-100"
           >
             📷 <span>Foto</span>
           </button>
@@ -628,7 +628,7 @@ export default function Annahme() {
           </button>
           <button
             onClick={() => navigate('/fahrzeuge')}
-            className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm"
+            className="flex-1 py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm"
           >
             Zur Übersicht
           </button>
@@ -651,7 +651,7 @@ export default function Annahme() {
         </div>
         <button
           onClick={() => navigate('/fahrzeuge')}
-          className="py-3 px-6 rounded-xl bg-blue-600 text-white font-semibold text-sm"
+          className="py-3 px-6 rounded-xl bg-brand-600 text-white font-semibold text-sm"
         >
           Zur Fahrzeugkartei
         </button>
@@ -727,7 +727,7 @@ export default function Annahme() {
             value={inspector}
             onChange={(e) => setInspector(e.target.value)}
             placeholder="Name des Erstellers"
-            className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
         <div>
@@ -737,7 +737,7 @@ export default function Annahme() {
             value={standort}
             onChange={(e) => setStandort(e.target.value)}
             placeholder="z. B. München, Halle 3"
-            className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
         <div>
@@ -791,7 +791,7 @@ export default function Annahme() {
                   type="button"
                   onClick={() => photoFileRefs.current[pk].current?.click()}
                   className={`w-full aspect-square rounded-xl border-2 flex items-center justify-center overflow-hidden transition-colors ${
-                    entry ? 'border-green-300' : 'border-dashed border-gray-300 active:border-blue-400'
+                    entry ? 'border-green-300' : 'border-dashed border-gray-300 active:border-brand-400'
                   }`}
                 >
                   {entry ? (
@@ -822,7 +822,7 @@ export default function Annahme() {
                   type="button"
                   onClick={() => photoFileRefs.current[pk].current?.click()}
                   className={`w-full aspect-square rounded-xl border-2 flex items-center justify-center overflow-hidden transition-colors ${
-                    entry ? 'border-green-300' : 'border-dashed border-gray-300 active:border-blue-400'
+                    entry ? 'border-green-300' : 'border-dashed border-gray-300 active:border-brand-400'
                   }`}
                 >
                   {entry ? (
@@ -861,7 +861,7 @@ export default function Annahme() {
         <button
           type="button"
           onClick={addDamage}
-          className="w-full py-3 rounded-xl border-2 border-dashed border-gray-300 text-sm text-gray-500 flex items-center justify-center gap-2 active:border-blue-400 active:text-blue-600"
+          className="w-full py-3 rounded-xl border-2 border-dashed border-gray-300 text-sm text-gray-500 flex items-center justify-center gap-2 active:border-brand-400 active:text-brand-600"
         >
           + Schaden hinzufügen
         </button>
@@ -930,7 +930,7 @@ export default function Annahme() {
             placeholder="0"
             min={0}
             max={2000000}
-            className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
       </Card>
@@ -943,7 +943,7 @@ export default function Annahme() {
           onChange={(e) => setRemarks(e.target.value)}
           placeholder="Zusätzliche Hinweise …"
           rows={3}
-          className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+          className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
         />
       </Card>
 
@@ -963,7 +963,7 @@ export default function Annahme() {
         <button
           type="submit"
           disabled={saving}
-          className="w-full py-4 rounded-2xl bg-blue-600 text-white font-bold text-base shadow-lg disabled:opacity-60 active:bg-blue-700"
+          className="w-full py-4 rounded-2xl bg-brand-600 text-white font-bold text-base shadow-lg disabled:opacity-60 active:bg-brand-700"
         >
           {saving ? 'Speichert …' : navigator.onLine ? '💾 Protokoll speichern' : '📶 Offline speichern'}
         </button>

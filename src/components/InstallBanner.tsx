@@ -43,7 +43,7 @@ export default function InstallBanner() {
 
   if (deferredPrompt) {
     return (
-      <div className="bg-blue-600 text-white px-4 py-3 flex items-center justify-between gap-2">
+      <div className="bg-brand-600 text-white px-4 py-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-sm font-medium">
           <span>📲</span>
           <span>App zum Homescreen hinzufügen</span>
@@ -51,11 +51,11 @@ export default function InstallBanner() {
         <div className="flex gap-2 flex-shrink-0">
           <button
             onClick={handleInstall}
-            className="bg-white text-blue-600 font-semibold text-xs px-3 py-1.5 rounded-lg active:scale-95 transition-all"
+            className="bg-white text-brand-600 font-semibold text-xs px-3 py-1.5 rounded-lg active:scale-95 transition-all"
           >
             Installieren
           </button>
-          <button onClick={dismiss} className="text-blue-200 text-xs px-2 py-1.5">✕</button>
+          <button onClick={dismiss} className="text-brand-200 text-xs px-2 py-1.5">✕</button>
         </div>
       </div>
     )
@@ -63,15 +63,15 @@ export default function InstallBanner() {
 
   if (showIosTip) {
     return (
-      <div className="bg-blue-600 text-white px-4 py-3">
+      <div className="bg-brand-600 text-white px-4 py-3">
         <div className="flex items-start justify-between gap-2">
           <div className="text-sm">
             <p className="font-semibold mb-0.5">📲 Zum Homescreen hinzufügen</p>
-            <p className="text-blue-100 text-xs">
+            <p className="text-brand-100 text-xs">
               Tippe auf <span className="font-bold">Teilen</span> (□↑) → <span className="font-bold">„Zum Home-Bildschirm"</span>
             </p>
           </div>
-          <button onClick={dismiss} className="text-blue-200 text-xs px-2 py-1 flex-shrink-0">✕</button>
+          <button onClick={dismiss} className="text-brand-200 text-xs px-2 py-1 flex-shrink-0">✕</button>
         </div>
       </div>
     )
