@@ -29,8 +29,8 @@ export default function App() {
           <Route path="/fahrzeuge" element={<Fahrzeuge />} />
           <Route path="/archiv" element={<Archiv />} />
           <Route path="/einstellungen" element={<Einstellungen />} />
-          <Route path="/" element={<Navigate to="/ueberfuehrung" replace />} />
-          <Route path="*" element={<Navigate to="/ueberfuehrung" replace />} />
+          <Route path="/" element={<Navigate to="/fahrzeuge" replace />} />
+          <Route path="*" element={<Navigate to="/fahrzeuge" replace />} />
         </Route>
       </Routes>
     </BrowserRouter>
