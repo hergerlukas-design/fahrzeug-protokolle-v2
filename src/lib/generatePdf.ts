@@ -175,7 +175,7 @@ function safe(s: string | number | null | undefined): string {
 
 async function drawPageHeader(
   page: PDFPage,
-  pdfDoc: PDFDocument,
+  _pdfDoc: PDFDocument,
   fonts: Fonts,
   logoImg: PDFImage | null,
   data: PdfData,
