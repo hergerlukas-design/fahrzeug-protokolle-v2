@@ -28,7 +28,7 @@ export default function PdfButton({ data, accent = 'blue' }: Props) {
       const plate = (data.license_plate ?? 'Protokoll').replace(/\s/g, '-')
       const filename = `${plate}_${date}.pdf`
 
-      const blob = new Blob([pdfBytes], { type: 'application/pdf' })
+      const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' })
 
       // Try Web Share API (iOS / Android native sheet)
       const shareFile = new File([blob], filename, { type: 'application/pdf' })
