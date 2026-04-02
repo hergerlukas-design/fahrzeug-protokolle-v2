@@ -18,7 +18,7 @@ interface VehicleRef {
 
 interface ProtocolRow {
   id: number
-  vehicle_id: number
+  vehicle_id: string
   inspector_name: string
   location: string
   odometer: number

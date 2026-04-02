@@ -24,7 +24,7 @@ import type { PdfData } from '../lib/generatePdf'
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface PrefillState {
-  vehicle_id: number
+  vehicle_id: string
   license_plate: string
   brand_model: string
   vin: string

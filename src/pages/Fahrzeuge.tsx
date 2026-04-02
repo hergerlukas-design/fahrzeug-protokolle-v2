@@ -27,7 +27,7 @@ function ErrorBanner({ msg, onClose }: { msg: string; onClose: () => void }) {
   )
 }
 
-function VehicleAvatar({ vehicleId, size = 48 }: { vehicleId: number; size?: number }) {
+function VehicleAvatar({ vehicleId, size = 48 }: { vehicleId: string; size?: number }) {
   const [hasPhoto, setHasPhoto] = useState(true)
   const url = getVehiclePhotoUrl(vehicleId)
   if (!hasPhoto) {
@@ -760,7 +760,7 @@ function DeleteConfirm({ vehicle, onConfirm, onCancel, deleting }: { vehicle: Ve
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-white rounded-t-2xl shadow-2xl px-6 pt-6 pb-[calc(1.5rem+4rem+env(safe-area-inset-bottom))]">
         <h2 className="text-lg font-bold text-gray-900 mb-2">Fahrzeug löschen?</h2>
         <p className="text-sm text-gray-600 mb-1">Soll <strong>{vehicle.license_plate}</strong> dauerhaft gelöscht werden?</p>
-        <p className="text-xs text-red-600 mb-6">⚠️ Zugehörige Protokolle bleiben erhalten, aber die Fahrzeugverknüpfung geht verloren.</p>
+        <p className="text-xs text-red-600 mb-6">⚠️ Alle verknüpften Protokolle werden ebenfalls unwiderruflich gelöscht.</p>
         <div className="grid grid-cols-2 gap-3">
           <button onClick={onCancel} className="py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm">Abbrechen</button>
           <button onClick={onConfirm} disabled={deleting} className="py-3 rounded-xl bg-red-600 text-white font-semibold text-sm disabled:opacity-60">

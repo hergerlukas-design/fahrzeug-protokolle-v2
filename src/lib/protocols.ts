@@ -34,7 +34,7 @@ export interface ProtocolConditionData {
 }
 
 export interface ProtocolPayload {
-  vehicle_id: number
+  vehicle_id: string
   inspector_name: string
   location: string
   odometer: number
@@ -123,7 +123,7 @@ async function compressImage(file: File, maxPx = 1200, quality = 0.82): Promise<
  *  Path: vehicle-protocols/{vehicleId}/{sessionKey}_{photoKey}.jpg
  */
 export async function uploadProtocolPhoto(
-  vehicleId: number,
+  vehicleId: string,
   sessionKey: string,
   photoKey: string,
   file: File
@@ -140,7 +140,7 @@ export async function uploadProtocolPhoto(
 
 /** Uploads a signature (PNG data URL) and returns its public URL. */
 export async function uploadSignature(
-  vehicleId: number,
+  vehicleId: string,
   sessionKey: string,
   dataUrl: string,
   suffix = 'signature'
@@ -246,7 +246,7 @@ function openDB(): Promise<IDBDatabase> {
 export interface OfflineEntry {
   localId?: number
   createdAt: string
-  vehicleId: number
+  vehicleId: string
   sessionKey: string
   /** Protocol fields (photos are empty — filled during sync) */
   payload: ProtocolPayload
