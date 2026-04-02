@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import PdfButton from '../components/PdfButton'
 import type { PdfData } from '../lib/generatePdf'
-import { DEFAULT_CHECKLISTE, type ProtocolConditionData } from '../lib/protocols'
+import { DEFAULT_CHECKLISTE, deleteProtocol, type ProtocolConditionData } from '../lib/protocols'
 import { SkeletonList } from '../components/Skeleton'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -79,6 +79,7 @@ export default function Archiv() {
   const [selected, setSelected] = useState<ProtocolRow | null>(null)
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   async function load() {
     setLoading(true)
@@ -102,17 +103,17 @@ export default function Archiv() {
   async function handleDelete() {
     if (deleteId == null) return
     setDeleting(true)
+    setDeleteError(null)
+    const target = protocols.find(p => p.id === deleteId)
     try {
-      const { error: err } = await supabase
-        .from('protocols')
-        .delete()
-        .eq('id', deleteId)
-      if (err) throw err
+      await deleteProtocol(deleteId, target?.condition_data?.photos)
       setProtocols(prev => prev.filter(p => p.id !== deleteId))
       if (selected?.id === deleteId) setSelected(null)
       setDeleteId(null)
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : 'Fehler beim Löschen')
+      console.error('handleDelete:', e)
+      setDeleteError(e instanceof Error ? e.message : 'Fehler beim Löschen')
+      setDeleteId(null)
     } finally {
       setDeleting(false)
     }
@@ -136,6 +137,15 @@ export default function Archiv() {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col h-full">
+      {/* Delete error banner */}
+      {deleteError && (
+        <div className="mx-4 mt-3 p-3 bg-red-50 border border-red-200 rounded-xl flex gap-2 items-start">
+          <span className="text-red-500 mt-0.5 flex-shrink-0">⚠️</span>
+          <p className="text-red-700 text-sm flex-1 whitespace-pre-wrap">{deleteError}</p>
+          <button onClick={() => setDeleteError(null)} className="text-red-400 text-lg leading-none flex-shrink-0">×</button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10">
         <h1 className="text-lg font-bold text-gray-800 mb-3">Archiv & Verwaltung</h1>
