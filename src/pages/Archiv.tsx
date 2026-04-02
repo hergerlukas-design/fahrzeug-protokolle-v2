@@ -415,7 +415,7 @@ export default function Archiv() {
       {/* ── Delete Confirm Sheet ─────────────────────────────────────────────── */}
       {deleteId != null && (
         <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40">
-          <div className="w-full max-w-sm bg-white rounded-t-2xl p-6 shadow-xl">
+          <div className="w-full max-w-sm bg-white rounded-t-2xl pt-6 px-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl">
             <p className="text-base font-semibold text-gray-800 mb-1">Protokoll löschen?</p>
             <p className="text-sm text-gray-500 mb-5">
               Diese Aktion kann nicht rückgängig gemacht werden.

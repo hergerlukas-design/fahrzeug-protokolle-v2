@@ -63,6 +63,8 @@ export interface PdfData {
   conditions: string[]
   damage_records: DamageItem[]
   checkliste: Checkliste
+  /** For transfer protocols: name of the receiving party. */
+  receiver_name?: string
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -294,7 +296,7 @@ function drawSection1Basisdaten(
     const rows: [string, string, string, string][] = [
       ['Kennzeichen',  data.license_plate,    'VIN',       data.vin],
       ['Marke / Modell', data.brand_model,    'KM-Stand',  `${data.odometer} km`],
-      ['Ersteller',    data.inspector_name,   'Empfänger', ''],
+      ['Ersteller',    data.inspector_name,   'Empfänger', data.receiver_name ?? ''],
       ['Von',          von,                   'Nach',      nach],
     ]
     for (const [l1, v1, l2, v2] of rows) {
@@ -459,7 +461,8 @@ async function drawSignatures(
   pdfDoc: PDFDocument,
   fonts: Fonts,
   data: PdfData,
-  sigImg: PDFImage | null
+  sigImg: PDFImage | null,
+  sigImgReceiver: PDFImage | null = null
 ) {
   const dateStr = data.inspection_date
     ? new Date(data.inspection_date).toLocaleDateString('de-DE')
@@ -505,7 +508,7 @@ async function drawSignatures(
 
     const cols = [
       { x: mm(10),  label: 'Ersteller', name: data.inspector_name, img: sigImg },
-      { x: mm(108), label: 'Empfänger', name: '',                   img: null   },
+      { x: mm(108), label: 'Empfänger', name: data.receiver_name ?? '', img: sigImgReceiver },
     ]
 
     for (const col of cols) {
@@ -781,12 +784,19 @@ export async function generatePdf(data: PdfData): Promise<Uint8Array> {
     })
   )
 
-  // ── Load signature ──────────────────────────────────────────────────────────
+  // ── Load signature(s) ───────────────────────────────────────────────────────
   let sigImg: PDFImage | null = null
   const sigUrl = data.photos['signature']
   if (sigUrl) {
     const sigBytes = await fetchPng(sigUrl)
     if (sigBytes) sigImg = await pdfDoc.embedPng(sigBytes)
+  }
+
+  let sigImgReceiver: PDFImage | null = null
+  const sigReceiverUrl = data.photos['signature_receiver']
+  if (sigReceiverUrl) {
+    const sigReceiverBytes = await fetchPng(sigReceiverUrl)
+    if (sigReceiverBytes) sigImgReceiver = await pdfDoc.embedPng(sigReceiverBytes)
   }
 
   // ── Load damage photos ──────────────────────────────────────────────────────
@@ -810,7 +820,7 @@ export async function generatePdf(data: PdfData): Promise<Uint8Array> {
   cursorY = drawSection4Bemerkungen(page1, fonts, cursorY, data)
   void cursorY
 
-  await drawSignatures(page1, pdfDoc, fonts, data, sigImg)
+  await drawSignatures(page1, pdfDoc, fonts, data, sigImg, sigImgReceiver)
 
   // ── Page 2: Photos ──────────────────────────────────────────────────────────
   await buildPhotoPage(pdfDoc, fonts, logoImg, data, vehiclePhotoImgs)

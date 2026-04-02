@@ -102,7 +102,7 @@ function NewVehicleFlow({
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 bg-gray-200 rounded-full" />
         </div>
-        <form onSubmit={handleSubmit} className="px-4 pb-8 space-y-4">
+        <form onSubmit={handleSubmit} className="px-4 pb-[calc(4rem+env(safe-area-inset-bottom))] space-y-4">
           <h2 className="text-lg font-bold text-gray-900 mt-1">Neues Fahrzeug & Protokoll</h2>
           <p className="text-sm text-gray-500">Fahrzeug anlegen und direkt zum Annahmeprotokoll.</p>
           {error && (
@@ -283,7 +283,7 @@ function ExistingVehicleFlow({
           </div>
         )}
 
-        <div className="flex-shrink-0 px-4 pb-6 pt-2 bg-white">
+        <div className="flex-shrink-0 px-4 pb-[calc(4rem+env(safe-area-inset-bottom))] pt-2 bg-white">
           <button
             onClick={onCancel}
             className="w-full py-2.5 rounded-xl border border-gray-300 text-gray-700 text-sm"
@@ -662,7 +662,7 @@ function VehicleForm({
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 bg-gray-200 rounded-full" />
         </div>
-        <form onSubmit={handleSubmit} className="px-4 pb-8 space-y-4">
+        <form onSubmit={handleSubmit} className="px-4 pb-[calc(4rem+env(safe-area-inset-bottom))] space-y-4">
           <h2 className="text-lg font-bold text-gray-900 mt-1 mb-4">
             {initial ? 'Fahrzeug bearbeiten' : 'Fahrzeug anlegen'}
           </h2>
