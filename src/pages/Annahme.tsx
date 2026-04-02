@@ -618,7 +618,7 @@ export default function Annahme() {
               : 'Offline gespeichert — wird synchronisiert, sobald Internet verfügbar ist.'}
           </p>
         </div>
-        {savedPdfData && <PdfButton data={savedPdfData} accent="blue" />}
+        {savedPdfData && <PdfButton data={savedPdfData} accent="brand" />}
         <div className="flex gap-3 w-full max-w-xs">
           <button
             onClick={resetForm}
