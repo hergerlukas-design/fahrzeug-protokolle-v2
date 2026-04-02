@@ -142,11 +142,12 @@ export async function uploadProtocolPhoto(
 export async function uploadSignature(
   vehicleId: number,
   sessionKey: string,
-  dataUrl: string
+  dataUrl: string,
+  suffix = 'signature'
 ): Promise<string> {
   const res = await fetch(dataUrl)
   const blob = await res.blob()
-  const path = `vehicle-protocols/${vehicleId}/${sessionKey}_signature.png`
+  const path = `vehicle-protocols/${vehicleId}/${sessionKey}_${suffix}.png`
   const { error } = await supabase.storage
     .from('vehicle-photos')
     .upload(path, blob, { upsert: true, contentType: 'image/png' })
@@ -198,6 +199,7 @@ export interface OfflineEntry {
   /** Raw photo files to upload on sync */
   photoBlobs: Record<string, Blob>
   signatureBlob?: Blob
+  signatureReceiverBlob?: Blob
 }
 
 export async function saveOffline(entry: OfflineEntry): Promise<void> {
@@ -258,6 +260,24 @@ export async function syncOffline(): Promise<number> {
         })
         const dataUrl = canvas.toDataURL('image/png')
         photos.signature = await uploadSignature(entry.vehicleId, entry.sessionKey, dataUrl)
+      }
+      if (entry.signatureReceiverBlob) {
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')!
+        const img = new Image()
+        const url = URL.createObjectURL(entry.signatureReceiverBlob)
+        await new Promise<void>((res) => {
+          img.onload = () => {
+            canvas.width = img.width
+            canvas.height = img.height
+            ctx.drawImage(img, 0, 0)
+            URL.revokeObjectURL(url)
+            res()
+          }
+          img.src = url
+        })
+        const dataUrl = canvas.toDataURL('image/png')
+        photos.signature_receiver = await uploadSignature(entry.vehicleId, entry.sessionKey, dataUrl, 'signature_receiver')
       }
       const finalPayload: ProtocolPayload = {
         ...entry.payload,

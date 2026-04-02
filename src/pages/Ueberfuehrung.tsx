@@ -400,6 +400,9 @@ export default function Ueberfuehrung() {
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [hasSig, setHasSig] = useState(false)
+  const canvasRefReceiver = useRef<HTMLCanvasElement>(null)
+  const [hasSigReceiver, setHasSigReceiver] = useState(false)
+  const [receiverName, setReceiverName] = useState('')
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -486,6 +489,8 @@ export default function Ueberfuehrung() {
 
     const sigDataUrl =
       hasSig && canvasRef.current ? canvasRef.current.toDataURL('image/png') : null
+    const sigReceiverDataUrl =
+      hasSigReceiver && canvasRefReceiver.current ? canvasRefReceiver.current.toDataURL('image/png') : null
 
     // location field stores "Abholort → Zielort" for transfer protocols
     const locationString = [abholort.trim(), zielort.trim()].filter(Boolean).join(' → ')
@@ -540,6 +545,14 @@ export default function Ueberfuehrung() {
             sigDataUrl
           )
         }
+        if (sigReceiverDataUrl) {
+          photos.signature_receiver = await uploadSignature(
+            prefill.vehicle_id,
+            sessionKey.current,
+            sigReceiverDataUrl,
+            'signature_receiver'
+          )
+        }
         basePayload.condition_data.photos = photos
         await saveProtocol(basePayload)
       } else {
@@ -556,6 +569,10 @@ export default function Ueberfuehrung() {
         if (sigDataUrl) {
           signatureBlob = await (await fetch(sigDataUrl)).blob()
         }
+        let signatureReceiverBlob: Blob | undefined
+        if (sigReceiverDataUrl) {
+          signatureReceiverBlob = await (await fetch(sigReceiverDataUrl)).blob()
+        }
         const offlineEntry: OfflineEntry = {
           createdAt: new Date().toISOString(),
           vehicleId: prefill.vehicle_id,
@@ -563,6 +580,7 @@ export default function Ueberfuehrung() {
           payload: basePayload,
           photoBlobs,
           signatureBlob,
+          signatureReceiverBlob,
         }
         await saveOffline(offlineEntry)
         await loadPendingCount()
@@ -584,6 +602,7 @@ export default function Ueberfuehrung() {
         conditions: basePayload.condition_data.conditions,
         damage_records: basePayload.condition_data.damage_records,
         checkliste: basePayload.condition_data.checkliste,
+        receiver_name: receiverName.trim() || undefined,
       })
       setSuccess(true)
     } catch (err: unknown) {
@@ -607,6 +626,8 @@ export default function Ueberfuehrung() {
     setDamages([])
     setVehiclePhotos({})
     setHasSig(false)
+    setHasSigReceiver(false)
+    setReceiverName('')
     sessionKey.current = Date.now().toString()
   }
 
@@ -924,13 +945,32 @@ export default function Ueberfuehrung() {
         />
       </Card>
 
-      {/* ── 9. Unterschrift ── */}
+      {/* ── 9. Unterschrift Fahrer ── */}
       <SectionHeader title="9. Unterschrift Fahrer" />
       <Card>
         <p className="text-xs text-gray-500 mb-2">
           Unterschrift macht das Protokoll final. Ohne Unterschrift wird es als Entwurf gespeichert.
         </p>
         <SignatureCanvas canvasRef={canvasRef} onHasStroke={setHasSig} />
+      </Card>
+
+      {/* ── 10. Übernahme durch Empfänger ── */}
+      <SectionHeader title="10. Übernahme durch Empfänger" />
+      <Card className="space-y-3">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Name Empfänger <span className="text-gray-400 font-normal">(optional)</span>
+          </label>
+          <input
+            type="text"
+            value={receiverName}
+            onChange={(e) => setReceiverName(e.target.value)}
+            placeholder="Name des Empfängers"
+            className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+          />
+        </div>
+        <p className="text-xs text-gray-500">Unterschrift Empfänger (optional):</p>
+        <SignatureCanvas canvasRef={canvasRefReceiver} onHasStroke={setHasSigReceiver} />
       </Card>
 
       {/* ── Submit ── */}
