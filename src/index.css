@@ -1,7 +1,32 @@
 @import "tailwindcss";
 
+@theme {
+  --color-brand-50:  #fdf2f3;
+  --color-brand-100: #fce4e6;
+  --color-brand-200: #f8b4b8;
+  --color-brand-300: #f28289;
+  --color-brand-400: #e85d63;
+  --color-brand-500: #e04048;
+  --color-brand-600: #db323e;
+  --color-brand-700: #bc2a35;
+  --color-brand-800: #9e1f28;
+  --color-brand-900: #7d1920;
+}
+
+@utility safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+@utility safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
 * {
   box-sizing: border-box;
+}
+
+html, body {
+  overscroll-behavior: none;
 }
 
 body {
