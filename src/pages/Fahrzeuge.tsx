@@ -757,7 +757,7 @@ function DeleteConfirm({ vehicle, onConfirm, onCancel, deleting }: { vehicle: Ve
   return (
     <>
       <div className="fixed inset-0 bg-black/40 z-30" onClick={onCancel} />
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white rounded-t-2xl shadow-2xl p-6">
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white rounded-t-2xl shadow-2xl px-6 pt-6 pb-[calc(1.5rem+4rem+env(safe-area-inset-bottom))]">
         <h2 className="text-lg font-bold text-gray-900 mb-2">Fahrzeug löschen?</h2>
         <p className="text-sm text-gray-600 mb-1">Soll <strong>{vehicle.license_plate}</strong> dauerhaft gelöscht werden?</p>
         <p className="text-xs text-red-600 mb-6">⚠️ Zugehörige Protokolle bleiben erhalten, aber die Fahrzeugverknüpfung geht verloren.</p>
