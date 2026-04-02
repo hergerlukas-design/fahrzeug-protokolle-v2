@@ -29,7 +29,7 @@ export default function PdfButton({ data, accent = 'brand' }: Props) {
       const filename = `${plate}_${date}.pdf`
 
       // pdfBytes ist Uint8Array — direkt in Blob (nicht .buffer, das kann zu groß sein)
-      const blob = new Blob([pdfBytes], { type: 'application/pdf' })
+      const blob = new Blob([pdfBytes as unknown as BlobPart], { type: 'application/pdf' })
 
       // Web Share API (Android Chrome, Safari 15.1+)
       const shareFile = new File([blob], filename, { type: 'application/pdf' })
