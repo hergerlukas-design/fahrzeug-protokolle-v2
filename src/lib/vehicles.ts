@@ -80,6 +80,17 @@ export async function updateVehicle(
   return data as Vehicle
 }
 
+export async function updateVehicleKnownDamages(
+  id: number,
+  damages: DamageRecord[]
+): Promise<void> {
+  const { error } = await supabase
+    .from('vehicles')
+    .update({ known_damages: damages })
+    .eq('id', id)
+  if (error) throw error
+}
+
 export async function deleteVehicle(id: string): Promise<void> {
   // Zuerst alle verknüpften Protokolle löschen (verhindert FK-Constraint 409)
   const { error: protoErr } = await supabase

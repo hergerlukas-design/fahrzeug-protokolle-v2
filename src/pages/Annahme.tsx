@@ -18,6 +18,7 @@ import {
 } from '../lib/protocols'
 import PdfButton from '../components/PdfButton'
 import type { PdfData } from '../lib/generatePdf'
+import { updateVehicleKnownDamages } from '../lib/vehicles'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -538,6 +539,9 @@ export default function Annahme() {
         }
         basePayload.condition_data.photos = photos
         await saveProtocol(basePayload)
+        if (damageRecords.length > 0) {
+          await updateVehicleKnownDamages(prefill.vehicle_id, damageRecords)
+        }
       } else {
         // Offline: store in IndexedDB
         const photoBlobs: Record<string, Blob> = {}
