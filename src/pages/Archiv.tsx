@@ -419,7 +419,7 @@ export default function Archiv() {
                       checkliste: cd?.checkliste,
                       damages: cd?.damage_records ?? [],
                       photos: cd?.photos ?? {},
-                      receiver_name: (cd as Record<string, unknown>)?.receiver_name as string | undefined,
+                      receiver_name: (cd as unknown as Record<string, unknown>)?.receiver_name as string | undefined,
                     },
                   },
                 })

@@ -81,7 +81,7 @@ export async function updateVehicle(
 }
 
 export async function updateVehicleKnownDamages(
-  id: number,
+  id: string | number,
   damages: DamageRecord[]
 ): Promise<void> {
   const { error } = await supabase

@@ -305,7 +305,7 @@ function VehicleList({
   search,
   onSearchChange,
   onSelect,
-  onNew,
+  onNew: _onNew,
   onNewWithProtocol,
   onExistingProtocol,
 }: {

@@ -406,7 +406,7 @@ export default function Annahme() {
     (ed?.damages ?? prefill?.known_damages ?? []).map((d, i) => ({ ...d, key: `d_${i}` }))
   )
 
-  const [existingPhotos, setExistingPhotos] = useState<Partial<Record<PhotoKey, string>>>(() => {
+  const [existingPhotos, _setExistingPhotos] = useState<Partial<Record<PhotoKey, string>>>(() => {
     if (!ed?.photos) return {}
     const out: Partial<Record<PhotoKey, string>> = {}
     for (const k of PHOTO_KEYS) {
