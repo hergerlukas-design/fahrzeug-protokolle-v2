@@ -10,6 +10,7 @@ import {
   saveOffline,
   saveProtocol,
   syncOffline,
+  updateProtocol,
   uploadProtocolPhoto,
   uploadSignature,
   type Checkliste,
@@ -18,17 +19,33 @@ import {
 } from '../lib/protocols'
 import PdfButton from '../components/PdfButton'
 import type { PdfData } from '../lib/generatePdf'
+import { updateVehicleKnownDamages } from '../lib/vehicles'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
 
+export interface AnnahmeEditData {
+  protocol_id: number
+  inspector_name: string
+  location: string
+  conditions: string[]
+  fuel: number
+  battery: number
+  odometer: number
+  remarks: string
+  checkliste: Checkliste
+  damages: DamageItem[]
+  photos: Record<string, string>
+}
+
 interface PrefillState {
-  vehicle_id: number
+  vehicle_id: string
   license_plate: string
   brand_model: string
   vin: string
   known_damages: DamageItem[]
+  edit?: AnnahmeEditData
 }
 
 interface DamageFormItem extends DamageItem {
@@ -375,18 +392,28 @@ export default function Annahme() {
   const sessionKey = useRef(Date.now().toString())
 
   // ── Form state ─────────────────────────────────────────────────────────────
-  const [inspector, setInspector] = useState('')
-  const [standort, setStandort] = useState('')
-  const [conditions, setConditions] = useState<string[]>([])
-  const [fuel, setFuel] = useState(100)
-  const [battery, setBattery] = useState(100)
-  const [odometer, setOdometer] = useState(0)
-  const [remarks, setRemarks] = useState('')
-  const [checklist, setChecklist] = useState<Checkliste>({ ...DEFAULT_CHECKLISTE })
+  const ed = prefill?.edit
+  const [inspector, setInspector] = useState(ed?.inspector_name ?? '')
+  const [standort, setStandort] = useState(ed?.location ?? '')
+  const [conditions, setConditions] = useState<string[]>(ed?.conditions ?? [])
+  const [fuel, setFuel] = useState(ed?.fuel ?? 100)
+  const [battery, setBattery] = useState(ed?.battery ?? 100)
+  const [odometer, setOdometer] = useState(ed?.odometer ?? 0)
+  const [remarks, setRemarks] = useState(ed?.remarks ?? '')
+  const [checklist, setChecklist] = useState<Checkliste>(ed?.checkliste ?? { ...DEFAULT_CHECKLISTE })
 
   const [damages, setDamages] = useState<DamageFormItem[]>(() =>
-    (prefill?.known_damages ?? []).map((d, i) => ({ ...d, key: `d_${i}` }))
+    (ed?.damages ?? prefill?.known_damages ?? []).map((d, i) => ({ ...d, key: `d_${i}` }))
   )
+
+  const [existingPhotos, setExistingPhotos] = useState<Partial<Record<PhotoKey, string>>>(() => {
+    if (!ed?.photos) return {}
+    const out: Partial<Record<PhotoKey, string>> = {}
+    for (const k of PHOTO_KEYS) {
+      if (ed.photos[k]) out[k] = ed.photos[k]
+    }
+    return out
+  })
 
   const [vehiclePhotos, setVehiclePhotos] = useState<Partial<Record<PhotoKey, VehiclePhotoEntry>>>({})
   const photoFileRefs = useRef<Record<PhotoKey, React.RefObject<HTMLInputElement | null>>>({
@@ -507,7 +534,7 @@ export default function Annahme() {
 
     try {
       if (navigator.onLine) {
-        const photos: Record<string, string> = {}
+        const photos: Record<string, string> = ed ? { ...ed.photos } : {}
         for (const pk of PHOTO_KEYS) {
           const entry = vehiclePhotos[pk]
           if (entry?.file) {
@@ -537,7 +564,14 @@ export default function Annahme() {
           )
         }
         basePayload.condition_data.photos = photos
-        await saveProtocol(basePayload)
+        if (ed) {
+          await updateProtocol(ed.protocol_id, basePayload)
+        } else {
+          await saveProtocol(basePayload)
+        }
+        if (damageRecords.length > 0) {
+          await updateVehicleKnownDamages(prefill.vehicle_id, damageRecords)
+        }
       } else {
         // Offline: store in IndexedDB
         const photoBlobs: Record<string, Blob> = {}
@@ -618,7 +652,7 @@ export default function Annahme() {
               : 'Offline gespeichert — wird synchronisiert, sobald Internet verfügbar ist.'}
           </p>
         </div>
-        {savedPdfData && <PdfButton data={savedPdfData} accent="blue" />}
+        {savedPdfData && <PdfButton data={savedPdfData} accent="brand" />}
         <div className="flex gap-3 w-full max-w-xs">
           <button
             onClick={resetForm}
@@ -785,17 +819,18 @@ export default function Annahme() {
         <div className="grid grid-cols-3 gap-2 mb-2">
           {PHOTO_KEYS.slice(0, 3).map((pk) => {
             const entry = vehiclePhotos[pk]
+            const previewSrc = entry?.previewUrl ?? existingPhotos[pk] ?? null
             return (
               <div key={pk} className="flex flex-col items-center gap-1">
                 <button
                   type="button"
                   onClick={() => photoFileRefs.current[pk].current?.click()}
                   className={`w-full aspect-square rounded-xl border-2 flex items-center justify-center overflow-hidden transition-colors ${
-                    entry ? 'border-green-300' : 'border-dashed border-gray-300 active:border-brand-400'
+                    previewSrc ? 'border-green-300' : 'border-dashed border-gray-300 active:border-brand-400'
                   }`}
                 >
-                  {entry ? (
-                    <img src={entry.previewUrl} alt={pk} className="w-full h-full object-cover" />
+                  {previewSrc ? (
+                    <img src={previewSrc} alt={pk} className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-2xl">📷</span>
                   )}
@@ -816,17 +851,18 @@ export default function Annahme() {
         <div className="grid grid-cols-2 gap-2">
           {PHOTO_KEYS.slice(3).map((pk) => {
             const entry = vehiclePhotos[pk]
+            const previewSrc = entry?.previewUrl ?? existingPhotos[pk] ?? null
             return (
               <div key={pk} className="flex flex-col items-center gap-1">
                 <button
                   type="button"
                   onClick={() => photoFileRefs.current[pk].current?.click()}
                   className={`w-full aspect-square rounded-xl border-2 flex items-center justify-center overflow-hidden transition-colors ${
-                    entry ? 'border-green-300' : 'border-dashed border-gray-300 active:border-brand-400'
+                    previewSrc ? 'border-green-300' : 'border-dashed border-gray-300 active:border-brand-400'
                   }`}
                 >
-                  {entry ? (
-                    <img src={entry.previewUrl} alt={pk} className="w-full h-full object-cover" />
+                  {previewSrc ? (
+                    <img src={previewSrc} alt={pk} className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-2xl">📷</span>
                   )}

@@ -27,7 +27,7 @@ function ErrorBanner({ msg, onClose }: { msg: string; onClose: () => void }) {
   )
 }
 
-function VehicleAvatar({ vehicleId, size = 48 }: { vehicleId: number; size?: number }) {
+function VehicleAvatar({ vehicleId, size = 48 }: { vehicleId: string; size?: number }) {
   const [hasPhoto, setHasPhoto] = useState(true)
   const url = getVehiclePhotoUrl(vehicleId)
   if (!hasPhoto) {
@@ -409,14 +409,6 @@ function VehicleList({
         )}
       </div>
 
-      {/* FAB */}
-      <button
-        onClick={onNew}
-        className="fixed bottom-20 right-4 w-14 h-14 rounded-full bg-brand-600 text-white text-2xl shadow-lg flex items-center justify-center active:bg-brand-700 z-20"
-        aria-label="Fahrzeug anlegen"
-      >
-        +
-      </button>
     </div>
   )
 }
@@ -538,23 +530,26 @@ function VehicleDetail({
                 const isTransfer = p.protocol_type === 'transfer'
                 const isDraft = p.status === 'draft'
                 return (
-                  <li
-                    key={p.id}
-                    className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex items-start gap-3"
-                  >
-                    <span className="text-lg mt-0.5">{isTransfer ? '🔄' : '📄'}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800">
-                        {p.created_at.slice(0, 10)}
-                        {isDraft && (
-                          <span className="ml-2 text-xs text-amber-600 font-normal">⚠️ Entwurf</span>
-                        )}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {isTransfer ? 'Überführung' : 'Annahme'}
-                        {p.inspector_name ? ` · ${p.inspector_name}` : ''}
-                      </p>
-                    </div>
+                  <li key={p.id}>
+                    <button
+                      onClick={() => navigate('/archiv', { state: { protocol_id: p.id } })}
+                      className="w-full bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex items-start gap-3 active:bg-gray-50 text-left"
+                    >
+                      <span className="text-lg mt-0.5">{isTransfer ? '🔄' : '📄'}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-800">
+                          {p.created_at.slice(0, 10)}
+                          {isDraft && (
+                            <span className="ml-2 text-xs text-amber-600 font-normal">⚠️ Entwurf</span>
+                          )}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {isTransfer ? 'Überführung' : 'Annahme'}
+                          {p.inspector_name ? ` · ${p.inspector_name}` : ''}
+                        </p>
+                      </div>
+                      <span className="text-gray-400 text-xs mt-1">›</span>
+                    </button>
                   </li>
                 )
               })}
@@ -760,7 +755,7 @@ function DeleteConfirm({ vehicle, onConfirm, onCancel, deleting }: { vehicle: Ve
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-white rounded-t-2xl shadow-2xl px-6 pt-6 pb-[calc(1.5rem+4rem+env(safe-area-inset-bottom))]">
         <h2 className="text-lg font-bold text-gray-900 mb-2">Fahrzeug löschen?</h2>
         <p className="text-sm text-gray-600 mb-1">Soll <strong>{vehicle.license_plate}</strong> dauerhaft gelöscht werden?</p>
-        <p className="text-xs text-red-600 mb-6">⚠️ Zugehörige Protokolle bleiben erhalten, aber die Fahrzeugverknüpfung geht verloren.</p>
+        <p className="text-xs text-red-600 mb-6">⚠️ Alle verknüpften Protokolle werden ebenfalls unwiderruflich gelöscht.</p>
         <div className="grid grid-cols-2 gap-3">
           <button onClick={onCancel} className="py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm">Abbrechen</button>
           <button onClick={onConfirm} disabled={deleting} className="py-3 rounded-xl bg-red-600 text-white font-semibold text-sm disabled:opacity-60">

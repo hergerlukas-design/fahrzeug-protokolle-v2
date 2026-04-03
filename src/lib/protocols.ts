@@ -34,7 +34,7 @@ export interface ProtocolConditionData {
 }
 
 export interface ProtocolPayload {
-  vehicle_id: number
+  vehicle_id: string
   inspector_name: string
   location: string
   odometer: number
@@ -123,7 +123,7 @@ async function compressImage(file: File, maxPx = 1200, quality = 0.82): Promise<
  *  Path: vehicle-protocols/{vehicleId}/{sessionKey}_{photoKey}.jpg
  */
 export async function uploadProtocolPhoto(
-  vehicleId: number,
+  vehicleId: string,
   sessionKey: string,
   photoKey: string,
   file: File
@@ -140,7 +140,7 @@ export async function uploadProtocolPhoto(
 
 /** Uploads a signature (PNG data URL) and returns its public URL. */
 export async function uploadSignature(
-  vehicleId: number,
+  vehicleId: string,
   sessionKey: string,
   dataUrl: string,
   suffix = 'signature'
@@ -160,6 +160,14 @@ export async function uploadSignature(
 // Supabase CRUD
 // ─────────────────────────────────────────────────────────────────────────────
 
+export async function updateProtocol(id: number, payload: ProtocolPayload): Promise<void> {
+  const { error } = await supabase
+    .from('protocols')
+    .update(payload)
+    .eq('id', id)
+  if (error) throw error
+}
+
 export async function saveProtocol(payload: ProtocolPayload): Promise<number> {
   const { data, error } = await supabase
     .from('protocols')
@@ -168,6 +176,60 @@ export async function saveProtocol(payload: ProtocolPayload): Promise<number> {
     .single()
   if (error) throw error
   return (data as { id: number }).id
+}
+
+/**
+ * Löscht ein Protokoll aus der DB und bereinigt zugehörige Storage-Fotos.
+ *
+ * WICHTIG — Supabase RLS:
+ * Damit anonyme Clients löschen dürfen, muss im Supabase Dashboard folgende
+ * SQL-Policy auf der `protocols`-Tabelle gesetzt sein:
+ *
+ *   CREATE POLICY "anon delete" ON protocols
+ *   FOR DELETE TO anon USING (true);
+ *
+ * Ohne diese Policy gibt Supabase kein Error zurück — der Delete schlägt
+ * lautlos fehl (data = [], error = null). Diese Funktion wirft in dem Fall
+ * einen sprechenden Fehler.
+ */
+export async function deleteProtocol(
+  id: number,
+  conditionDataPhotos?: Record<string, string>
+): Promise<void> {
+  // Storage-Fotos löschen (best-effort, kein Fehler wenn nicht gefunden)
+  if (conditionDataPhotos) {
+    const paths = Object.values(conditionDataPhotos)
+      .filter(Boolean)
+      .map((url) => {
+        // Pfad aus Public-URL extrahieren: alles nach "/vehicle-photos/"
+        const marker = '/vehicle-photos/'
+        const idx = url.indexOf(marker)
+        return idx !== -1 ? url.slice(idx + marker.length) : null
+      })
+      .filter((p): p is string => p !== null)
+
+    if (paths.length > 0) {
+      await supabase.storage.from('vehicle-photos').remove(paths)
+    }
+  }
+
+  // DB-Zeile löschen — .select('id') macht stilles RLS-Fail sichtbar
+  const { data, error } = await supabase
+    .from('protocols')
+    .delete()
+    .eq('id', id)
+    .select('id')
+
+  if (error) throw error
+
+  // Leeres Array → RLS hat den Delete blockiert (kein Fehler, aber 0 Zeilen)
+  if (!data || data.length === 0) {
+    throw new Error(
+      'Löschen fehlgeschlagen: Supabase hat den Vorgang blockiert (RLS).\n' +
+      'Bitte im Supabase Dashboard folgende Policy anlegen:\n' +
+      'CREATE POLICY "anon delete" ON protocols FOR DELETE TO anon USING (true);'
+    )
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -192,7 +254,7 @@ function openDB(): Promise<IDBDatabase> {
 export interface OfflineEntry {
   localId?: number
   createdAt: string
-  vehicleId: number
+  vehicleId: string
   sessionKey: string
   /** Protocol fields (photos are empty — filled during sync) */
   payload: ProtocolPayload

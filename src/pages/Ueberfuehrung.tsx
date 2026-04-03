@@ -15,20 +15,41 @@ import {
   type Checkliste,
   type DamageItem,
   type OfflineEntry,
+  updateProtocol,
 } from '../lib/protocols'
 import PdfButton from '../components/PdfButton'
 import type { PdfData } from '../lib/generatePdf'
+import { updateVehicleKnownDamages } from '../lib/vehicles'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Edit-mode data (passed via location.state when opening an existing protocol)
+// ─────────────────────────────────────────────────────────────────────────────
+export interface ProtocolEditData {
+  protocol_id: number
+  inspector_name: string
+  location: string
+  conditions: string[]
+  fuel: number
+  battery: number
+  odometer: number
+  remarks: string
+  checkliste: Checkliste
+  damages: DamageItem[]
+  photos: Record<string, string>
+  receiver_name?: string
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface PrefillState {
-  vehicle_id: number
+  vehicle_id: string
   license_plate: string
   brand_model: string
   vin: string
   known_damages: DamageItem[]
+  edit?: ProtocolEditData
 }
 
 interface DamageFormItem extends DamageItem {
@@ -375,19 +396,36 @@ export default function Ueberfuehrung() {
   const sessionKey = useRef(Date.now().toString())
 
   // ── Form state ─────────────────────────────────────────────────────────────
-  const [fahrer, setFahrer] = useState('')
-  const [abholort, setAbholort] = useState('')
-  const [zielort, setZielort] = useState('')
-  const [conditions, setConditions] = useState<string[]>([])
-  const [fuel, setFuel] = useState(100)
-  const [battery, setBattery] = useState(100)
-  const [odometer, setOdometer] = useState(0)
-  const [remarks, setRemarks] = useState('')
-  const [checklist, setChecklist] = useState<Checkliste>({ ...DEFAULT_CHECKLISTE })
+  const ed = prefill?.edit
+  const [fahrer, setFahrer] = useState(ed?.inspector_name ?? '')
+  const [abholort, setAbholort] = useState(() => {
+    const loc = ed?.location ?? ''
+    return loc.includes(' → ') ? loc.split(' → ')[0] : loc
+  })
+  const [zielort, setZielort] = useState(() => {
+    const loc = ed?.location ?? ''
+    return loc.includes(' → ') ? (loc.split(' → ')[1] ?? '') : ''
+  })
+  const [conditions, setConditions] = useState<string[]>(ed?.conditions ?? [])
+  const [fuel, setFuel] = useState(ed?.fuel ?? 100)
+  const [battery, setBattery] = useState(ed?.battery ?? 100)
+  const [odometer, setOdometer] = useState(ed?.odometer ?? 0)
+  const [remarks, setRemarks] = useState(ed?.remarks ?? '')
+  const [checklist, setChecklist] = useState<Checkliste>(ed?.checkliste ?? { ...DEFAULT_CHECKLISTE })
 
   const [damages, setDamages] = useState<DamageFormItem[]>(() =>
-    (prefill?.known_damages ?? []).map((d, i) => ({ ...d, key: `d_${i}` }))
+    (ed?.damages ?? prefill?.known_damages ?? []).map((d, i) => ({ ...d, key: `d_${i}` }))
   )
+
+  // Existing photo URLs from edit mode (kept if no new file is uploaded for that slot)
+  const [existingPhotos, setExistingPhotos] = useState<Partial<Record<PhotoKey, string>>>(() => {
+    if (!ed?.photos) return {}
+    const out: Partial<Record<PhotoKey, string>> = {}
+    for (const k of PHOTO_KEYS) {
+      if (ed.photos[k]) out[k] = ed.photos[k]
+    }
+    return out
+  })
 
   const [vehiclePhotos, setVehiclePhotos] = useState<Partial<Record<PhotoKey, VehiclePhotoEntry>>>({})
   const photoFileRefs = useRef<Record<PhotoKey, React.RefObject<HTMLInputElement | null>>>({
@@ -402,7 +440,7 @@ export default function Ueberfuehrung() {
   const [hasSig, setHasSig] = useState(false)
   const canvasRefReceiver = useRef<HTMLCanvasElement>(null)
   const [hasSigReceiver, setHasSigReceiver] = useState(false)
-  const [receiverName, setReceiverName] = useState('')
+  const [receiverName, setReceiverName] = useState(ed?.receiver_name ?? '')
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -516,7 +554,8 @@ export default function Ueberfuehrung() {
 
     try {
       if (navigator.onLine) {
-        const photos: Record<string, string> = {}
+        // Start with existing photos (edit mode); new uploads will overwrite their slots
+        const photos: Record<string, string> = ed ? { ...ed.photos } : {}
         for (const pk of PHOTO_KEYS) {
           const entry = vehiclePhotos[pk]
           if (entry?.file) {
@@ -554,7 +593,14 @@ export default function Ueberfuehrung() {
           )
         }
         basePayload.condition_data.photos = photos
-        await saveProtocol(basePayload)
+        if (ed) {
+          await updateProtocol(ed.protocol_id, basePayload)
+        } else {
+          await saveProtocol(basePayload)
+        }
+        if (damageRecords.length > 0) {
+          await updateVehicleKnownDamages(prefill.vehicle_id, damageRecords)
+        }
       } else {
         // Offline: store in IndexedDB
         const photoBlobs: Record<string, Blob> = {}
@@ -625,6 +671,7 @@ export default function Ueberfuehrung() {
     setChecklist({ ...DEFAULT_CHECKLISTE })
     setDamages([])
     setVehiclePhotos({})
+    setExistingPhotos({})
     setHasSig(false)
     setHasSigReceiver(false)
     setReceiverName('')
@@ -690,7 +737,9 @@ export default function Ueberfuehrung() {
     <form onSubmit={handleSave} className="flex flex-col min-h-full bg-gray-50 pb-8">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10">
-        <h1 className="text-xl font-bold text-gray-900">🚙 Überführungsprotokoll</h1>
+        <h1 className="text-xl font-bold text-gray-900">
+          🚙 {ed ? 'Protokoll bearbeiten' : 'Überführungsprotokoll'}
+        </h1>
         <p className="text-sm text-gray-500 mt-0.5">{prefill.license_plate}</p>
       </div>
 
@@ -858,24 +907,26 @@ export default function Ueberfuehrung() {
         <div className="grid grid-cols-3 gap-3">
           {PHOTO_KEYS.map((pk) => {
             const entry = vehiclePhotos[pk]
+            const existingUrl = existingPhotos[pk]
+            const previewSrc = entry?.previewUrl ?? existingUrl ?? null
             return (
               <div key={pk} className="flex flex-col items-center gap-1">
-                {entry ? (
+                {previewSrc ? (
                   <div className="relative w-full aspect-square">
                     <img
-                      src={entry.previewUrl}
+                      src={previewSrc}
                       alt={PHOTO_LABELS[pk]}
                       className="w-full h-full object-cover rounded-xl border border-gray-200"
                     />
                     <button
                       type="button"
                       onClick={() => {
-                        URL.revokeObjectURL(entry.previewUrl)
-                        setVehiclePhotos((prev) => {
-                          const next = { ...prev }
-                          delete next[pk]
-                          return next
-                        })
+                        if (entry) {
+                          URL.revokeObjectURL(entry.previewUrl)
+                          setVehiclePhotos((prev) => { const next = { ...prev }; delete next[pk]; return next })
+                        } else {
+                          setExistingPhotos((prev) => { const next = { ...prev }; delete next[pk]; return next })
+                        }
                       }}
                       className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center"
                     >
@@ -900,7 +951,7 @@ export default function Ueberfuehrung() {
                   className="hidden"
                   onChange={(e) => handleVehiclePhotoChange(pk, e)}
                 />
-                {entry && (
+                {previewSrc && (
                   <span className="text-xs text-gray-500">{PHOTO_LABELS[pk]}</span>
                 )}
               </div>

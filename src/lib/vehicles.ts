@@ -15,7 +15,7 @@ export interface Protocol {
 }
 
 export interface Vehicle {
-  id: number
+  id: string
   license_plate: string
   license_plate_normalized: string
   brand_model: string | null
@@ -61,7 +61,7 @@ export async function createVehicle(values: {
 }
 
 export async function updateVehicle(
-  id: number,
+  id: string,
   values: { license_plate: string; brand_model: string; vin: string }
 ): Promise<Vehicle> {
   const normalized = normalizeKennzeichen(values.license_plate)
@@ -80,7 +80,25 @@ export async function updateVehicle(
   return data as Vehicle
 }
 
-export async function deleteVehicle(id: number): Promise<void> {
+export async function updateVehicleKnownDamages(
+  id: number,
+  damages: DamageRecord[]
+): Promise<void> {
+  const { error } = await supabase
+    .from('vehicles')
+    .update({ known_damages: damages })
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteVehicle(id: string): Promise<void> {
+  // Zuerst alle verknüpften Protokolle löschen (verhindert FK-Constraint 409)
+  const { error: protoErr } = await supabase
+    .from('protocols')
+    .delete()
+    .eq('vehicle_id', id)
+  if (protoErr) throw protoErr
+
   const { error } = await supabase.from('vehicles').delete().eq('id', id)
   if (error) throw error
 }
@@ -111,7 +129,7 @@ async function compressImage(file: File): Promise<Blob> {
 }
 
 /** Uploads a vehicle photo and returns the public URL. */
-export async function uploadVehiclePhoto(vehicleId: number, file: File): Promise<string> {
+export async function uploadVehiclePhoto(vehicleId: string, file: File): Promise<string> {
   const blob = await compressImage(file)
   const path = `vehicle-kartei/${vehicleId}.jpg`
 
@@ -125,7 +143,7 @@ export async function uploadVehiclePhoto(vehicleId: number, file: File): Promise
 }
 
 /** Returns the public URL for a vehicle photo (404s if no photo was uploaded). */
-export function getVehiclePhotoUrl(vehicleId: number): string {
+export function getVehiclePhotoUrl(vehicleId: string): string {
   const { data } = supabase.storage
     .from('vehicle-photos')
     .getPublicUrl(`vehicle-kartei/${vehicleId}.jpg`)
@@ -133,7 +151,7 @@ export function getVehiclePhotoUrl(vehicleId: number): string {
 }
 
 /** Deletes the vehicle photo from storage. */
-export async function deleteVehiclePhoto(vehicleId: number): Promise<void> {
+export async function deleteVehiclePhoto(vehicleId: string): Promise<void> {
   await supabase.storage
     .from('vehicle-photos')
     .remove([`vehicle-kartei/${vehicleId}.jpg`])

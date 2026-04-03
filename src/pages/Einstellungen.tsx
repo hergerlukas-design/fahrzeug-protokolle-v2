@@ -9,7 +9,7 @@ import { supabase } from '../lib/supabase'
 
 interface ProtocolRow {
   id: number
-  vehicle_id: number
+  vehicle_id: string
   protocol_type: string
   inspection_date: string
   inspector_name: string

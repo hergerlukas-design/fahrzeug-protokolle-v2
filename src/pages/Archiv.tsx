@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import PdfButton from '../components/PdfButton'
 import type { PdfData } from '../lib/generatePdf'
-import { DEFAULT_CHECKLISTE, type ProtocolConditionData } from '../lib/protocols'
+import { DEFAULT_CHECKLISTE, deleteProtocol, type ProtocolConditionData } from '../lib/protocols'
 import { SkeletonList } from '../components/Skeleton'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -18,7 +18,7 @@ interface VehicleRef {
 
 interface ProtocolRow {
   id: number
-  vehicle_id: number
+  vehicle_id: string
   inspector_name: string
   location: string
   odometer: number
@@ -69,6 +69,8 @@ function toPdfData(p: ProtocolRow): PdfData {
 
 export default function Archiv() {
   const navigate = useNavigate()
+  const loc = useLocation()
+  const preselectedId = (loc.state as { protocol_id?: number } | null)?.protocol_id ?? null
   const [protocols, setProtocols] = useState<ProtocolRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -79,6 +81,7 @@ export default function Archiv() {
   const [selected, setSelected] = useState<ProtocolRow | null>(null)
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   async function load() {
     setLoading(true)
@@ -89,7 +92,12 @@ export default function Archiv() {
         .select('*, vehicles(license_plate, brand_model, vin)')
         .order('inspection_date', { ascending: false })
       if (err) throw err
-      setProtocols((data ?? []) as ProtocolRow[])
+      const rows = (data ?? []) as ProtocolRow[]
+      setProtocols(rows)
+      if (preselectedId) {
+        const match = rows.find(p => p.id === preselectedId)
+        if (match) setSelected(match)
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Fehler beim Laden')
     } finally {
@@ -102,17 +110,17 @@ export default function Archiv() {
   async function handleDelete() {
     if (deleteId == null) return
     setDeleting(true)
+    setDeleteError(null)
+    const target = protocols.find(p => p.id === deleteId)
     try {
-      const { error: err } = await supabase
-        .from('protocols')
-        .delete()
-        .eq('id', deleteId)
-      if (err) throw err
+      await deleteProtocol(deleteId, target?.condition_data?.photos)
       setProtocols(prev => prev.filter(p => p.id !== deleteId))
       if (selected?.id === deleteId) setSelected(null)
       setDeleteId(null)
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : 'Fehler beim Löschen')
+      console.error('handleDelete:', e)
+      setDeleteError(e instanceof Error ? e.message : 'Fehler beim Löschen')
+      setDeleteId(null)
     } finally {
       setDeleting(false)
     }
@@ -136,6 +144,15 @@ export default function Archiv() {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col h-full">
+      {/* Delete error banner */}
+      {deleteError && (
+        <div className="mx-4 mt-3 p-3 bg-red-50 border border-red-200 rounded-xl flex gap-2 items-start">
+          <span className="text-red-500 mt-0.5 flex-shrink-0">⚠️</span>
+          <p className="text-red-700 text-sm flex-1 whitespace-pre-wrap">{deleteError}</p>
+          <button onClick={() => setDeleteError(null)} className="text-red-400 text-lg leading-none flex-shrink-0">×</button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10">
         <h1 className="text-lg font-bold text-gray-800 mb-3">Archiv & Verwaltung</h1>
@@ -377,6 +394,40 @@ export default function Archiv() {
                 accent={selected.protocol_type === 'annahme' ? 'brand' : 'green'}
               />
             </div>
+
+            {/* Bearbeiten */}
+            <button
+              onClick={() => {
+                const route = selected.protocol_type === 'annahme' ? '/annahme' : '/ueberfuehrung'
+                const cd = selected.condition_data
+                navigate(route, {
+                  state: {
+                    vehicle_id: selected.vehicle_id,
+                    license_plate: selected.vehicles?.license_plate ?? '',
+                    brand_model: selected.vehicles?.brand_model ?? '',
+                    vin: selected.vehicles?.vin ?? '',
+                    known_damages: cd?.damage_records ?? [],
+                    edit: {
+                      protocol_id: selected.id,
+                      inspector_name: selected.inspector_name,
+                      location: selected.location,
+                      conditions: cd?.conditions ?? [],
+                      fuel: selected.fuel_level,
+                      battery: cd?.battery ?? 0,
+                      odometer: selected.odometer,
+                      remarks: selected.remarks,
+                      checkliste: cd?.checkliste,
+                      damages: cd?.damage_records ?? [],
+                      photos: cd?.photos ?? {},
+                      receiver_name: (cd as Record<string, unknown>)?.receiver_name as string | undefined,
+                    },
+                  },
+                })
+              }}
+              className="w-full py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-medium active:bg-gray-200"
+            >
+              ✏️ Protokoll bearbeiten
+            </button>
 
             {/* Quick-links: neues Protokoll für dieses Fahrzeug */}
             <div className="flex gap-2 pb-6">
