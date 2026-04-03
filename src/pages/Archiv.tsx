@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import PdfButton from '../components/PdfButton'
 import type { PdfData } from '../lib/generatePdf'
@@ -69,6 +69,8 @@ function toPdfData(p: ProtocolRow): PdfData {
 
 export default function Archiv() {
   const navigate = useNavigate()
+  const loc = useLocation()
+  const preselectedId = (loc.state as { protocol_id?: number } | null)?.protocol_id ?? null
   const [protocols, setProtocols] = useState<ProtocolRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -90,7 +92,12 @@ export default function Archiv() {
         .select('*, vehicles(license_plate, brand_model, vin)')
         .order('inspection_date', { ascending: false })
       if (err) throw err
-      setProtocols((data ?? []) as ProtocolRow[])
+      const rows = (data ?? []) as ProtocolRow[]
+      setProtocols(rows)
+      if (preselectedId) {
+        const match = rows.find(p => p.id === preselectedId)
+        if (match) setSelected(match)
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Fehler beim Laden')
     } finally {
@@ -387,6 +394,40 @@ export default function Archiv() {
                 accent={selected.protocol_type === 'annahme' ? 'brand' : 'green'}
               />
             </div>
+
+            {/* Bearbeiten */}
+            <button
+              onClick={() => {
+                const route = selected.protocol_type === 'annahme' ? '/annahme' : '/ueberfuehrung'
+                const cd = selected.condition_data
+                navigate(route, {
+                  state: {
+                    vehicle_id: selected.vehicle_id,
+                    license_plate: selected.vehicles?.license_plate ?? '',
+                    brand_model: selected.vehicles?.brand_model ?? '',
+                    vin: selected.vehicles?.vin ?? '',
+                    known_damages: cd?.damage_records ?? [],
+                    edit: {
+                      protocol_id: selected.id,
+                      inspector_name: selected.inspector_name,
+                      location: selected.location,
+                      conditions: cd?.conditions ?? [],
+                      fuel: selected.fuel_level,
+                      battery: cd?.battery ?? 0,
+                      odometer: selected.odometer,
+                      remarks: selected.remarks,
+                      checkliste: cd?.checkliste,
+                      damages: cd?.damage_records ?? [],
+                      photos: cd?.photos ?? {},
+                      receiver_name: (cd as Record<string, unknown>)?.receiver_name as string | undefined,
+                    },
+                  },
+                })
+              }}
+              className="w-full py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-medium active:bg-gray-200"
+            >
+              ✏️ Protokoll bearbeiten
+            </button>
 
             {/* Quick-links: neues Protokoll für dieses Fahrzeug */}
             <div className="flex gap-2 pb-6">

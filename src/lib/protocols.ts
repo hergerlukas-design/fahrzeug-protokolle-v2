@@ -160,6 +160,14 @@ export async function uploadSignature(
 // Supabase CRUD
 // ─────────────────────────────────────────────────────────────────────────────
 
+export async function updateProtocol(id: number, payload: ProtocolPayload): Promise<void> {
+  const { error } = await supabase
+    .from('protocols')
+    .update(payload)
+    .eq('id', id)
+  if (error) throw error
+}
+
 export async function saveProtocol(payload: ProtocolPayload): Promise<number> {
   const { data, error } = await supabase
     .from('protocols')
