@@ -541,7 +541,7 @@ export default function Ueberfuehrung() {
       fuel_level: fuel,
       remarks: remarks.trim(),
       inspection_date: new Date().toISOString(),
-      status: (sigDataUrl ? 'final' : 'draft') as 'final' | 'draft',
+      status: (sigDataUrl && sigReceiverDataUrl ? 'final' : 'draft') as 'final' | 'draft',
       protocol_type: 'transfer' as const,
       condition_data: {
         battery,
@@ -549,13 +549,16 @@ export default function Ueberfuehrung() {
         conditions,
         damage_records: damageRecords,
         checkliste: checklist,
+        receiver_name: receiverName.trim() || undefined,
       },
     }
 
     try {
       if (navigator.onLine) {
-        // Start with existing photos (edit mode); new uploads will overwrite their slots
-        const photos: Record<string, string> = ed ? { ...ed.photos } : {}
+        // Copy non-damage photos from edit mode; damage photos are re-indexed below
+        const photos: Record<string, string> = ed
+          ? Object.fromEntries(Object.entries(ed.photos).filter(([k]) => !k.startsWith('schaden_')))
+          : {}
         for (const pk of PHOTO_KEYS) {
           const entry = vehiclePhotos[pk]
           if (entry?.file) {
@@ -567,14 +570,19 @@ export default function Ueberfuehrung() {
             )
           }
         }
-        for (const d of damages) {
+        for (let i = 0; i < damages.length; i++) {
+          const d = damages[i]
           if (d.file) {
-            photos[`schaden_${d.key}`] = await uploadProtocolPhoto(
+            photos[`schaden_${i}`] = await uploadProtocolPhoto(
               prefill.vehicle_id,
               sessionKey.current,
-              `schaden_${d.key}`,
+              `schaden_${i}`,
               d.file
             )
+          } else {
+            // Preserve existing URL (new format schaden_i first, then legacy schaden_d_key)
+            const existingUrl = ed?.photos[`schaden_${i}`] ?? ed?.photos[`schaden_${d.key}`]
+            if (existingUrl) photos[`schaden_${i}`] = existingUrl
           }
         }
         if (sigDataUrl) {
@@ -608,8 +616,9 @@ export default function Ueberfuehrung() {
           const entry = vehiclePhotos[pk]
           if (entry?.file) photoBlobs[pk] = entry.file
         }
-        for (const d of damages) {
-          if (d.file) photoBlobs[`schaden_${d.key}`] = d.file
+        for (let i = 0; i < damages.length; i++) {
+          const d = damages[i]
+          if (d.file) photoBlobs[`schaden_${i}`] = d.file
         }
         let signatureBlob: Blob | undefined
         if (sigDataUrl) {

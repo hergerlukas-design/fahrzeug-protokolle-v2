@@ -534,7 +534,10 @@ export default function Annahme() {
 
     try {
       if (navigator.onLine) {
-        const photos: Record<string, string> = ed ? { ...ed.photos } : {}
+        // Copy non-damage photos from edit mode; damage photos are re-indexed below
+        const photos: Record<string, string> = ed
+          ? Object.fromEntries(Object.entries(ed.photos).filter(([k]) => !k.startsWith('schaden_')))
+          : {}
         for (const pk of PHOTO_KEYS) {
           const entry = vehiclePhotos[pk]
           if (entry?.file) {
@@ -546,14 +549,19 @@ export default function Annahme() {
             )
           }
         }
-        for (const d of damages) {
+        for (let i = 0; i < damages.length; i++) {
+          const d = damages[i]
           if (d.file) {
-            photos[`schaden_${d.key}`] = await uploadProtocolPhoto(
+            photos[`schaden_${i}`] = await uploadProtocolPhoto(
               prefill.vehicle_id,
               sessionKey.current,
-              `schaden_${d.key}`,
+              `schaden_${i}`,
               d.file
             )
+          } else {
+            // Preserve existing URL (new format schaden_i first, then legacy schaden_d_key)
+            const existingUrl = ed?.photos[`schaden_${i}`] ?? ed?.photos[`schaden_${d.key}`]
+            if (existingUrl) photos[`schaden_${i}`] = existingUrl
           }
         }
         if (sigDataUrl) {
@@ -579,8 +587,9 @@ export default function Annahme() {
           const entry = vehiclePhotos[pk]
           if (entry?.file) photoBlobs[pk] = entry.file
         }
-        for (const d of damages) {
-          if (d.file) photoBlobs[`schaden_${d.key}`] = d.file
+        for (let i = 0; i < damages.length; i++) {
+          const d = damages[i]
+          if (d.file) photoBlobs[`schaden_${i}`] = d.file
         }
         let signatureBlob: Blob | undefined
         if (sigDataUrl) {

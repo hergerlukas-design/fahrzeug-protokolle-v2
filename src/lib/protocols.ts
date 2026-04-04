@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { updateVehicleKnownDamages } from './vehicles'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -31,6 +32,7 @@ export interface ProtocolConditionData {
   conditions: string[]
   damage_records: DamageItem[]
   checkliste: Checkliste
+  receiver_name?: string
 }
 
 export interface ProtocolPayload {
@@ -346,6 +348,10 @@ export async function syncOffline(): Promise<number> {
         condition_data: { ...entry.payload.condition_data, photos },
       }
       await saveProtocol(finalPayload)
+      const offlineDamages = finalPayload.condition_data.damage_records
+      if (offlineDamages.length > 0) {
+        await updateVehicleKnownDamages(entry.vehicleId, offlineDamages)
+      }
       await deleteOffline(entry.localId!)
       synced++
     } catch {
