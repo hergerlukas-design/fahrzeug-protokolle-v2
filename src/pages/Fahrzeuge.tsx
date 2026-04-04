@@ -9,8 +9,11 @@ import {
   uploadVehiclePhoto,
   getVehiclePhotoUrl,
   normalizeKennzeichen,
+  updateVehicleKnownDamages,
   type Vehicle,
+  type DamageRecord,
 } from '../lib/vehicles'
+import { DAMAGE_POSITIONS, DAMAGE_TYPES, DAMAGE_INTENSITIES } from '../lib/protocols'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared UI helpers
@@ -422,17 +425,74 @@ function VehicleDetail({
   onBack,
   onEdit,
   onDelete,
+  onDamagesChange,
 }: {
   vehicle: Vehicle
   onBack: () => void
   onEdit: () => void
   onDelete: () => void
+  onDamagesChange: (damages: DamageRecord[]) => void
 }) {
   const navigate = useNavigate()
   const protos = (vehicle.protocols ?? []).slice().sort((a, b) =>
     b.created_at.localeCompare(a.created_at)
   )
-  const damages = vehicle.known_damages ?? []
+
+  // ── Local damage state ─────────────────────────────────────────────────────
+  const [damages, setDamages] = useState<DamageRecord[]>(vehicle.known_damages ?? [])
+  const [formOpen, setFormOpen] = useState(false)
+  const [editIdx, setEditIdx] = useState<number | null>(null)
+  const [formPos, setFormPos] = useState('')
+  const [formType, setFormType] = useState('')
+  const [formInt, setFormInt] = useState('')
+  const [dmgSaving, setDmgSaving] = useState(false)
+  const [dmgError, setDmgError] = useState<string | null>(null)
+
+  function openAdd() {
+    setEditIdx(null); setFormPos(''); setFormType(''); setFormInt('')
+    setDmgError(null); setFormOpen(true)
+  }
+
+  function openEdit(i: number) {
+    setEditIdx(i); setFormPos(damages[i].pos); setFormType(damages[i].type)
+    setFormInt(damages[i].int); setDmgError(null); setFormOpen(true)
+  }
+
+  function closeForm() { setFormOpen(false); setDmgError(null) }
+
+  async function handleDamageSave() {
+    if (!formPos || !formType || !formInt) {
+      setDmgError('Alle Felder ausfüllen.')
+      return
+    }
+    setDmgSaving(true)
+    setDmgError(null)
+    try {
+      const updated =
+        editIdx !== null
+          ? damages.map((d, i) => (i === editIdx ? { pos: formPos, type: formType, int: formInt } : d))
+          : [...damages, { pos: formPos, type: formType, int: formInt }]
+      await updateVehicleKnownDamages(vehicle.id, updated)
+      setDamages(updated)
+      onDamagesChange(updated)
+      closeForm()
+    } catch (e: unknown) {
+      setDmgError(e instanceof Error ? e.message : 'Speichern fehlgeschlagen.')
+    } finally {
+      setDmgSaving(false)
+    }
+  }
+
+  async function handleDamageDelete(i: number) {
+    const updated = damages.filter((_, idx) => idx !== i)
+    try {
+      await updateVehicleKnownDamages(vehicle.id, updated)
+      setDamages(updated)
+      onDamagesChange(updated)
+    } catch (e: unknown) {
+      setDmgError(e instanceof Error ? e.message : 'Löschen fehlgeschlagen.')
+    }
+  }
 
   return (
     <div className="flex flex-col">
@@ -467,7 +527,7 @@ function VehicleDetail({
                   license_plate: vehicle.license_plate,
                   brand_model: vehicle.brand_model ?? '',
                   vin: vehicle.vin ?? '',
-                  known_damages: vehicle.known_damages ?? [],
+                  known_damages: damages,
                 },
               })
             }
@@ -483,7 +543,7 @@ function VehicleDetail({
                   license_plate: vehicle.license_plate,
                   brand_model: vehicle.brand_model ?? '',
                   vin: vehicle.vin ?? '',
-                  known_damages: vehicle.known_damages ?? [],
+                  known_damages: damages,
                 },
               })
             }
@@ -494,23 +554,111 @@ function VehicleDetail({
         </div>
 
         {/* Known damages */}
-        <details className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <details className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden" open>
           <summary className="px-4 py-3 font-medium text-gray-800 cursor-pointer select-none flex items-center justify-between">
             <span>🔧 Bekannte Vorschäden ({damages.length})</span>
             <span className="text-gray-400 text-xs">details</span>
           </summary>
           <div className="px-4 pb-4 space-y-2">
-            {damages.length === 0 ? (
+            {dmgError && (
+              <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                ⚠️ {dmgError}
+              </p>
+            )}
+            {damages.length === 0 && !formOpen && (
               <p className="text-sm text-gray-400 italic">Keine dauerhaften Vorschäden hinterlegt.</p>
-            ) : (
-              damages.map((d, i) => (
-                <div
-                  key={i}
-                  className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-sm text-gray-700"
+            )}
+            {damages.map((d, i) => (
+              <div
+                key={i}
+                className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-sm text-gray-700 flex items-center gap-2"
+              >
+                <span className="flex-1">📍 {d.pos} · 🛠️ {d.type} · ⚠️ {d.int}</span>
+                <button
+                  type="button"
+                  onClick={() => openEdit(i)}
+                  className="text-gray-400 hover:text-gray-600 active:text-gray-800 p-1 flex-shrink-0"
+                  aria-label="Bearbeiten"
                 >
-                  📍 {d.pos} · 🛠️ {d.type} · ⚠️ {d.int}
+                  ✏️
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDamageDelete(i)}
+                  className="text-red-400 hover:text-red-600 active:text-red-800 p-1 flex-shrink-0"
+                  aria-label="Löschen"
+                >
+                  🗑️
+                </button>
+              </div>
+            ))}
+
+            {/* Inline form */}
+            {formOpen && (
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2 mt-1">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  {editIdx !== null ? 'Schaden bearbeiten' : 'Neuer Schaden'}
+                </p>
+                <select
+                  value={formPos}
+                  onChange={(e) => setFormPos(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
+                >
+                  <option value="">Position wählen …</option>
+                  {DAMAGE_POSITIONS.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    value={formType}
+                    onChange={(e) => setFormType(e.target.value)}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
+                  >
+                    <option value="">Art …</option>
+                    {DAMAGE_TYPES.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={formInt}
+                    onChange={(e) => setFormInt(e.target.value)}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
+                  >
+                    <option value="">Intensität …</option>
+                    {DAMAGE_INTENSITIES.map((v) => (
+                      <option key={v} value={v}>{v}</option>
+                    ))}
+                  </select>
                 </div>
-              ))
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={closeForm}
+                    className="flex-1 py-2 rounded-lg border border-gray-300 text-gray-600 text-sm font-medium active:bg-gray-100"
+                  >
+                    Abbrechen
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDamageSave}
+                    disabled={dmgSaving}
+                    className="flex-1 py-2 rounded-lg bg-brand-600 text-white text-sm font-semibold disabled:opacity-60 active:bg-brand-700"
+                  >
+                    {dmgSaving ? 'Speichert …' : 'Speichern'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!formOpen && (
+              <button
+                type="button"
+                onClick={openAdd}
+                className="w-full mt-1 py-2.5 rounded-xl border-2 border-dashed border-gray-300 text-sm text-gray-500 flex items-center justify-center gap-2 active:border-brand-400 active:text-brand-600"
+              >
+                + Schaden hinzufügen
+              </button>
             )}
           </div>
         </details>
@@ -819,6 +967,11 @@ export default function Fahrzeuge() {
     }
   }
 
+  function handleDamagesChange(damages: DamageRecord[]) {
+    setSelected((prev) => prev ? { ...prev, known_damages: damages } : null)
+    setVehicles((prev) => prev.map((v) => v.id === selected?.id ? { ...v, known_damages: damages } : v))
+  }
+
   async function handleDeleteConfirm() {
     if (!selected) return
     setDeleting(true)
@@ -842,7 +995,7 @@ export default function Fahrzeuge() {
       {loading ? (
         <SkeletonList count={5} />
       ) : view === 'detail' && selected ? (
-        <VehicleDetail vehicle={selected} onBack={handleBack} onEdit={handleEdit} onDelete={() => setShowDelete(true)} />
+        <VehicleDetail vehicle={selected} onBack={handleBack} onEdit={handleEdit} onDelete={() => setShowDelete(true)} onDamagesChange={handleDamagesChange} />
       ) : (
         <VehicleList
           vehicles={vehicles}
