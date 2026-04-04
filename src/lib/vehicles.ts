@@ -4,6 +4,7 @@ export interface DamageRecord {
   pos: string
   type: string
   int: string
+  photo_url?: string
 }
 
 export interface Protocol {
@@ -138,6 +139,18 @@ export async function uploadVehiclePhoto(vehicleId: string, file: File): Promise
     .upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
   if (error) throw error
 
+  const { data } = supabase.storage.from('vehicle-photos').getPublicUrl(path)
+  return data.publicUrl
+}
+
+/** Uploads a damage photo for a vehicle kartei entry and returns its public URL. */
+export async function uploadDamagePhoto(vehicleId: string, index: number, file: File): Promise<string> {
+  const blob = await compressImage(file)
+  const path = `vehicle-kartei/${vehicleId}/damage_${index}.jpg`
+  const { error } = await supabase.storage
+    .from('vehicle-photos')
+    .upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
+  if (error) throw error
   const { data } = supabase.storage.from('vehicle-photos').getPublicUrl(path)
   return data.publicUrl
 }

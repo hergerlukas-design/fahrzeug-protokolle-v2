@@ -10,6 +10,7 @@ import {
   getVehiclePhotoUrl,
   normalizeKennzeichen,
   updateVehicleKnownDamages,
+  uploadDamagePhoto,
   type Vehicle,
   type DamageRecord,
 } from '../lib/vehicles'
@@ -445,20 +446,37 @@ function VehicleDetail({
   const [formPos, setFormPos] = useState('')
   const [formType, setFormType] = useState('')
   const [formInt, setFormInt] = useState('')
+  const [formPhotoFile, setFormPhotoFile] = useState<File | null>(null)
+  const [formPhotoPreview, setFormPhotoPreview] = useState<string | null>(null)
+  const formPhotoRef = useRef<HTMLInputElement>(null)
   const [dmgSaving, setDmgSaving] = useState(false)
   const [dmgError, setDmgError] = useState<string | null>(null)
 
   function openAdd() {
     setEditIdx(null); setFormPos(''); setFormType(''); setFormInt('')
+    setFormPhotoFile(null); setFormPhotoPreview(null)
     setDmgError(null); setFormOpen(true)
   }
 
   function openEdit(i: number) {
     setEditIdx(i); setFormPos(damages[i].pos); setFormType(damages[i].type)
-    setFormInt(damages[i].int); setDmgError(null); setFormOpen(true)
+    setFormInt(damages[i].int)
+    setFormPhotoFile(null)
+    setFormPhotoPreview(damages[i].photo_url ?? null)
+    setDmgError(null); setFormOpen(true)
   }
 
-  function closeForm() { setFormOpen(false); setDmgError(null) }
+  function closeForm() {
+    setFormOpen(false); setDmgError(null)
+    setFormPhotoFile(null); setFormPhotoPreview(null)
+  }
+
+  function handleFormPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setFormPhotoFile(file)
+    setFormPhotoPreview(URL.createObjectURL(file))
+  }
 
   async function handleDamageSave() {
     if (!formPos || !formType || !formInt) {
@@ -468,10 +486,23 @@ function VehicleDetail({
     setDmgSaving(true)
     setDmgError(null)
     try {
+      // Determine target index for photo path
+      const targetIdx = editIdx !== null ? editIdx : damages.length
+      let photoUrl: string | undefined =
+        editIdx !== null ? damages[editIdx].photo_url : undefined
+
+      if (formPhotoFile) {
+        photoUrl = await uploadDamagePhoto(vehicle.id, targetIdx, formPhotoFile)
+      }
+
+      const newRecord: DamageRecord = {
+        pos: formPos, type: formType, int: formInt,
+        ...(photoUrl ? { photo_url: photoUrl } : {}),
+      }
       const updated =
         editIdx !== null
-          ? damages.map((d, i) => (i === editIdx ? { pos: formPos, type: formType, int: formInt } : d))
-          : [...damages, { pos: formPos, type: formType, int: formInt }]
+          ? damages.map((d, i) => (i === editIdx ? newRecord : d))
+          : [...damages, newRecord]
       await updateVehicleKnownDamages(vehicle.id, updated)
       setDamages(updated)
       onDamagesChange(updated)
@@ -571,25 +602,35 @@ function VehicleDetail({
             {damages.map((d, i) => (
               <div
                 key={i}
-                className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-sm text-gray-700 flex items-center gap-2"
+                className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-sm text-gray-700"
               >
-                <span className="flex-1">📍 {d.pos} · 🛠️ {d.type} · ⚠️ {d.int}</span>
-                <button
-                  type="button"
-                  onClick={() => openEdit(i)}
-                  className="text-gray-400 hover:text-gray-600 active:text-gray-800 p-1 flex-shrink-0"
-                  aria-label="Bearbeiten"
-                >
-                  ✏️
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDamageDelete(i)}
-                  className="text-red-400 hover:text-red-600 active:text-red-800 p-1 flex-shrink-0"
-                  aria-label="Löschen"
-                >
-                  🗑️
-                </button>
+                <div className="flex items-center gap-2">
+                  <span className="flex-1">📍 {d.pos} · 🛠️ {d.type} · ⚠️ {d.int}</span>
+                  <button
+                    type="button"
+                    onClick={() => openEdit(i)}
+                    className="text-gray-400 hover:text-gray-600 active:text-gray-800 p-1 flex-shrink-0"
+                    aria-label="Bearbeiten"
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDamageDelete(i)}
+                    className="text-red-400 hover:text-red-600 active:text-red-800 p-1 flex-shrink-0"
+                    aria-label="Löschen"
+                  >
+                    🗑️
+                  </button>
+                </div>
+                {d.photo_url && (
+                  <img
+                    src={d.photo_url}
+                    alt="Schadenfoto"
+                    className="mt-2 w-full max-h-40 object-cover rounded-lg border border-amber-200"
+                    loading="lazy"
+                  />
+                )}
               </div>
             ))}
 
@@ -631,6 +672,42 @@ function VehicleDetail({
                     ))}
                   </select>
                 </div>
+                {/* Photo upload */}
+                <div className="flex items-center gap-2">
+                  {formPhotoPreview ? (
+                    <div className="relative flex-shrink-0">
+                      <img
+                        src={formPhotoPreview}
+                        alt="Vorschau"
+                        className="w-16 h-16 object-cover rounded-lg border border-gray-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => { setFormPhotoFile(null); setFormPhotoPreview(null) }}
+                        className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => formPhotoRef.current?.click()}
+                      className="flex items-center gap-1.5 text-sm text-gray-500 border border-gray-300 rounded-lg px-3 py-2 bg-white active:bg-gray-50"
+                    >
+                      📷 <span>Foto hinzufügen</span>
+                    </button>
+                  )}
+                  <input
+                    ref={formPhotoRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={handleFormPhoto}
+                  />
+                </div>
+
                 <div className="flex gap-2 pt-1">
                   <button
                     type="button"
