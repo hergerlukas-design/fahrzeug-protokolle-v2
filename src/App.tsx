@@ -7,6 +7,8 @@ import Annahme from './pages/Annahme'
 import Fahrzeuge from './pages/Fahrzeuge'
 import Archiv from './pages/Archiv'
 import Einstellungen from './pages/Einstellungen'
+import Impressum from './pages/Impressum'
+import Datenschutz from './pages/Datenschutz'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   return isAuthenticated() ? <>{children}</> : <Navigate to="/login" replace />
@@ -17,6 +19,8 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/impressum" element={<Impressum />} />
+        <Route path="/datenschutz" element={<Datenschutz />} />
         <Route
           element={
             <RequireAuth>

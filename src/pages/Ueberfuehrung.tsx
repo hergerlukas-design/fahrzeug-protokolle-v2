@@ -1008,6 +1008,13 @@ export default function Ueberfuehrung() {
       {/* ── 9. Unterschrift Fahrer ── */}
       <SectionHeader title="9. Unterschrift Fahrer" />
       <Card>
+        <p className="text-xs text-gray-500 mb-3">
+          Mit Ihrer Unterschrift bestätigen Sie die Richtigkeit der Angaben.
+          Ihre Daten werden ausschließlich zur Dokumentation dieser Fahrzeugübergabe verwendet.{' '}
+          <a href="/datenschutz" className="text-green-600 underline">
+            Datenschutzerklärung
+          </a>
+        </p>
         <p className="text-xs text-gray-500 mb-2">
           Unterschrift macht das Protokoll final. Ohne Unterschrift wird es als Entwurf gespeichert.
         </p>
@@ -1029,6 +1036,13 @@ export default function Ueberfuehrung() {
             className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
           />
         </div>
+        <p className="text-xs text-gray-500 mb-1">
+          Mit Ihrer Unterschrift bestätigen Sie die Richtigkeit der Angaben.
+          Ihre Daten werden ausschließlich zur Dokumentation dieser Fahrzeugübergabe verwendet.{' '}
+          <a href="/datenschutz" className="text-green-600 underline">
+            Datenschutzerklärung
+          </a>
+        </p>
         <p className="text-xs text-gray-500">Unterschrift Empfänger (optional):</p>
         <SignatureCanvas canvasRef={canvasRefReceiver} onHasStroke={setHasSigReceiver} />
       </Card>

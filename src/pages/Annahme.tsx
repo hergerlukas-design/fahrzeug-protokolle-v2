@@ -995,6 +995,13 @@ export default function Annahme() {
       {/* ── 9. Unterschrift ── */}
       <SectionHeader title="9. Unterschrift" />
       <Card>
+        <p className="text-xs text-gray-500 mb-3">
+          Mit Ihrer Unterschrift bestätigen Sie die Richtigkeit der Angaben.
+          Ihre Daten werden ausschließlich zur Dokumentation dieser Fahrzeugübergabe verwendet.{' '}
+          <a href="/datenschutz" className="text-brand-600 underline">
+            Datenschutzerklärung
+          </a>
+        </p>
         <p className="text-xs text-gray-500 mb-2">
           {hasSig
             ? '✅ Unterschrift vorhanden — Protokoll wird als final gespeichert.'
