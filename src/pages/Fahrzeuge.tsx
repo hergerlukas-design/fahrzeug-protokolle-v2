@@ -796,8 +796,7 @@ function VehicleDetail({
                     ref={formPhotoRef}
                     type="file"
                     accept="image/*"
-                    capture="environment"
-                    className="hidden"
+                                       className="hidden"
                     onChange={handleFormPhoto}
                   />
                 </div>
@@ -1134,7 +1133,7 @@ function VehicleForm({
                 <span>Foto aufnehmen oder auswählen</span>
               </button>
             )}
-            <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
           </div>
           <div className="grid grid-cols-2 gap-3 pt-2">
             <button type="button" onClick={onCancel} className="py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm active:bg-gray-50">

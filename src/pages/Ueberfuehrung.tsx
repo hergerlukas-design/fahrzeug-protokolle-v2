@@ -375,7 +375,6 @@ function DamageRow({
           ref={fileRef}
           type="file"
           accept="image/*"
-          capture="environment"
           className="hidden"
           onChange={handleFile}
         />
@@ -956,7 +955,6 @@ export default function Ueberfuehrung() {
                   ref={photoFileRefs.current[pk]}
                   type="file"
                   accept="image/*"
-                  capture="environment"
                   className="hidden"
                   onChange={(e) => handleVehiclePhotoChange(pk, e)}
                 />
