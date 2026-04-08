@@ -977,7 +977,7 @@ export default function Ueberfuehrung() {
       </Card>
 
       {photoPickerKey && (
-        <div className="fixed inset-0 z-50 flex items-end" onClick={() => setPhotoPickerKey(null)}>
+        <div className="fixed inset-0 z-[60] flex items-end" onClick={() => setPhotoPickerKey(null)}>
           <div className="w-full bg-white rounded-t-2xl p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-xl" onClick={(e) => e.stopPropagation()}>
             <p className="text-sm font-medium text-gray-700 text-center mb-3">Foto auswählen — {PHOTO_LABELS[photoPickerKey]}</p>
             <div className="grid grid-cols-2 gap-3">
