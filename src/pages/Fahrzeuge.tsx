@@ -486,6 +486,7 @@ function VehicleDetail({
   const [formPhotoFile, setFormPhotoFile] = useState<File | null>(null)
   const [formPhotoPreview, setFormPhotoPreview] = useState<string | null>(null)
   const formPhotoRef = useRef<HTMLInputElement>(null)
+  const formCameraRef = useRef<HTMLInputElement>(null)
   const [dmgSaving, setDmgSaving] = useState(false)
   const [dmgError, setDmgError] = useState<string | null>(null)
 
@@ -784,21 +785,25 @@ function VehicleDetail({
                       </button>
                     </div>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => formPhotoRef.current?.click()}
-                      className="flex items-center gap-1.5 text-sm text-gray-500 border border-gray-300 rounded-lg px-3 py-2 bg-white active:bg-gray-50"
-                    >
-                      📷 <span>Foto hinzufügen</span>
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => formCameraRef.current?.click()}
+                        className="flex items-center gap-1.5 text-sm text-brand-600 border border-brand-200 rounded-lg px-3 py-2 bg-brand-50 active:bg-brand-100"
+                      >
+                        📷 <span>Kamera</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => formPhotoRef.current?.click()}
+                        className="flex items-center gap-1.5 text-sm text-gray-500 border border-gray-300 rounded-lg px-3 py-2 bg-white active:bg-gray-50"
+                      >
+                        🖼 <span>Galerie</span>
+                      </button>
+                    </div>
                   )}
-                  <input
-                    ref={formPhotoRef}
-                    type="file"
-                    accept="image/*"
-                                       className="hidden"
-                    onChange={handleFormPhoto}
-                  />
+                  <input ref={formCameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFormPhoto} />
+                  <input ref={formPhotoRef} type="file" accept="image/*" className="hidden" onChange={handleFormPhoto} />
                 </div>
 
                 <div className="flex gap-2 pt-1">
@@ -1003,6 +1008,7 @@ function VehicleForm({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const cameraFileRef = useRef<HTMLInputElement>(null)
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -1124,15 +1130,26 @@ function VehicleForm({
                 >×</button>
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                className="w-full border-2 border-dashed border-gray-300 rounded-xl py-5 text-gray-500 text-sm flex flex-col items-center gap-1 active:border-brand-400 active:text-brand-600"
-              >
-                <span className="text-2xl">📷</span>
-                <span>Foto aufnehmen oder auswählen</span>
-              </button>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => cameraFileRef.current?.click()}
+                  className="border-2 border-dashed border-brand-300 rounded-xl py-5 text-brand-600 text-sm flex flex-col items-center gap-1 active:border-brand-500 active:bg-brand-50"
+                >
+                  <span className="text-2xl">📷</span>
+                  <span>Kamera</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  className="border-2 border-dashed border-gray-300 rounded-xl py-5 text-gray-500 text-sm flex flex-col items-center gap-1 active:border-brand-400 active:text-brand-600"
+                >
+                  <span className="text-2xl">🖼</span>
+                  <span>Galerie</span>
+                </button>
+              </div>
             )}
+            <input ref={cameraFileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
           </div>
           <div className="grid grid-cols-2 gap-3 pt-2">
