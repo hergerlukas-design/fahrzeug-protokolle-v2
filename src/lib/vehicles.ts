@@ -12,6 +12,7 @@ export interface Protocol {
   status: string
   protocol_type?: string
   inspector_name?: string
+  condition_data?: { photos?: Record<string, string> } | null
 }
 
 export interface Vehicle {
@@ -23,6 +24,7 @@ export interface Vehicle {
   project_id?: number | null
   known_damages?: DamageRecord[] | null
   protocols?: Protocol[]
+  thumbnail_url?: string | null
 }
 
 export function normalizeKennzeichen(kz: string): string {
@@ -33,11 +35,19 @@ export async function fetchVehicles(): Promise<Vehicle[]> {
   const { data, error } = await supabase
     .from('vehicles')
     .select(
-      'id, license_plate, license_plate_normalized, brand_model, vin, known_damages, protocols(id, created_at, status, protocol_type, inspector_name)'
+      'id, license_plate, license_plate_normalized, brand_model, vin, known_damages, protocols(id, created_at, status, protocol_type, inspector_name, condition_data)'
     )
     .order('license_plate')
   if (error) throw error
-  return (data ?? []) as Vehicle[]
+  const vehicles = (data ?? []) as Vehicle[]
+  // Attach thumbnail_url: vorne photo from oldest protocol
+  return vehicles.map((v) => {
+    const oldest = (v.protocols ?? [])
+      .slice()
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())[0]
+    const thumbnail_url = oldest?.condition_data?.photos?.['vorne'] ?? null
+    return { ...v, thumbnail_url }
+  })
 }
 
 export async function createVehicle(values: {

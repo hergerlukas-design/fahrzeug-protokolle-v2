@@ -27,10 +27,27 @@ function ErrorBanner({ msg, onClose }: { msg: string; onClose: () => void }) {
   )
 }
 
-function VehicleAvatar({ vehicleId, size = 48 }: { vehicleId: number; size?: number }) {
-  const [hasPhoto, setHasPhoto] = useState(true)
-  const url = getVehiclePhotoUrl(vehicleId)
-  if (!hasPhoto) {
+function VehicleAvatar({
+  vehicleId,
+  thumbnailUrl,
+  size = 48,
+}: {
+  vehicleId: number
+  thumbnailUrl?: string | null
+  size?: number
+}) {
+  const karteiUrl = getVehiclePhotoUrl(vehicleId)
+  // srcIndex: 0 = protocol vorne photo, 1 = kartei photo, 2 = icon fallback
+  const sources = [thumbnailUrl, karteiUrl].filter(Boolean) as string[]
+  const [srcIndex, setSrcIndex] = useState(0)
+  // Reset when thumbnailUrl changes (e.g. first protocol created for this vehicle)
+  const prevThumbnail = useRef(thumbnailUrl)
+  if (prevThumbnail.current !== thumbnailUrl) {
+    prevThumbnail.current = thumbnailUrl
+    setSrcIndex(0)
+  }
+
+  if (srcIndex >= sources.length) {
     return (
       <div
         className="rounded-lg bg-gray-100 flex items-center justify-center text-2xl flex-shrink-0"
@@ -42,11 +59,11 @@ function VehicleAvatar({ vehicleId, size = 48 }: { vehicleId: number; size?: num
   }
   return (
     <img
-      src={url}
+      src={sources[srcIndex]}
       alt=""
       className="rounded-lg object-cover flex-shrink-0"
       style={{ width: size, height: size }}
-      onError={() => setHasPhoto(false)}
+      onError={() => setSrcIndex((i) => i + 1)}
     />
   )
 }
@@ -232,7 +249,7 @@ function ExistingVehicleFlow({
                         : 'hover:bg-gray-50 active:bg-gray-100'
                     }`}
                   >
-                    <VehicleAvatar vehicleId={v.id} size={40} />
+                    <VehicleAvatar vehicleId={v.id} thumbnailUrl={v.thumbnail_url} size={40} />
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-gray-900 truncate">{v.license_plate}</p>
                       <p className="text-sm text-gray-500 truncate">{v.brand_model || '—'}</p>
@@ -383,7 +400,7 @@ function VehicleList({
                       onClick={() => onSelect(v)}
                       className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 active:bg-gray-100 text-left"
                     >
-                      <VehicleAvatar vehicleId={v.id} size={48} />
+                      <VehicleAvatar vehicleId={v.id} thumbnailUrl={v.thumbnail_url} size={48} />
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-gray-900 truncate">{v.license_plate}</p>
                         <p className="text-sm text-gray-500 truncate">
@@ -455,7 +472,7 @@ function VehicleDetail({
       <div className="p-4 space-y-4">
         {/* Vehicle card */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex gap-4">
-          <VehicleAvatar vehicleId={vehicle.id} size={72} />
+          <VehicleAvatar vehicleId={vehicle.id} thumbnailUrl={vehicle.thumbnail_url} size={72} />
           <div className="flex-1 min-w-0">
             <p className="font-bold text-gray-900 text-lg">{vehicle.license_plate}</p>
             <p className="text-gray-600 text-sm">{vehicle.brand_model || '—'}</p>
