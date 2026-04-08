@@ -40,6 +40,12 @@ function VehicleAvatar({
   // srcIndex: 0 = protocol vorne photo, 1 = kartei photo, 2 = icon fallback
   const sources = [thumbnailUrl, karteiUrl].filter(Boolean) as string[]
   const [srcIndex, setSrcIndex] = useState(0)
+  // Reset when thumbnailUrl changes (e.g. first protocol created for this vehicle)
+  const prevThumbnail = useRef(thumbnailUrl)
+  if (prevThumbnail.current !== thumbnailUrl) {
+    prevThumbnail.current = thumbnailUrl
+    setSrcIndex(0)
+  }
 
   if (srcIndex >= sources.length) {
     return (
