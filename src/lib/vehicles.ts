@@ -24,6 +24,12 @@ export interface Vehicle {
   project_id?: number | null
   known_damages?: DamageRecord[] | null
   protocols?: Protocol[]
+  cleanliness_interior?: string
+  cleanliness_exterior?: string
+  is_fueled?: boolean
+  is_charged?: boolean
+  availability?: string
+  current_odometer?: number | null
 }
 
 export function normalizeKennzeichen(kz: string): string {
@@ -34,7 +40,7 @@ export async function fetchVehicles(): Promise<Vehicle[]> {
   const { data, error } = await supabase
     .from('vehicles')
     .select(
-      'id, license_plate, license_plate_normalized, brand_model, vin, known_damages, protocols(id, created_at, status, protocol_type, inspector_name)'
+      'id, license_plate, license_plate_normalized, brand_model, vin, known_damages, cleanliness_interior, cleanliness_exterior, is_fueled, is_charged, availability, current_odometer, protocols(id, created_at, status, protocol_type, inspector_name)'
     )
     .order('license_plate')
   if (error) throw error
@@ -79,6 +85,24 @@ export async function updateVehicle(
     .single()
   if (error) throw error
   return data as Vehicle
+}
+
+export async function updateVehicleStatus(
+  id: string,
+  patch: {
+    cleanliness_interior?: string
+    cleanliness_exterior?: string
+    is_fueled?: boolean
+    is_charged?: boolean
+    availability?: string
+    current_odometer?: number | null
+  }
+): Promise<void> {
+  const { error } = await supabase
+    .from('vehicles')
+    .update(patch)
+    .eq('id', id)
+  if (error) throw error
 }
 
 export async function updateVehicleKnownDamages(

@@ -10,6 +10,7 @@ import {
   getVehiclePhotoUrl,
   normalizeKennzeichen,
   updateVehicleKnownDamages,
+  updateVehicleStatus,
   uploadDamagePhoto,
   type Vehicle,
   type DamageRecord,
@@ -52,6 +53,41 @@ function VehicleAvatar({ vehicleId, size = 48 }: { vehicleId: string; size?: num
       style={{ width: size, height: size }}
       onError={() => setHasPhoto(false)}
     />
+  )
+}
+
+function StatusToggle({
+  label,
+  checked,
+  onChange,
+  trueLabel,
+  falseLabel,
+}: {
+  label: string
+  checked: boolean
+  onChange: (v: boolean) => void
+  trueLabel: string
+  falseLabel: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className={`w-full flex items-center justify-between rounded-xl px-3 py-3 text-sm font-medium transition-colors ${
+        checked
+          ? 'bg-green-50 text-green-800 border border-green-200'
+          : 'bg-gray-50 text-gray-600 border border-gray-200'
+      }`}
+    >
+      <span>{label}</span>
+      <span
+        className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+          checked ? 'bg-green-200 text-green-800' : 'bg-gray-200 text-gray-500'
+        }`}
+      >
+        {checked ? trueLabel : falseLabel}
+      </span>
+    </button>
   )
 }
 
@@ -452,6 +488,24 @@ function VehicleDetail({
   const [dmgSaving, setDmgSaving] = useState(false)
   const [dmgError, setDmgError] = useState<string | null>(null)
 
+  // ── Vehicle status state ───────────────────────────────────────────────────
+  const [statusInnen, setStatusInnen] = useState<string>(vehicle.cleanliness_interior ?? 'schmutzig')
+  const [statusAussen, setStatusAussen] = useState<string>(vehicle.cleanliness_exterior ?? 'schmutzig')
+  const [isFueled, setIsFueled] = useState<boolean>(vehicle.is_fueled ?? false)
+  const [isCharged, setIsCharged] = useState<boolean>(vehicle.is_charged ?? false)
+  const [availability, setAvailability] = useState<string>(vehicle.availability ?? 'verfügbar')
+  const [currentOdometer, setCurrentOdometer] = useState<number | string>(vehicle.current_odometer ?? '')
+  const [statusError, setStatusError] = useState<string | null>(null)
+
+  async function saveStatus(patch: Parameters<typeof updateVehicleStatus>[1]) {
+    setStatusError(null)
+    try {
+      await updateVehicleStatus(vehicle.id, patch)
+    } catch (e) {
+      setStatusError(e instanceof Error ? e.message : 'Speichern fehlgeschlagen.')
+    }
+  }
+
   function openAdd() {
     setEditIdx(null); setFormPos(''); setFormType(''); setFormInt('')
     setFormPhotoFile(null); setFormPhotoPreview(null)
@@ -737,6 +791,93 @@ function VehicleDetail({
                 + Schaden hinzufügen
               </button>
             )}
+          </div>
+        </details>
+
+        {/* Fahrzeugstatus */}
+        <details className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <summary className="px-4 py-3 font-medium text-gray-800 cursor-pointer select-none flex items-center justify-between">
+            <span>📊 Fahrzeugstatus</span>
+            <span className="text-gray-400 text-xs">details</span>
+          </summary>
+          <div className="px-4 pb-4 space-y-2">
+            {statusError && (
+              <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                ⚠️ {statusError}
+              </p>
+            )}
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pb-1">Sauberkeit</p>
+            <StatusToggle
+              label="Innen"
+              checked={statusInnen === 'sauber'}
+              onChange={(v) => {
+                const val = v ? 'sauber' : 'schmutzig'
+                setStatusInnen(val)
+                saveStatus({ cleanliness_interior: val })
+              }}
+              trueLabel="Sauber"
+              falseLabel="Schmutzig"
+            />
+            <StatusToggle
+              label="Außen"
+              checked={statusAussen === 'sauber'}
+              onChange={(v) => {
+                const val = v ? 'sauber' : 'schmutzig'
+                setStatusAussen(val)
+                saveStatus({ cleanliness_exterior: val })
+              }}
+              trueLabel="Sauber"
+              falseLabel="Schmutzig"
+            />
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pt-2 pb-1">Tank / Ladung</p>
+            <StatusToggle
+              label="Getankt"
+              checked={isFueled}
+              onChange={(v) => {
+                setIsFueled(v)
+                saveStatus({ is_fueled: v })
+              }}
+              trueLabel="Ja"
+              falseLabel="Nein"
+            />
+            <StatusToggle
+              label="Geladen"
+              checked={isCharged}
+              onChange={(v) => {
+                setIsCharged(v)
+                saveStatus({ is_charged: v })
+              }}
+              trueLabel="Ja"
+              falseLabel="Nein"
+            />
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pt-2 pb-1">Verfügbarkeit</p>
+            <StatusToggle
+              label="Status"
+              checked={availability === 'verfügbar'}
+              onChange={(v) => {
+                const val = v ? 'verfügbar' : 'unterwegs'
+                setAvailability(val)
+                saveStatus({ availability: val })
+              }}
+              trueLabel="Verfügbar"
+              falseLabel="Unterwegs"
+            />
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pt-2 pb-1">Kilometerstand</p>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                value={currentOdometer}
+                onChange={(e) => setCurrentOdometer(e.target.value)}
+                onBlur={() => {
+                  const val = currentOdometer === '' ? null : Number(currentOdometer)
+                  saveStatus({ current_odometer: val })
+                }}
+                placeholder="—"
+                min={0}
+                className="flex-1 border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
+              />
+              <span className="text-sm text-gray-500 font-medium pr-1">km</span>
+            </div>
           </div>
         </details>
 
