@@ -9,8 +9,12 @@ import {
   uploadVehiclePhoto,
   getVehiclePhotoUrl,
   normalizeKennzeichen,
+  updateVehicleKnownDamages,
+  uploadDamagePhoto,
   type Vehicle,
+  type DamageRecord,
 } from '../lib/vehicles'
+import { DAMAGE_POSITIONS, DAMAGE_TYPES, DAMAGE_INTENSITIES } from '../lib/protocols'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared UI helpers
@@ -27,7 +31,7 @@ function ErrorBanner({ msg, onClose }: { msg: string; onClose: () => void }) {
   )
 }
 
-function VehicleAvatar({ vehicleId, size = 48 }: { vehicleId: number; size?: number }) {
+function VehicleAvatar({ vehicleId, size = 48 }: { vehicleId: string; size?: number }) {
   const [hasPhoto, setHasPhoto] = useState(true)
   const url = getVehiclePhotoUrl(vehicleId)
   if (!hasPhoto) {
@@ -305,7 +309,7 @@ function VehicleList({
   search,
   onSearchChange,
   onSelect,
-  onNew,
+  onNew: _onNew,
   onNewWithProtocol,
   onExistingProtocol,
 }: {
@@ -409,14 +413,6 @@ function VehicleList({
         )}
       </div>
 
-      {/* FAB */}
-      <button
-        onClick={onNew}
-        className="fixed bottom-20 right-4 w-14 h-14 rounded-full bg-brand-600 text-white text-2xl shadow-lg flex items-center justify-center active:bg-brand-700 z-20"
-        aria-label="Fahrzeug anlegen"
-      >
-        +
-      </button>
     </div>
   )
 }
@@ -430,17 +426,104 @@ function VehicleDetail({
   onBack,
   onEdit,
   onDelete,
+  onDamagesChange,
 }: {
   vehicle: Vehicle
   onBack: () => void
   onEdit: () => void
   onDelete: () => void
+  onDamagesChange: (damages: DamageRecord[]) => void
 }) {
   const navigate = useNavigate()
   const protos = (vehicle.protocols ?? []).slice().sort((a, b) =>
     b.created_at.localeCompare(a.created_at)
   )
-  const damages = vehicle.known_damages ?? []
+
+  // ── Local damage state ─────────────────────────────────────────────────────
+  const [damages, setDamages] = useState<DamageRecord[]>(vehicle.known_damages ?? [])
+  const [formOpen, setFormOpen] = useState(false)
+  const [editIdx, setEditIdx] = useState<number | null>(null)
+  const [formPos, setFormPos] = useState('')
+  const [formType, setFormType] = useState('')
+  const [formInt, setFormInt] = useState('')
+  const [formPhotoFile, setFormPhotoFile] = useState<File | null>(null)
+  const [formPhotoPreview, setFormPhotoPreview] = useState<string | null>(null)
+  const formPhotoRef = useRef<HTMLInputElement>(null)
+  const [dmgSaving, setDmgSaving] = useState(false)
+  const [dmgError, setDmgError] = useState<string | null>(null)
+
+  function openAdd() {
+    setEditIdx(null); setFormPos(''); setFormType(''); setFormInt('')
+    setFormPhotoFile(null); setFormPhotoPreview(null)
+    setDmgError(null); setFormOpen(true)
+  }
+
+  function openEdit(i: number) {
+    setEditIdx(i); setFormPos(damages[i].pos); setFormType(damages[i].type)
+    setFormInt(damages[i].int)
+    setFormPhotoFile(null)
+    setFormPhotoPreview(damages[i].photo_url ?? null)
+    setDmgError(null); setFormOpen(true)
+  }
+
+  function closeForm() {
+    setFormOpen(false); setDmgError(null)
+    setFormPhotoFile(null); setFormPhotoPreview(null)
+  }
+
+  function handleFormPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setFormPhotoFile(file)
+    setFormPhotoPreview(URL.createObjectURL(file))
+  }
+
+  async function handleDamageSave() {
+    if (!formPos || !formType || !formInt) {
+      setDmgError('Alle Felder ausfüllen.')
+      return
+    }
+    setDmgSaving(true)
+    setDmgError(null)
+    try {
+      // Determine target index for photo path
+      const targetIdx = editIdx !== null ? editIdx : damages.length
+      let photoUrl: string | undefined =
+        editIdx !== null ? damages[editIdx].photo_url : undefined
+
+      if (formPhotoFile) {
+        photoUrl = await uploadDamagePhoto(vehicle.id, targetIdx, formPhotoFile)
+      }
+
+      const newRecord: DamageRecord = {
+        pos: formPos, type: formType, int: formInt,
+        ...(photoUrl ? { photo_url: photoUrl } : {}),
+      }
+      const updated =
+        editIdx !== null
+          ? damages.map((d, i) => (i === editIdx ? newRecord : d))
+          : [...damages, newRecord]
+      await updateVehicleKnownDamages(vehicle.id, updated)
+      setDamages(updated)
+      onDamagesChange(updated)
+      closeForm()
+    } catch (e: unknown) {
+      setDmgError(e instanceof Error ? e.message : 'Speichern fehlgeschlagen.')
+    } finally {
+      setDmgSaving(false)
+    }
+  }
+
+  async function handleDamageDelete(i: number) {
+    const updated = damages.filter((_, idx) => idx !== i)
+    try {
+      await updateVehicleKnownDamages(vehicle.id, updated)
+      setDamages(updated)
+      onDamagesChange(updated)
+    } catch (e: unknown) {
+      setDmgError(e instanceof Error ? e.message : 'Löschen fehlgeschlagen.')
+    }
+  }
 
   return (
     <div className="flex flex-col">
@@ -475,7 +558,7 @@ function VehicleDetail({
                   license_plate: vehicle.license_plate,
                   brand_model: vehicle.brand_model ?? '',
                   vin: vehicle.vin ?? '',
-                  known_damages: vehicle.known_damages ?? [],
+                  known_damages: damages,
                 },
               })
             }
@@ -491,7 +574,7 @@ function VehicleDetail({
                   license_plate: vehicle.license_plate,
                   brand_model: vehicle.brand_model ?? '',
                   vin: vehicle.vin ?? '',
-                  known_damages: vehicle.known_damages ?? [],
+                  known_damages: damages,
                 },
               })
             }
@@ -502,23 +585,157 @@ function VehicleDetail({
         </div>
 
         {/* Known damages */}
-        <details className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <details className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden" open>
           <summary className="px-4 py-3 font-medium text-gray-800 cursor-pointer select-none flex items-center justify-between">
             <span>🔧 Bekannte Vorschäden ({damages.length})</span>
             <span className="text-gray-400 text-xs">details</span>
           </summary>
           <div className="px-4 pb-4 space-y-2">
-            {damages.length === 0 ? (
+            {dmgError && (
+              <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                ⚠️ {dmgError}
+              </p>
+            )}
+            {damages.length === 0 && !formOpen && (
               <p className="text-sm text-gray-400 italic">Keine dauerhaften Vorschäden hinterlegt.</p>
-            ) : (
-              damages.map((d, i) => (
-                <div
-                  key={i}
-                  className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-sm text-gray-700"
-                >
-                  📍 {d.pos} · 🛠️ {d.type} · ⚠️ {d.int}
+            )}
+            {damages.map((d, i) => (
+              <div
+                key={i}
+                className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-sm text-gray-700"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="flex-1">📍 {d.pos} · 🛠️ {d.type} · ⚠️ {d.int}</span>
+                  <button
+                    type="button"
+                    onClick={() => openEdit(i)}
+                    className="text-gray-400 hover:text-gray-600 active:text-gray-800 p-1 flex-shrink-0"
+                    aria-label="Bearbeiten"
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDamageDelete(i)}
+                    className="text-red-400 hover:text-red-600 active:text-red-800 p-1 flex-shrink-0"
+                    aria-label="Löschen"
+                  >
+                    🗑️
+                  </button>
                 </div>
-              ))
+                {d.photo_url && (
+                  <img
+                    src={d.photo_url}
+                    alt="Schadenfoto"
+                    className="mt-2 w-full max-h-40 object-cover rounded-lg border border-amber-200"
+                    loading="lazy"
+                  />
+                )}
+              </div>
+            ))}
+
+            {/* Inline form */}
+            {formOpen && (
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2 mt-1">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  {editIdx !== null ? 'Schaden bearbeiten' : 'Neuer Schaden'}
+                </p>
+                <select
+                  value={formPos}
+                  onChange={(e) => setFormPos(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
+                >
+                  <option value="">Position wählen …</option>
+                  {DAMAGE_POSITIONS.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    value={formType}
+                    onChange={(e) => setFormType(e.target.value)}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
+                  >
+                    <option value="">Art …</option>
+                    {DAMAGE_TYPES.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={formInt}
+                    onChange={(e) => setFormInt(e.target.value)}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
+                  >
+                    <option value="">Intensität …</option>
+                    {DAMAGE_INTENSITIES.map((v) => (
+                      <option key={v} value={v}>{v}</option>
+                    ))}
+                  </select>
+                </div>
+                {/* Photo upload */}
+                <div className="flex items-center gap-2">
+                  {formPhotoPreview ? (
+                    <div className="relative flex-shrink-0">
+                      <img
+                        src={formPhotoPreview}
+                        alt="Vorschau"
+                        className="w-16 h-16 object-cover rounded-lg border border-gray-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => { setFormPhotoFile(null); setFormPhotoPreview(null) }}
+                        className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => formPhotoRef.current?.click()}
+                      className="flex items-center gap-1.5 text-sm text-gray-500 border border-gray-300 rounded-lg px-3 py-2 bg-white active:bg-gray-50"
+                    >
+                      📷 <span>Foto hinzufügen</span>
+                    </button>
+                  )}
+                  <input
+                    ref={formPhotoRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={handleFormPhoto}
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={closeForm}
+                    className="flex-1 py-2 rounded-lg border border-gray-300 text-gray-600 text-sm font-medium active:bg-gray-100"
+                  >
+                    Abbrechen
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDamageSave}
+                    disabled={dmgSaving}
+                    className="flex-1 py-2 rounded-lg bg-brand-600 text-white text-sm font-semibold disabled:opacity-60 active:bg-brand-700"
+                  >
+                    {dmgSaving ? 'Speichert …' : 'Speichern'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!formOpen && (
+              <button
+                type="button"
+                onClick={openAdd}
+                className="w-full mt-1 py-2.5 rounded-xl border-2 border-dashed border-gray-300 text-sm text-gray-500 flex items-center justify-center gap-2 active:border-brand-400 active:text-brand-600"
+              >
+                + Schaden hinzufügen
+              </button>
             )}
           </div>
         </details>
@@ -538,23 +755,26 @@ function VehicleDetail({
                 const isTransfer = p.protocol_type === 'transfer'
                 const isDraft = p.status === 'draft'
                 return (
-                  <li
-                    key={p.id}
-                    className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex items-start gap-3"
-                  >
-                    <span className="text-lg mt-0.5">{isTransfer ? '🔄' : '📄'}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800">
-                        {p.created_at.slice(0, 10)}
-                        {isDraft && (
-                          <span className="ml-2 text-xs text-amber-600 font-normal">⚠️ Entwurf</span>
-                        )}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {isTransfer ? 'Überführung' : 'Annahme'}
-                        {p.inspector_name ? ` · ${p.inspector_name}` : ''}
-                      </p>
-                    </div>
+                  <li key={p.id}>
+                    <button
+                      onClick={() => navigate('/archiv', { state: { protocol_id: p.id } })}
+                      className="w-full bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex items-start gap-3 active:bg-gray-50 text-left"
+                    >
+                      <span className="text-lg mt-0.5">{isTransfer ? '🔄' : '📄'}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-800">
+                          {p.created_at.slice(0, 10)}
+                          {isDraft && (
+                            <span className="ml-2 text-xs text-amber-600 font-normal">⚠️ Entwurf</span>
+                          )}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {isTransfer ? 'Überführung' : 'Annahme'}
+                          {p.inspector_name ? ` · ${p.inspector_name}` : ''}
+                        </p>
+                      </div>
+                      <span className="text-gray-400 text-xs mt-1">›</span>
+                    </button>
                   </li>
                 )
               })}
@@ -760,7 +980,7 @@ function DeleteConfirm({ vehicle, onConfirm, onCancel, deleting }: { vehicle: Ve
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-white rounded-t-2xl shadow-2xl px-6 pt-6 pb-[calc(1.5rem+4rem+env(safe-area-inset-bottom))]">
         <h2 className="text-lg font-bold text-gray-900 mb-2">Fahrzeug löschen?</h2>
         <p className="text-sm text-gray-600 mb-1">Soll <strong>{vehicle.license_plate}</strong> dauerhaft gelöscht werden?</p>
-        <p className="text-xs text-red-600 mb-6">⚠️ Zugehörige Protokolle bleiben erhalten, aber die Fahrzeugverknüpfung geht verloren.</p>
+        <p className="text-xs text-red-600 mb-6">⚠️ Alle verknüpften Protokolle werden ebenfalls unwiderruflich gelöscht.</p>
         <div className="grid grid-cols-2 gap-3">
           <button onClick={onCancel} className="py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm">Abbrechen</button>
           <button onClick={onConfirm} disabled={deleting} className="py-3 rounded-xl bg-red-600 text-white font-semibold text-sm disabled:opacity-60">
@@ -824,6 +1044,11 @@ export default function Fahrzeuge() {
     }
   }
 
+  function handleDamagesChange(damages: DamageRecord[]) {
+    setSelected((prev) => prev ? { ...prev, known_damages: damages } : null)
+    setVehicles((prev) => prev.map((v) => v.id === selected?.id ? { ...v, known_damages: damages } : v))
+  }
+
   async function handleDeleteConfirm() {
     if (!selected) return
     setDeleting(true)
@@ -847,7 +1072,7 @@ export default function Fahrzeuge() {
       {loading ? (
         <SkeletonList count={5} />
       ) : view === 'detail' && selected ? (
-        <VehicleDetail vehicle={selected} onBack={handleBack} onEdit={handleEdit} onDelete={() => setShowDelete(true)} />
+        <VehicleDetail vehicle={selected} onBack={handleBack} onEdit={handleEdit} onDelete={() => setShowDelete(true)} onDamagesChange={handleDamagesChange} />
       ) : (
         <VehicleList
           vehicles={vehicles}

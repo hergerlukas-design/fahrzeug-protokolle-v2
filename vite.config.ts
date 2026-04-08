@@ -14,7 +14,7 @@ export default defineConfig({
         name: 'Vehicle Protocol Pro',
         short_name: 'VPP',
         description: 'Fahrzeug-Protokolle CarHandling',
-        theme_color: '#1d4ed8',
+        theme_color: '#3f3f3f',
         background_color: '#ffffff',
         display: 'standalone',
         orientation: 'portrait',

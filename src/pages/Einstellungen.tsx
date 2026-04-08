@@ -9,7 +9,7 @@ import { supabase } from '../lib/supabase'
 
 interface ProtocolRow {
   id: number
-  vehicle_id: number
+  vehicle_id: string
   protocol_type: string
   inspection_date: string
   inspector_name: string
@@ -411,6 +411,26 @@ export default function Einstellungen() {
           <span className="text-2xl">🚪</span>
           <span>Abmelden</span>
         </button>
+      </div>
+
+      {/* Rechtliches */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mt-4">
+        <a
+          href="/impressum"
+          className="flex items-center gap-3 px-4 py-4 text-gray-600 hover:bg-gray-50 border-b border-gray-100"
+        >
+          <span className="text-2xl">⚖️</span>
+          <span className="font-medium">Impressum</span>
+          <span className="ml-auto text-gray-400">›</span>
+        </a>
+        <a
+          href="/datenschutz"
+          className="flex items-center gap-3 px-4 py-4 text-gray-600 hover:bg-gray-50"
+        >
+          <span className="text-2xl">🔒</span>
+          <span className="font-medium">Datenschutzerklärung</span>
+          <span className="ml-auto text-gray-400">›</span>
+        </a>
       </div>
     </div>
   )

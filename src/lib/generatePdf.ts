@@ -217,8 +217,8 @@ async function drawPageHeader(
 
   // ── "perfection in motion" rotated 90° CCW, x=208, y=88 ──────────────────
   page.drawText('perfection in motion', {
-    x: mm(210),
-    y: top(88),
+    x: mm(206),
+    y: top(100),
     size: 8.5,
     font: fonts.regular,
     color: C_DKGRAY,
@@ -693,18 +693,22 @@ async function buildDamagePages(
       rowY = top(CONTENT_TOP)
     }
 
-    const damageKeys = data.damage_records
-      .map((_, i) => `schaden_d_${i}`)
-      .filter((k) => damagePhotoImgs[k])
-
-    // Also include any schaden_ keys not matched by index
-    const allDamageKeys = [
-      ...damageKeys,
-      ...Object.keys(damagePhotoImgs).filter((k) => !damageKeys.includes(k)),
-    ]
+    // Match photos to damage records by index.
+    // Current format: schaden_0, schaden_1, …
+    // Legacy format:  schaden_d_0, schaden_d_1, …
+    // Fallback: remaining schaden_ keys in storage order (old timestamp-key format)
+    const damageKeys: (string | null)[] = data.damage_records.map((_, i) => {
+      if (damagePhotoImgs[`schaden_${i}`]) return `schaden_${i}`
+      if (damagePhotoImgs[`schaden_d_${i}`]) return `schaden_d_${i}`
+      return null
+    })
+    const matchedSet = new Set(damageKeys.filter((k): k is string => k !== null))
+    const extraKeys = Object.keys(damagePhotoImgs).filter((k) => !matchedSet.has(k))
+    const allDamageKeys: (string | null)[] = [...damageKeys, ...extraKeys]
 
     for (let di = 0; di < allDamageKeys.length; di++) {
       const key = allDamageKeys[di]
+      if (!key) continue
       const img = damagePhotoImgs[key]
       if (!img) continue
 
@@ -765,7 +769,7 @@ export async function generatePdf(data: PdfData): Promise<Uint8Array> {
   // ── Load logo ───────────────────────────────────────────────────────────────
   let logoImg: PDFImage | null = null
   try {
-    const logoResp = await fetch('/logo.png')
+    const logoResp = await fetch('/carhandling.png')
     if (logoResp.ok) {
       const logoBytes = new Uint8Array(await logoResp.arrayBuffer())
       logoImg = await pdfDoc.embedPng(logoBytes)

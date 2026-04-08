@@ -28,9 +28,10 @@ export default function PdfButton({ data, accent = 'brand' }: Props) {
       const plate = (data.license_plate ?? 'Protokoll').replace(/\s/g, '-')
       const filename = `${plate}_${date}.pdf`
 
-      const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' })
+      // pdfBytes ist Uint8Array — direkt in Blob (nicht .buffer, das kann zu groß sein)
+      const blob = new Blob([pdfBytes as unknown as BlobPart], { type: 'application/pdf' })
 
-      // Try Web Share API (iOS / Android native sheet)
+      // Web Share API (Android Chrome, Safari 15.1+)
       const shareFile = new File([blob], filename, { type: 'application/pdf' })
       if (
         typeof navigator.share === 'function' &&
@@ -38,13 +39,27 @@ export default function PdfButton({ data, accent = 'brand' }: Props) {
         navigator.canShare({ files: [shareFile] })
       ) {
         await navigator.share({ files: [shareFile], title: filename })
+        return
+      }
+
+      const url = URL.createObjectURL(blob)
+
+      // iOS Safari blockiert a.download + a.click() — neuen Tab öffnen
+      const isIOS =
+        /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+
+      if (isIOS) {
+        window.open(url, '_blank')
+        // URL nicht sofort revoken — der Tab braucht die Ressource noch
+        setTimeout(() => URL.revokeObjectURL(url), 10000)
       } else {
-        // Fallback: direct download
-        const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
         a.download = filename
+        document.body.appendChild(a)
         a.click()
+        document.body.removeChild(a)
         URL.revokeObjectURL(url)
       }
     } catch (err: unknown) {
