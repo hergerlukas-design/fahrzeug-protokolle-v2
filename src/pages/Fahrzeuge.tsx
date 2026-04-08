@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Sparkles, Droplets, Fuel, Zap, CircleCheck, Navigation } from 'lucide-react'
 import { SkeletonList } from '../components/Skeleton'
 import {
   fetchVehicles,
@@ -599,6 +600,45 @@ function VehicleDetail({
             <p className="text-gray-400 text-xs mt-1">
               FIN: {vehicle.vin || '—'}
             </p>
+            {/* Status icons */}
+            <div className="flex gap-3 mt-2.5">
+              {([
+                {
+                  icon: <Sparkles size={18} />,
+                  label: 'Innen',
+                  active: statusInnen === 'sauber',
+                },
+                {
+                  icon: <Droplets size={18} />,
+                  label: 'Außen',
+                  active: statusAussen === 'sauber',
+                },
+                {
+                  icon: <Fuel size={18} />,
+                  label: 'Tank',
+                  active: isFueled,
+                },
+                {
+                  icon: <Zap size={18} />,
+                  label: 'Akku',
+                  active: isCharged,
+                },
+              ] as { icon: React.ReactNode; label: string; active: boolean }[]).map(({ icon, label, active }) => (
+                <div key={label} className="flex flex-col items-center gap-0.5">
+                  <span className={active ? 'text-green-500' : 'text-gray-300'}>{icon}</span>
+                  <span className={`text-[10px] font-medium ${active ? 'text-green-600' : 'text-gray-300'}`}>{label}</span>
+                </div>
+              ))}
+              {/* Availability — separate since it uses two icons */}
+              <div className="flex flex-col items-center gap-0.5">
+                <span className={availability === 'verfügbar' ? 'text-green-500' : 'text-orange-400'}>
+                  {availability === 'verfügbar' ? <CircleCheck size={18} /> : <Navigation size={18} />}
+                </span>
+                <span className={`text-[10px] font-medium ${availability === 'verfügbar' ? 'text-green-600' : 'text-orange-500'}`}>
+                  {availability === 'verfügbar' ? 'Verfügbar' : 'Unterwegs'}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
