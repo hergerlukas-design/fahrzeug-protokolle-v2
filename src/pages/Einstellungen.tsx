@@ -417,7 +417,7 @@ export default function Einstellungen() {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mt-4">
         <a
           href="/impressum"
-          className="w-full flex items-center gap-3 px-4 py-4 text-gray-600 hover:bg-gray-50 active:scale-95 transition-all border-b border-gray-100"
+          className="flex items-center gap-3 px-4 py-4 text-gray-600 hover:bg-gray-50 border-b border-gray-100"
         >
           <span className="text-2xl">⚖️</span>
           <span className="font-medium">Impressum</span>
@@ -425,7 +425,7 @@ export default function Einstellungen() {
         </a>
         <a
           href="/datenschutz"
-          className="w-full flex items-center gap-3 px-4 py-4 text-gray-600 hover:bg-gray-50 active:scale-95 transition-all"
+          className="flex items-center gap-3 px-4 py-4 text-gray-600 hover:bg-gray-50"
         >
           <span className="text-2xl">🔒</span>
           <span className="font-medium">Datenschutzerklärung</span>

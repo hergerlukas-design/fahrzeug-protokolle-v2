@@ -4,12 +4,6 @@
 app = 'fahrzeug-protokolle-v2'
 primary_region = 'fra'
 
-[build]
-  # Supabase-Credentials als Build-Args aus Fly.io Secrets übergeben
-  [build.args]
-    VITE_SUPABASE_URL = ""
-    VITE_SUPABASE_KEY = ""
-    VITE_APP_PASSWORD = ""
 
 [http_service]
   internal_port = 8080
