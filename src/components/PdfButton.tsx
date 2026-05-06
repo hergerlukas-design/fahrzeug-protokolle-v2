@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { generatePdf, type PdfData } from '../lib/generatePdf'
+import type { PdfData } from '../lib/generatePdf'
 
 interface Props {
   data: PdfData
@@ -20,6 +20,7 @@ export default function PdfButton({ data, accent = 'brand' }: Props) {
     setLoading(true)
     setError(null)
     try {
+      const { generatePdf } = await import('../lib/generatePdf')
       const pdfBytes = await generatePdf(data)
 
       const date = data.inspection_date
