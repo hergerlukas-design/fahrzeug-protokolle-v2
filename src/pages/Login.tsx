@@ -22,7 +22,7 @@ export default function Login() {
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg p-8">
         <div className="flex justify-center mb-6">
           <img
-            src="/logo.png"
+            src="/logo.webp"
             alt="CarHandling"
             className="h-20 object-contain"
             onError={(e) => (e.currentTarget.style.display = 'none')}
@@ -46,7 +46,7 @@ export default function Login() {
                 setPin(e.target.value)
                 setError(false)
               }}
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 text-lg tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-3 rounded-xl border border-gray-300 text-lg tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-brand-500"
               placeholder="••••"
               autoFocus
             />
@@ -58,7 +58,7 @@ export default function Login() {
 
           <button
             type="submit"
-            className="w-full py-3 rounded-xl bg-blue-600 text-white font-semibold text-base hover:bg-blue-700 active:scale-95 transition-all"
+            className="w-full py-3 rounded-xl bg-brand-600 text-white font-semibold text-base hover:bg-brand-700 active:scale-95 transition-all"
           >
             Anmelden
           </button>

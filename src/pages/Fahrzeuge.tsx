@@ -1,8 +1,1300 @@
-export default function Fahrzeuge() {
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Sparkles, Droplets, Fuel, Zap, CircleCheck, Navigation } from 'lucide-react'
+import { SkeletonList } from '../components/Skeleton'
+import {
+  fetchVehicles,
+  createVehicle,
+  updateVehicle,
+  deleteVehicle,
+  uploadVehiclePhoto,
+  getVehiclePhotoUrl,
+  normalizeKennzeichen,
+  updateVehicleKnownDamages,
+  updateVehicleStatus,
+  uploadDamagePhoto,
+  type Vehicle,
+  type DamageRecord,
+} from '../lib/vehicles'
+import { DAMAGE_POSITIONS, DAMAGE_TYPES, DAMAGE_INTENSITIES } from '../lib/protocols'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared UI helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+
+function ErrorBanner({ msg, onClose }: { msg: string; onClose: () => void }) {
   return (
-    <div className="p-4">
-      <h1 className="text-xl font-bold text-gray-800 mb-2">🚗 Fahrzeuge</h1>
-      <p className="text-gray-500">Kommt in Phase 2.</p>
+    <div className="mx-4 mt-3 p-3 bg-red-50 border border-red-200 rounded-lg flex gap-2 items-start">
+      <span className="text-red-500 mt-0.5">⚠️</span>
+      <p className="text-red-700 text-sm flex-1">{msg}</p>
+      <button onClick={onClose} className="text-red-400 text-lg leading-none">×</button>
+    </div>
+  )
+}
+
+function VehicleAvatar({ vehicleId, size = 48 }: { vehicleId: string; size?: number }) {
+  const [hasPhoto, setHasPhoto] = useState(true)
+  const url = getVehiclePhotoUrl(vehicleId)
+  if (!hasPhoto) {
+    return (
+      <div
+        className="rounded-lg bg-gray-100 flex items-center justify-center text-2xl flex-shrink-0"
+        style={{ width: size, height: size }}
+      >
+        🚗
+      </div>
+    )
+  }
+  return (
+    <img
+      src={url}
+      alt=""
+      className="rounded-lg object-cover flex-shrink-0"
+      style={{ width: size, height: size }}
+      onError={() => setHasPhoto(false)}
+    />
+  )
+}
+
+function StatusToggle({
+  label,
+  checked,
+  onChange,
+  trueLabel,
+  falseLabel,
+}: {
+  label: string
+  checked: boolean
+  onChange: (v: boolean) => void
+  trueLabel: string
+  falseLabel: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className={`w-full flex items-center justify-between rounded-xl px-3 py-3 text-sm font-medium transition-colors ${
+        checked
+          ? 'bg-green-50 text-green-800 border border-green-200'
+          : 'bg-gray-50 text-gray-600 border border-gray-200'
+      }`}
+    >
+      <span>{label}</span>
+      <span
+        className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+          checked ? 'bg-green-200 text-green-800' : 'bg-gray-200 text-gray-500'
+        }`}
+      >
+        {checked ? trueLabel : falseLabel}
+      </span>
+    </button>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// New vehicle + protocol flow (bottom sheet)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function NewVehicleFlow({
+  onCancel,
+  onCreated,
+}: {
+  onCancel: () => void
+  onCreated: () => void
+}) {
+  const navigate = useNavigate()
+  const [plate, setPlate] = useState('')
+  const [brandModel, setBrandModel] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!plate.trim()) { setError('Kennzeichen ist Pflichtfeld.'); return }
+    setSaving(true)
+    setError(null)
+    try {
+      const saved = await createVehicle({
+        license_plate: plate.trim(),
+        brand_model: brandModel.trim(),
+        vin: '',
+      })
+      onCreated()
+      navigate('/annahme', {
+        state: {
+          vehicle_id: saved.id,
+          license_plate: saved.license_plate,
+          brand_model: saved.brand_model ?? '',
+          vin: saved.vin ?? '',
+          known_damages: [],
+        },
+      })
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Fehler beim Anlegen.')
+      setSaving(false)
+    }
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-30" onClick={onCancel} />
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white rounded-t-2xl shadow-2xl max-h-[85dvh] overflow-y-auto">
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 bg-gray-200 rounded-full" />
+        </div>
+        <form onSubmit={handleSubmit} className="px-4 pb-[calc(4rem+env(safe-area-inset-bottom))] space-y-4">
+          <h2 className="text-lg font-bold text-gray-900 mt-1">Neues Fahrzeug & Protokoll</h2>
+          <p className="text-sm text-gray-500">Fahrzeug anlegen und direkt zum Annahmeprotokoll.</p>
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              ⚠️ {error}
+            </div>
+          )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Kennzeichen <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={plate}
+              onChange={(e) => setPlate(e.target.value)}
+              placeholder="M-AB 1234"
+              autoCapitalize="characters"
+              autoFocus
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 uppercase"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Marke / Modell <span className="text-gray-400 font-normal">(optional)</span>
+            </label>
+            <input
+              type="text"
+              value={brandModel}
+              onChange={(e) => setBrandModel(e.target.value)}
+              placeholder="BMW 3er, VW Golf …"
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm"
+            >
+              Abbrechen
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm disabled:opacity-60"
+            >
+              {saving ? 'Legt an …' : 'Anlegen & Protokoll →'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Existing vehicle → choose protocol type flow (bottom sheet)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ExistingVehicleFlow({
+  vehicles,
+  onCancel,
+}: {
+  vehicles: Vehicle[]
+  onCancel: () => void
+}) {
+  const navigate = useNavigate()
+  const [search, setSearch] = useState('')
+  const [selected, setSelected] = useState<Vehicle | null>(null)
+  const [protocolType, setProtocolType] = useState<'transfer' | 'intake'>('transfer')
+
+  const upper = search.toUpperCase()
+  const filtered = upper
+    ? vehicles.filter(
+        (v) =>
+          v.license_plate.toUpperCase().includes(upper) ||
+          (v.brand_model ?? '').toUpperCase().includes(upper)
+      )
+    : vehicles
+
+  function handleGo() {
+    if (!selected) return
+    const state = {
+      vehicle_id: selected.id,
+      license_plate: selected.license_plate,
+      brand_model: selected.brand_model ?? '',
+      vin: selected.vin ?? '',
+      known_damages: selected.known_damages ?? [],
+    }
+    navigate(protocolType === 'transfer' ? '/ueberfuehrung' : '/annahme', { state })
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-30" onClick={onCancel} />
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white rounded-t-2xl shadow-2xl max-h-[90dvh] flex flex-col">
+        <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+          <div className="w-10 h-1 bg-gray-200 rounded-full" />
+        </div>
+        <div className="px-4 pb-3 flex-shrink-0">
+          <h2 className="text-lg font-bold text-gray-900 mt-1 mb-3">
+            Protokoll für bestehendes Fahrzeug
+          </h2>
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setSelected(null) }}
+            placeholder="🔍 Kennzeichen, Marke …"
+            autoFocus
+            className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-400"
+          />
+        </div>
+
+        <div className="flex-1 overflow-y-auto min-h-0">
+          {filtered.length === 0 ? (
+            <p className="text-center text-gray-400 text-sm mt-8">Keine Treffer.</p>
+          ) : (
+            <ul className="divide-y divide-gray-100">
+              {filtered.map((v) => (
+                <li key={v.id}>
+                  <button
+                    onClick={() => setSelected(v)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
+                      selected?.id === v.id
+                        ? 'bg-brand-50'
+                        : 'hover:bg-gray-50 active:bg-gray-100'
+                    }`}
+                  >
+                    <VehicleAvatar vehicleId={v.id} size={40} />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 truncate">{v.license_plate}</p>
+                      <p className="text-sm text-gray-500 truncate">{v.brand_model || '—'}</p>
+                    </div>
+                    {selected?.id === v.id && (
+                      <span className="text-brand-600 text-lg">✓</span>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {selected && (
+          <div className="flex-shrink-0 border-t border-gray-100 px-4 pt-3 pb-2 bg-white space-y-3">
+            <p className="text-sm font-medium text-gray-700">
+              Protokolltyp für <strong>{selected.license_plate}</strong>:
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setProtocolType('transfer')}
+                className={`py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                  protocolType === 'transfer'
+                    ? 'bg-green-600 text-white'
+                    : 'bg-gray-100 text-gray-600'
+                }`}
+              >
+                🚙 Überführung
+              </button>
+              <button
+                onClick={() => setProtocolType('intake')}
+                className={`py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                  protocolType === 'intake'
+                    ? 'bg-brand-600 text-white'
+                    : 'bg-gray-100 text-gray-600'
+                }`}
+              >
+                📝 Annahme
+              </button>
+            </div>
+            <button
+              onClick={handleGo}
+              className="w-full py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm"
+            >
+              Weiter zum Protokoll →
+            </button>
+          </div>
+        )}
+
+        <div className="flex-shrink-0 px-4 pb-[calc(4rem+env(safe-area-inset-bottom))] pt-2 bg-white">
+          <button
+            onClick={onCancel}
+            className="w-full py-2.5 rounded-xl border border-gray-300 text-gray-700 text-sm"
+          >
+            Abbrechen
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Vehicle list
+// ─────────────────────────────────────────────────────────────────────────────
+
+function VehicleList({
+  vehicles,
+  search,
+  onSearchChange,
+  onSelect,
+  onNew: _onNew,
+  onNewWithProtocol,
+  onExistingProtocol,
+}: {
+  vehicles: Vehicle[]
+  search: string
+  onSearchChange: (v: string) => void
+  onSelect: (v: Vehicle) => void
+  onNew: () => void
+  onNewWithProtocol: () => void
+  onExistingProtocol: () => void
+}) {
+  const upper = search.toUpperCase()
+  const filtered = upper
+    ? vehicles.filter(
+        (v) =>
+          v.license_plate.toUpperCase().includes(upper) ||
+          (v.brand_model ?? '').toUpperCase().includes(upper) ||
+          (v.vin ?? '').toUpperCase().includes(upper)
+      )
+    : vehicles
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10">
+        <h1 className="text-xl font-bold text-gray-900 mb-3">🚗 Fahrzeuge</h1>
+        {/* Protocol entry buttons */}
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <button
+            onClick={onNewWithProtocol}
+            className="flex flex-col items-center gap-1 py-3 px-2 rounded-xl bg-brand-600 text-white text-center active:bg-brand-700 shadow-sm"
+          >
+            <span className="text-xl leading-none">➕</span>
+            <span className="text-xs font-semibold leading-tight">Neues Fahrzeug<br />& Protokoll</span>
+          </button>
+          <button
+            onClick={onExistingProtocol}
+            className="flex flex-col items-center gap-1 py-3 px-2 rounded-xl bg-green-600 text-white text-center active:bg-green-700 shadow-sm"
+          >
+            <span className="text-xl leading-none">🚙</span>
+            <span className="text-xs font-semibold leading-tight">Protokoll für<br />bestehendes Fzg.</span>
+          </button>
+        </div>
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => onSearchChange(e.target.value)}
+          placeholder="🔍 Kennzeichen, Marke, FIN …"
+          className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-400"
+        />
+      </div>
+
+      {/* List */}
+      <div className="flex-1 overflow-y-auto">
+        {filtered.length === 0 ? (
+          <p className="text-center text-gray-400 text-sm mt-12">
+            {search ? 'Keine Treffer.' : 'Noch keine Fahrzeuge vorhanden.'}
+          </p>
+        ) : (
+          <>
+            <p className="text-xs text-gray-400 px-4 pt-3 pb-1">
+              {filtered.length} Fahrzeug{filtered.length !== 1 ? 'e' : ''}
+            </p>
+            <ul className="divide-y divide-gray-100">
+              {filtered.map((v) => {
+                const protos = v.protocols ?? []
+                const drafts = protos.filter((p) => p.status === 'draft').length
+                const last = protos.length
+                  ? protos.slice().sort((a, b) => b.created_at.localeCompare(a.created_at))[0]
+                      .created_at
+                  : null
+                return (
+                  <li key={v.id}>
+                    <button
+                      onClick={() => onSelect(v)}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 active:bg-gray-100 text-left"
+                    >
+                      <VehicleAvatar vehicleId={v.id} size={48} />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 truncate">{v.license_plate}</p>
+                        <p className="text-sm text-gray-500 truncate">
+                          {v.brand_model || <span className="italic text-gray-300">Marke unbekannt</span>}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {protos.length} Protokoll{protos.length !== 1 ? 'e' : ''}
+                          {drafts > 0 && (
+                            <span className="ml-1 text-amber-500">· {drafts} Entwurf</span>
+                          )}
+                          {last && (
+                            <span className="ml-1">· {last.slice(0, 10)}</span>
+                          )}
+                        </p>
+                      </div>
+                      <span className="text-gray-300 text-lg">›</span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </>
+        )}
+      </div>
+
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Vehicle detail
+// ─────────────────────────────────────────────────────────────────────────────
+
+function VehicleDetail({
+  vehicle,
+  onBack,
+  onEdit,
+  onDelete,
+  onDamagesChange,
+}: {
+  vehicle: Vehicle
+  onBack: () => void
+  onEdit: () => void
+  onDelete: () => void
+  onDamagesChange: (damages: DamageRecord[]) => void
+}) {
+  const navigate = useNavigate()
+  const protos = (vehicle.protocols ?? []).slice().sort((a, b) =>
+    b.created_at.localeCompare(a.created_at)
+  )
+
+  // ── Local damage state ─────────────────────────────────────────────────────
+  const [damages, setDamages] = useState<DamageRecord[]>(vehicle.known_damages ?? [])
+  const [formOpen, setFormOpen] = useState(false)
+  const [editIdx, setEditIdx] = useState<number | null>(null)
+  const [formPos, setFormPos] = useState('')
+  const [formType, setFormType] = useState('')
+  const [formInt, setFormInt] = useState('')
+  const [formPhotoFile, setFormPhotoFile] = useState<File | null>(null)
+  const [formPhotoPreview, setFormPhotoPreview] = useState<string | null>(null)
+  const formPhotoRef = useRef<HTMLInputElement>(null)
+  const formCameraRef = useRef<HTMLInputElement>(null)
+  const [dmgSaving, setDmgSaving] = useState(false)
+  const [dmgError, setDmgError] = useState<string | null>(null)
+
+  // ── Vehicle status state ───────────────────────────────────────────────────
+  const [statusInnen, setStatusInnen] = useState<string>(vehicle.cleanliness_interior ?? 'schmutzig')
+  const [statusAussen, setStatusAussen] = useState<string>(vehicle.cleanliness_exterior ?? 'schmutzig')
+  const [isFueled, setIsFueled] = useState<boolean>(vehicle.is_fueled ?? false)
+  const [isCharged, setIsCharged] = useState<boolean>(vehicle.is_charged ?? false)
+  const [availability, setAvailability] = useState<string>(vehicle.availability ?? 'verfügbar')
+  const [currentOdometer, setCurrentOdometer] = useState<number | string>(vehicle.current_odometer ?? '')
+  const [statusError, setStatusError] = useState<string | null>(null)
+
+  async function saveStatus(patch: Parameters<typeof updateVehicleStatus>[1]) {
+    setStatusError(null)
+    try {
+      await updateVehicleStatus(vehicle.id, patch)
+    } catch (e) {
+      setStatusError(e instanceof Error ? e.message : 'Speichern fehlgeschlagen.')
+    }
+  }
+
+  function openAdd() {
+    setEditIdx(null); setFormPos(''); setFormType(''); setFormInt('')
+    setFormPhotoFile(null); setFormPhotoPreview(null)
+    setDmgError(null); setFormOpen(true)
+  }
+
+  function openEdit(i: number) {
+    setEditIdx(i); setFormPos(damages[i].pos); setFormType(damages[i].type)
+    setFormInt(damages[i].int)
+    setFormPhotoFile(null)
+    setFormPhotoPreview(damages[i].photo_url ?? null)
+    setDmgError(null); setFormOpen(true)
+  }
+
+  function closeForm() {
+    setFormOpen(false); setDmgError(null)
+    setFormPhotoFile(null); setFormPhotoPreview(null)
+  }
+
+  function handleFormPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setFormPhotoFile(file)
+    setFormPhotoPreview(URL.createObjectURL(file))
+  }
+
+  async function handleDamageSave() {
+    if (!formPos || !formType || !formInt) {
+      setDmgError('Alle Felder ausfüllen.')
+      return
+    }
+    setDmgSaving(true)
+    setDmgError(null)
+    try {
+      // Determine target index for photo path
+      const targetIdx = editIdx !== null ? editIdx : damages.length
+      let photoUrl: string | undefined =
+        editIdx !== null ? damages[editIdx].photo_url : undefined
+
+      if (formPhotoFile) {
+        photoUrl = await uploadDamagePhoto(vehicle.id, targetIdx, formPhotoFile)
+      }
+
+      const newRecord: DamageRecord = {
+        pos: formPos, type: formType, int: formInt,
+        ...(photoUrl ? { photo_url: photoUrl } : {}),
+      }
+      const updated =
+        editIdx !== null
+          ? damages.map((d, i) => (i === editIdx ? newRecord : d))
+          : [...damages, newRecord]
+      await updateVehicleKnownDamages(vehicle.id, updated)
+      setDamages(updated)
+      onDamagesChange(updated)
+      closeForm()
+    } catch (e: unknown) {
+      setDmgError(e instanceof Error ? e.message : 'Speichern fehlgeschlagen.')
+    } finally {
+      setDmgSaving(false)
+    }
+  }
+
+  async function handleDamageDelete(i: number) {
+    const updated = damages.filter((_, idx) => idx !== i)
+    try {
+      await updateVehicleKnownDamages(vehicle.id, updated)
+      setDamages(updated)
+      onDamagesChange(updated)
+    } catch (e: unknown) {
+      setDmgError(e instanceof Error ? e.message : 'Löschen fehlgeschlagen.')
+    }
+  }
+
+  return (
+    <div className="flex flex-col">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10 flex items-center gap-3">
+        <button onClick={onBack} className="text-brand-600 text-sm font-medium pr-1">
+          ← Zurück
+        </button>
+        <h1 className="text-lg font-bold text-gray-900 flex-1 truncate">{vehicle.license_plate}</h1>
+      </div>
+
+      <div className="p-4 space-y-4">
+        {/* Vehicle card */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex gap-4">
+          <VehicleAvatar vehicleId={vehicle.id} size={72} />
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-gray-900 text-lg">{vehicle.license_plate}</p>
+            <p className="text-gray-600 text-sm">{vehicle.brand_model || '—'}</p>
+            <p className="text-gray-400 text-xs mt-1">
+              FIN: {vehicle.vin || '—'}
+            </p>
+            {/* Status icons */}
+            <div className="flex gap-3 mt-2.5">
+              {([
+                {
+                  icon: <Sparkles size={18} />,
+                  label: 'Innen',
+                  active: statusInnen === 'sauber',
+                },
+                {
+                  icon: <Droplets size={18} />,
+                  label: 'Außen',
+                  active: statusAussen === 'sauber',
+                },
+                {
+                  icon: <Fuel size={18} />,
+                  label: 'Tank',
+                  active: isFueled,
+                },
+                {
+                  icon: <Zap size={18} />,
+                  label: 'Akku',
+                  active: isCharged,
+                },
+              ] as { icon: React.ReactNode; label: string; active: boolean }[]).map(({ icon, label, active }) => (
+                <div key={label} className="flex flex-col items-center gap-0.5">
+                  <span className={active ? 'text-green-500' : 'text-gray-300'}>{icon}</span>
+                  <span className={`text-[10px] font-medium ${active ? 'text-green-600' : 'text-gray-300'}`}>{label}</span>
+                </div>
+              ))}
+              {/* Availability — separate since it uses two icons */}
+              <div className="flex flex-col items-center gap-0.5">
+                <span className={availability === 'verfügbar' ? 'text-green-500' : 'text-orange-400'}>
+                  {availability === 'verfügbar' ? <CircleCheck size={18} /> : <Navigation size={18} />}
+                </span>
+                <span className={`text-[10px] font-medium ${availability === 'verfügbar' ? 'text-green-600' : 'text-orange-500'}`}>
+                  {availability === 'verfügbar' ? 'Verfügbar' : 'Unterwegs'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Action buttons */}
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() =>
+              navigate('/annahme', {
+                state: {
+                  vehicle_id: vehicle.id,
+                  license_plate: vehicle.license_plate,
+                  brand_model: vehicle.brand_model ?? '',
+                  vin: vehicle.vin ?? '',
+                  known_damages: damages,
+                },
+              })
+            }
+            className="py-3 rounded-xl bg-brand-50 text-brand-700 font-medium text-sm active:bg-brand-100"
+          >
+            📝 Neues Annahmeprotokoll
+          </button>
+          <button
+            onClick={() =>
+              navigate('/ueberfuehrung', {
+                state: {
+                  vehicle_id: vehicle.id,
+                  license_plate: vehicle.license_plate,
+                  brand_model: vehicle.brand_model ?? '',
+                  vin: vehicle.vin ?? '',
+                  known_damages: damages,
+                },
+              })
+            }
+            className="py-3 rounded-xl bg-green-50 text-green-700 font-medium text-sm active:bg-green-100"
+          >
+            🚙 Neues Überführungsprotokoll
+          </button>
+        </div>
+
+        {/* Known damages */}
+        <details className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden" open>
+          <summary className="px-4 py-3 font-medium text-gray-800 cursor-pointer select-none flex items-center justify-between">
+            <span>🔧 Bekannte Vorschäden ({damages.length})</span>
+            <span className="text-gray-400 text-xs">details</span>
+          </summary>
+          <div className="px-4 pb-4 space-y-2">
+            {dmgError && (
+              <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                ⚠️ {dmgError}
+              </p>
+            )}
+            {damages.length === 0 && !formOpen && (
+              <p className="text-sm text-gray-400 italic">Keine dauerhaften Vorschäden hinterlegt.</p>
+            )}
+            {damages.map((d, i) => (
+              <div
+                key={i}
+                className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-sm text-gray-700"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="flex-1">📍 {d.pos} · 🛠️ {d.type} · ⚠️ {d.int}</span>
+                  <button
+                    type="button"
+                    onClick={() => openEdit(i)}
+                    className="text-gray-400 hover:text-gray-600 active:text-gray-800 p-1 flex-shrink-0"
+                    aria-label="Bearbeiten"
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDamageDelete(i)}
+                    className="text-red-400 hover:text-red-600 active:text-red-800 p-1 flex-shrink-0"
+                    aria-label="Löschen"
+                  >
+                    🗑️
+                  </button>
+                </div>
+                {d.photo_url && (
+                  <img
+                    src={d.photo_url}
+                    alt="Schadenfoto"
+                    className="mt-2 w-full max-h-40 object-cover rounded-lg border border-amber-200"
+                    loading="lazy"
+                  />
+                )}
+              </div>
+            ))}
+
+            {/* Inline form */}
+            {formOpen && (
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2 mt-1">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  {editIdx !== null ? 'Schaden bearbeiten' : 'Neuer Schaden'}
+                </p>
+                <select
+                  value={formPos}
+                  onChange={(e) => setFormPos(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
+                >
+                  <option value="">Position wählen …</option>
+                  {DAMAGE_POSITIONS.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    value={formType}
+                    onChange={(e) => setFormType(e.target.value)}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
+                  >
+                    <option value="">Art …</option>
+                    {DAMAGE_TYPES.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={formInt}
+                    onChange={(e) => setFormInt(e.target.value)}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
+                  >
+                    <option value="">Intensität …</option>
+                    {DAMAGE_INTENSITIES.map((v) => (
+                      <option key={v} value={v}>{v}</option>
+                    ))}
+                  </select>
+                </div>
+                {/* Photo upload */}
+                <div className="flex items-center gap-2">
+                  {formPhotoPreview ? (
+                    <div className="relative flex-shrink-0">
+                      <img
+                        src={formPhotoPreview}
+                        alt="Vorschau"
+                        className="w-16 h-16 object-cover rounded-lg border border-gray-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => { setFormPhotoFile(null); setFormPhotoPreview(null) }}
+                        className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => formCameraRef.current?.click()}
+                        className="flex items-center gap-1.5 text-sm text-brand-600 border border-brand-200 rounded-lg px-3 py-2 bg-brand-50 active:bg-brand-100"
+                      >
+                        📷 <span>Kamera</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => formPhotoRef.current?.click()}
+                        className="flex items-center gap-1.5 text-sm text-gray-500 border border-gray-300 rounded-lg px-3 py-2 bg-white active:bg-gray-50"
+                      >
+                        🖼 <span>Galerie</span>
+                      </button>
+                    </div>
+                  )}
+                  <input ref={formCameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFormPhoto} />
+                  <input ref={formPhotoRef} type="file" accept="image/*" className="hidden" onChange={handleFormPhoto} />
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={closeForm}
+                    className="flex-1 py-2 rounded-lg border border-gray-300 text-gray-600 text-sm font-medium active:bg-gray-100"
+                  >
+                    Abbrechen
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDamageSave}
+                    disabled={dmgSaving}
+                    className="flex-1 py-2 rounded-lg bg-brand-600 text-white text-sm font-semibold disabled:opacity-60 active:bg-brand-700"
+                  >
+                    {dmgSaving ? 'Speichert …' : 'Speichern'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!formOpen && (
+              <button
+                type="button"
+                onClick={openAdd}
+                className="w-full mt-1 py-2.5 rounded-xl border-2 border-dashed border-gray-300 text-sm text-gray-500 flex items-center justify-center gap-2 active:border-brand-400 active:text-brand-600"
+              >
+                + Schaden hinzufügen
+              </button>
+            )}
+          </div>
+        </details>
+
+        {/* Fahrzeugstatus */}
+        <details className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <summary className="px-4 py-3 font-medium text-gray-800 cursor-pointer select-none flex items-center justify-between">
+            <span>📊 Fahrzeugstatus</span>
+            <span className="text-gray-400 text-xs">details</span>
+          </summary>
+          <div className="px-4 pb-4 space-y-2">
+            {statusError && (
+              <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                ⚠️ {statusError}
+              </p>
+            )}
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pb-1">Sauberkeit</p>
+            <StatusToggle
+              label="Innen"
+              checked={statusInnen === 'sauber'}
+              onChange={(v) => {
+                const val = v ? 'sauber' : 'schmutzig'
+                setStatusInnen(val)
+                saveStatus({ cleanliness_interior: val })
+              }}
+              trueLabel="Sauber"
+              falseLabel="Schmutzig"
+            />
+            <StatusToggle
+              label="Außen"
+              checked={statusAussen === 'sauber'}
+              onChange={(v) => {
+                const val = v ? 'sauber' : 'schmutzig'
+                setStatusAussen(val)
+                saveStatus({ cleanliness_exterior: val })
+              }}
+              trueLabel="Sauber"
+              falseLabel="Schmutzig"
+            />
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pt-2 pb-1">Tank / Ladung</p>
+            <StatusToggle
+              label="Getankt"
+              checked={isFueled}
+              onChange={(v) => {
+                setIsFueled(v)
+                saveStatus({ is_fueled: v })
+              }}
+              trueLabel="Ja"
+              falseLabel="Nein"
+            />
+            <StatusToggle
+              label="Geladen"
+              checked={isCharged}
+              onChange={(v) => {
+                setIsCharged(v)
+                saveStatus({ is_charged: v })
+              }}
+              trueLabel="Ja"
+              falseLabel="Nein"
+            />
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pt-2 pb-1">Verfügbarkeit</p>
+            <StatusToggle
+              label="Status"
+              checked={availability === 'verfügbar'}
+              onChange={(v) => {
+                const val = v ? 'verfügbar' : 'unterwegs'
+                setAvailability(val)
+                saveStatus({ availability: val })
+              }}
+              trueLabel="Verfügbar"
+              falseLabel="Unterwegs"
+            />
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pt-2 pb-1">Kilometerstand</p>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                value={currentOdometer}
+                onChange={(e) => setCurrentOdometer(e.target.value)}
+                onBlur={() => {
+                  const val = currentOdometer === '' ? null : Number(currentOdometer)
+                  saveStatus({ current_odometer: val })
+                }}
+                placeholder="—"
+                min={0}
+                className="flex-1 border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
+              />
+              <span className="text-sm text-gray-500 font-medium pr-1">km</span>
+            </div>
+          </div>
+        </details>
+
+        {/* Protocols */}
+        <div>
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
+            Protokolle ({protos.length})
+          </h2>
+          {protos.length === 0 ? (
+            <p className="text-sm text-gray-400 italic text-center py-4">
+              Noch keine Protokolle für dieses Fahrzeug.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {protos.map((p) => {
+                const isTransfer = p.protocol_type === 'transfer'
+                const isDraft = p.status === 'draft'
+                return (
+                  <li key={p.id}>
+                    <button
+                      onClick={() => navigate('/archiv', { state: { protocol_id: p.id } })}
+                      className="w-full bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex items-start gap-3 active:bg-gray-50 text-left"
+                    >
+                      <span className="text-lg mt-0.5">{isTransfer ? '🔄' : '📄'}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-800">
+                          {p.created_at.slice(0, 10)}
+                          {isDraft && (
+                            <span className="ml-2 text-xs text-amber-600 font-normal">⚠️ Entwurf</span>
+                          )}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {isTransfer ? 'Überführung' : 'Annahme'}
+                          {p.inspector_name ? ` · ${p.inspector_name}` : ''}
+                        </p>
+                      </div>
+                      <span className="text-gray-400 text-xs mt-1">›</span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </div>
+
+        {/* Edit / Delete */}
+        <div className="grid grid-cols-2 gap-2 pt-2">
+          <button
+            onClick={onEdit}
+            className="py-3 rounded-xl bg-gray-100 text-gray-700 font-medium text-sm active:bg-gray-200"
+          >
+            ✏️ Bearbeiten
+          </button>
+          <button
+            onClick={onDelete}
+            className="py-3 rounded-xl bg-red-50 text-red-600 font-medium text-sm active:bg-red-100"
+          >
+            🗑️ Löschen
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Vehicle form (add / edit) — slides up as a bottom sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+function VehicleForm({
+  initial,
+  onSave,
+  onCancel,
+}: {
+  initial: Vehicle | null
+  onSave: (v: Vehicle) => void
+  onCancel: () => void
+}) {
+  const [plate, setPlate] = useState(initial?.license_plate ?? '')
+  const [brandModel, setBrandModel] = useState(initial?.brand_model ?? '')
+  const [vin, setVin] = useState(initial?.vin ?? '')
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const cameraFileRef = useRef<HTMLInputElement>(null)
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setPhotoFile(file)
+    const reader = new FileReader()
+    reader.onload = () => setPhotoPreview(reader.result as string)
+    reader.readAsDataURL(file)
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!plate.trim()) {
+      setError('Kennzeichen ist Pflichtfeld.')
+      return
+    }
+    setSaving(true)
+    setError(null)
+    try {
+      let saved: Vehicle
+      if (initial) {
+        saved = await updateVehicle(initial.id, {
+          license_plate: plate.trim(),
+          brand_model: brandModel.trim(),
+          vin: vin.trim().toUpperCase(),
+        })
+      } else {
+        saved = await createVehicle({
+          license_plate: plate.trim(),
+          brand_model: brandModel.trim(),
+          vin: vin.trim().toUpperCase(),
+        })
+      }
+      if (photoFile) {
+        try {
+          await uploadVehiclePhoto(saved.id, photoFile)
+        } catch {
+          // Photo upload failed — vehicle is still saved, just no photo
+        }
+      }
+      onSave(saved)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Speichern fehlgeschlagen.')
+      setSaving(false)
+    }
+  }
+
+  const normalized = normalizeKennzeichen(plate)
+  const plateWarning = plate && normalized.length > 0 && normalized.length < 5
+    ? `Kennzeichen ist sehr kurz (${normalized.length} Zeichen). Bitte prüfen.`
+    : null
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-30" onClick={onCancel} />
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white rounded-t-2xl shadow-2xl max-h-[90dvh] overflow-y-auto">
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 bg-gray-200 rounded-full" />
+        </div>
+        <form onSubmit={handleSubmit} className="px-4 pb-[calc(4rem+env(safe-area-inset-bottom))] space-y-4">
+          <h2 className="text-lg font-bold text-gray-900 mt-1 mb-4">
+            {initial ? 'Fahrzeug bearbeiten' : 'Fahrzeug anlegen'}
+          </h2>
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              ⚠️ {error}
+            </div>
+          )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Kennzeichen <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={plate}
+              onChange={(e) => setPlate(e.target.value)}
+              placeholder="M-AB 1234"
+              autoCapitalize="characters"
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 uppercase"
+              required
+            />
+            {plateWarning && (
+              <p className="text-xs text-amber-600 mt-1">⚠️ {plateWarning}</p>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Marke / Modell</label>
+            <input
+              type="text"
+              value={brandModel}
+              onChange={(e) => setBrandModel(e.target.value)}
+              placeholder="BMW 3er, VW Golf …"
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">FIN / VIN</label>
+            <input
+              type="text"
+              value={vin}
+              onChange={(e) => setVin(e.target.value)}
+              placeholder="17-stellige Fahrzeugidentnummer"
+              autoCapitalize="characters"
+              maxLength={17}
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 uppercase font-mono tracking-wider"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Fahrzeugfoto <span className="text-gray-400 font-normal">(optional)</span>
+            </label>
+            {photoPreview ? (
+              <div className="relative inline-block">
+                <img src={photoPreview} alt="Vorschau" className="w-32 h-32 object-cover rounded-xl border border-gray-200" />
+                <button
+                  type="button"
+                  onClick={() => { setPhotoFile(null); setPhotoPreview(null) }}
+                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs flex items-center justify-center"
+                >×</button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => cameraFileRef.current?.click()}
+                  className="border-2 border-dashed border-brand-300 rounded-xl py-5 text-brand-600 text-sm flex flex-col items-center gap-1 active:border-brand-500 active:bg-brand-50"
+                >
+                  <span className="text-2xl">📷</span>
+                  <span>Kamera</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  className="border-2 border-dashed border-gray-300 rounded-xl py-5 text-gray-500 text-sm flex flex-col items-center gap-1 active:border-brand-400 active:text-brand-600"
+                >
+                  <span className="text-2xl">🖼</span>
+                  <span>Galerie</span>
+                </button>
+              </div>
+            )}
+            <input ref={cameraFileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+          </div>
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <button type="button" onClick={onCancel} className="py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm active:bg-gray-50">
+              Abbrechen
+            </button>
+            <button type="submit" disabled={saving} className="py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm disabled:opacity-60 active:bg-brand-700">
+              {saving ? 'Speichert …' : 'Speichern'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Delete confirmation dialog
+// ─────────────────────────────────────────────────────────────────────────────
+
+function DeleteConfirm({ vehicle, onConfirm, onCancel, deleting }: { vehicle: Vehicle; onConfirm: () => void; onCancel: () => void; deleting: boolean }) {
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-30" onClick={onCancel} />
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white rounded-t-2xl shadow-2xl px-6 pt-6 pb-[calc(1.5rem+4rem+env(safe-area-inset-bottom))]">
+        <h2 className="text-lg font-bold text-gray-900 mb-2">Fahrzeug löschen?</h2>
+        <p className="text-sm text-gray-600 mb-1">Soll <strong>{vehicle.license_plate}</strong> dauerhaft gelöscht werden?</p>
+        <p className="text-xs text-red-600 mb-6">⚠️ Alle verknüpften Protokolle werden ebenfalls unwiderruflich gelöscht.</p>
+        <div className="grid grid-cols-2 gap-3">
+          <button onClick={onCancel} className="py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm">Abbrechen</button>
+          <button onClick={onConfirm} disabled={deleting} className="py-3 rounded-xl bg-red-600 text-white font-semibold text-sm disabled:opacity-60">
+            {deleting ? 'Löscht …' : 'Ja, löschen'}
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main page
+// ─────────────────────────────────────────────────────────────────────────────
+
+type View = 'list' | 'detail'
+
+export default function Fahrzeuge() {
+  const [vehicles, setVehicles] = useState<Vehicle[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [view, setView] = useState<View>('list')
+  const [selected, setSelected] = useState<Vehicle | null>(null)
+  const [showForm, setShowForm] = useState(false)
+  const [editTarget, setEditTarget] = useState<Vehicle | null>(null)
+  const [showDelete, setShowDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [showNewFlow, setShowNewFlow] = useState(false)
+  const [showExistingFlow, setShowExistingFlow] = useState(false)
+
+  async function load() {
+    setLoading(true)
+    setError(null)
+    try {
+      const data = await fetchVehicles()
+      setVehicles(data)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Fehler beim Laden.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { load() }, [])
+
+  function handleSelect(v: Vehicle) { setSelected(v); setView('detail') }
+  function handleBack() { setView('list'); setSelected(null) }
+  function handleNew() { setEditTarget(null); setShowForm(true) }
+  function handleEdit() { setEditTarget(selected); setShowForm(true) }
+
+  async function handleFormSave(saved: Vehicle) {
+    setShowForm(false)
+    await load()
+    if (view === 'detail') {
+      setVehicles((prev) => {
+        const updated = prev.find((v) => v.id === saved.id)
+        if (updated) setSelected(updated)
+        return prev
+      })
+    }
+  }
+
+  function handleDamagesChange(damages: DamageRecord[]) {
+    setSelected((prev) => prev ? { ...prev, known_damages: damages } : null)
+    setVehicles((prev) => prev.map((v) => v.id === selected?.id ? { ...v, known_damages: damages } : v))
+  }
+
+  async function handleDeleteConfirm() {
+    if (!selected) return
+    setDeleting(true)
+    try {
+      await deleteVehicle(selected.id)
+      setShowDelete(false)
+      setView('list')
+      setSelected(null)
+      await load()
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Löschen fehlgeschlagen.')
+      setShowDelete(false)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col min-h-full bg-gray-50">
+      {error && <ErrorBanner msg={error} onClose={() => setError(null)} />}
+      {loading ? (
+        <SkeletonList count={5} />
+      ) : view === 'detail' && selected ? (
+        <VehicleDetail vehicle={selected} onBack={handleBack} onEdit={handleEdit} onDelete={() => setShowDelete(true)} onDamagesChange={handleDamagesChange} />
+      ) : (
+        <VehicleList
+          vehicles={vehicles}
+          search={search}
+          onSearchChange={setSearch}
+          onSelect={handleSelect}
+          onNew={handleNew}
+          onNewWithProtocol={() => setShowNewFlow(true)}
+          onExistingProtocol={() => setShowExistingFlow(true)}
+        />
+      )}
+      {showForm && <VehicleForm initial={editTarget} onSave={handleFormSave} onCancel={() => setShowForm(false)} />}
+      {showDelete && selected && <DeleteConfirm vehicle={selected} onConfirm={handleDeleteConfirm} onCancel={() => setShowDelete(false)} deleting={deleting} />}
+      {showNewFlow && (
+        <NewVehicleFlow
+          onCancel={() => setShowNewFlow(false)}
+          onCreated={() => { setShowNewFlow(false); load() }}
+        />
+      )}
+      {showExistingFlow && (
+        <ExistingVehicleFlow
+          vehicles={vehicles}
+          onCancel={() => setShowExistingFlow(false)}
+        />
+      )}
     </div>
   )
 }
