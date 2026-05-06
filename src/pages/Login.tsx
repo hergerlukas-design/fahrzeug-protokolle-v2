@@ -22,7 +22,7 @@ export default function Login() {
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg p-8">
         <div className="flex justify-center mb-6">
           <img
-            src="/logo.png"
+            src="/logo.webp"
             alt="CarHandling"
             className="h-20 object-contain"
             onError={(e) => (e.currentTarget.style.display = 'none')}
