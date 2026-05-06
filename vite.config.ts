@@ -9,7 +9,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'logo.png'],
+      includeAssets: ['favicon.svg', 'logo.webp'],
       manifest: {
         name: 'Vehicle Protocol Pro',
         short_name: 'VPP',
@@ -20,12 +20,13 @@ export default defineConfig({
         orientation: 'portrait',
         start_url: '/',
         icons: [
-          { src: 'logo.png', sizes: '192x192', type: 'image/png' },
-          { src: 'logo.png', sizes: '512x512', type: 'image/png' },
+          { src: 'logo.webp', sizes: '192x192', type: 'image/webp' },
+          { src: 'logo.webp', sizes: '512x512', type: 'image/webp' },
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        globPatterns: ['**/*.{js,css,html,ico,svg,webp}'],
+        globIgnores: ['carhandling.png'],
       },
     }),
   ],
