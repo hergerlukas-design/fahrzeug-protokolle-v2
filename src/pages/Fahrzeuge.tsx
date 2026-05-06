@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Sparkles, Droplets, Fuel, Zap, CircleCheck, Navigation } from 'lucide-react'
 import { SkeletonList } from '../components/Skeleton'
 import {
   fetchVehicles,
@@ -485,6 +486,7 @@ function VehicleDetail({
   const [formPhotoFile, setFormPhotoFile] = useState<File | null>(null)
   const [formPhotoPreview, setFormPhotoPreview] = useState<string | null>(null)
   const formPhotoRef = useRef<HTMLInputElement>(null)
+  const formCameraRef = useRef<HTMLInputElement>(null)
   const [dmgSaving, setDmgSaving] = useState(false)
   const [dmgError, setDmgError] = useState<string | null>(null)
 
@@ -599,6 +601,45 @@ function VehicleDetail({
             <p className="text-gray-400 text-xs mt-1">
               FIN: {vehicle.vin || '—'}
             </p>
+            {/* Status icons */}
+            <div className="flex gap-3 mt-2.5">
+              {([
+                {
+                  icon: <Sparkles size={18} />,
+                  label: 'Innen',
+                  active: statusInnen === 'sauber',
+                },
+                {
+                  icon: <Droplets size={18} />,
+                  label: 'Außen',
+                  active: statusAussen === 'sauber',
+                },
+                {
+                  icon: <Fuel size={18} />,
+                  label: 'Tank',
+                  active: isFueled,
+                },
+                {
+                  icon: <Zap size={18} />,
+                  label: 'Akku',
+                  active: isCharged,
+                },
+              ] as { icon: React.ReactNode; label: string; active: boolean }[]).map(({ icon, label, active }) => (
+                <div key={label} className="flex flex-col items-center gap-0.5">
+                  <span className={active ? 'text-green-500' : 'text-gray-300'}>{icon}</span>
+                  <span className={`text-[10px] font-medium ${active ? 'text-green-600' : 'text-gray-300'}`}>{label}</span>
+                </div>
+              ))}
+              {/* Availability — separate since it uses two icons */}
+              <div className="flex flex-col items-center gap-0.5">
+                <span className={availability === 'verfügbar' ? 'text-green-500' : 'text-orange-400'}>
+                  {availability === 'verfügbar' ? <CircleCheck size={18} /> : <Navigation size={18} />}
+                </span>
+                <span className={`text-[10px] font-medium ${availability === 'verfügbar' ? 'text-green-600' : 'text-orange-500'}`}>
+                  {availability === 'verfügbar' ? 'Verfügbar' : 'Unterwegs'}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -744,22 +785,25 @@ function VehicleDetail({
                       </button>
                     </div>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => formPhotoRef.current?.click()}
-                      className="flex items-center gap-1.5 text-sm text-gray-500 border border-gray-300 rounded-lg px-3 py-2 bg-white active:bg-gray-50"
-                    >
-                      📷 <span>Foto hinzufügen</span>
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => formCameraRef.current?.click()}
+                        className="flex items-center gap-1.5 text-sm text-brand-600 border border-brand-200 rounded-lg px-3 py-2 bg-brand-50 active:bg-brand-100"
+                      >
+                        📷 <span>Kamera</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => formPhotoRef.current?.click()}
+                        className="flex items-center gap-1.5 text-sm text-gray-500 border border-gray-300 rounded-lg px-3 py-2 bg-white active:bg-gray-50"
+                      >
+                        🖼 <span>Galerie</span>
+                      </button>
+                    </div>
                   )}
-                  <input
-                    ref={formPhotoRef}
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    className="hidden"
-                    onChange={handleFormPhoto}
-                  />
+                  <input ref={formCameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFormPhoto} />
+                  <input ref={formPhotoRef} type="file" accept="image/*" className="hidden" onChange={handleFormPhoto} />
                 </div>
 
                 <div className="flex gap-2 pt-1">
@@ -964,6 +1008,7 @@ function VehicleForm({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const cameraFileRef = useRef<HTMLInputElement>(null)
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -1085,16 +1130,27 @@ function VehicleForm({
                 >×</button>
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                className="w-full border-2 border-dashed border-gray-300 rounded-xl py-5 text-gray-500 text-sm flex flex-col items-center gap-1 active:border-brand-400 active:text-brand-600"
-              >
-                <span className="text-2xl">📷</span>
-                <span>Foto aufnehmen oder auswählen</span>
-              </button>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => cameraFileRef.current?.click()}
+                  className="border-2 border-dashed border-brand-300 rounded-xl py-5 text-brand-600 text-sm flex flex-col items-center gap-1 active:border-brand-500 active:bg-brand-50"
+                >
+                  <span className="text-2xl">📷</span>
+                  <span>Kamera</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  className="border-2 border-dashed border-gray-300 rounded-xl py-5 text-gray-500 text-sm flex flex-col items-center gap-1 active:border-brand-400 active:text-brand-600"
+                >
+                  <span className="text-2xl">🖼</span>
+                  <span>Galerie</span>
+                </button>
+              </div>
             )}
-            <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+            <input ref={cameraFileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
           </div>
           <div className="grid grid-cols-2 gap-3 pt-2">
             <button type="button" onClick={onCancel} className="py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm active:bg-gray-50">

@@ -293,13 +293,15 @@ function DamageRow({
   onUpdate: (key: string, fields: Partial<DamageFormItem>) => void
   onRemove: (key: string) => void
 }) {
-  const fileRef = useRef<HTMLInputElement>(null)
+  const galleryRef = useRef<HTMLInputElement>(null)
+  const cameraRef = useRef<HTMLInputElement>(null)
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     const previewUrl = URL.createObjectURL(file)
     onUpdate(item.key, { file, previewUrl })
+    e.target.value = ''
   }
 
   return (
@@ -363,22 +365,25 @@ function DamageRow({
             </button>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            className="flex items-center gap-1.5 text-sm text-green-600 border border-green-200 rounded-lg px-3 py-2 bg-green-50 active:bg-green-100"
-          >
-            📷 <span>Foto</span>
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => cameraRef.current?.click()}
+              className="flex items-center gap-1.5 text-sm text-green-600 border border-green-200 rounded-lg px-3 py-2 bg-green-50 active:bg-green-100"
+            >
+              📷 <span>Kamera</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => galleryRef.current?.click()}
+              className="flex items-center gap-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 active:bg-gray-100"
+            >
+              🖼 <span>Galerie</span>
+            </button>
+          </div>
         )}
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          onChange={handleFile}
-        />
+        <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFile} />
+        <input ref={galleryRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
       </div>
     </div>
   )
@@ -435,6 +440,14 @@ export default function Ueberfuehrung() {
     rechts: { current: null },
     schein: { current: null },
   })
+  const cameraPhotoFileRefs = useRef<Record<PhotoKey, React.RefObject<HTMLInputElement | null>>>({
+    vorne: { current: null },
+    hinten: { current: null },
+    links: { current: null },
+    rechts: { current: null },
+    schein: { current: null },
+  })
+  const [photoPickerKey, setPhotoPickerKey] = useState<PhotoKey | null>(null)
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [hasSig, setHasSig] = useState(false)
@@ -945,21 +958,15 @@ export default function Ueberfuehrung() {
                 ) : (
                   <button
                     type="button"
-                    onClick={() => photoFileRefs.current[pk].current?.click()}
+                    onClick={() => setPhotoPickerKey(pk)}
                     className="w-full aspect-square rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center gap-1 bg-gray-50 active:bg-gray-100"
                   >
                     <span className="text-2xl">📷</span>
                     <span className="text-xs text-gray-500">{PHOTO_LABELS[pk]}</span>
                   </button>
                 )}
-                <input
-                  ref={photoFileRefs.current[pk]}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  className="hidden"
-                  onChange={(e) => handleVehiclePhotoChange(pk, e)}
-                />
+                <input ref={photoFileRefs.current[pk]} type="file" accept="image/*" className="hidden" onChange={(e) => { handleVehiclePhotoChange(pk, e); e.target.value = '' }} />
+                <input ref={cameraPhotoFileRefs.current[pk]} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { handleVehiclePhotoChange(pk, e); e.target.value = '' }} />
                 {previewSrc && (
                   <span className="text-xs text-gray-500">{PHOTO_LABELS[pk]}</span>
                 )}
@@ -968,6 +975,30 @@ export default function Ueberfuehrung() {
           })}
         </div>
       </Card>
+
+      {photoPickerKey && (
+        <div className="fixed inset-0 z-[60] flex items-end" onClick={() => setPhotoPickerKey(null)}>
+          <div className="w-full bg-white rounded-t-2xl p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <p className="text-sm font-medium text-gray-700 text-center mb-3">Foto auswählen — {PHOTO_LABELS[photoPickerKey]}</p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => { const k = photoPickerKey; setPhotoPickerKey(null); cameraPhotoFileRefs.current[k].current?.click() }}
+                className="py-3 rounded-xl bg-green-50 border border-green-200 text-green-700 font-medium text-sm active:bg-green-100"
+              >
+                📷 Kamera
+              </button>
+              <button
+                type="button"
+                onClick={() => { const k = photoPickerKey; setPhotoPickerKey(null); photoFileRefs.current[k].current?.click() }}
+                className="py-3 rounded-xl bg-gray-50 border border-gray-200 text-gray-700 font-medium text-sm active:bg-gray-100"
+              >
+                🖼 Galerie
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── 7. Schäden ── */}
       <SectionHeader title="7. Schäden" />
