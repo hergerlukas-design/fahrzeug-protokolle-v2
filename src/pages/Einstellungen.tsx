@@ -376,6 +376,23 @@ export default function Einstellungen() {
         )}
       </div>
 
+      {/* Projektverwaltung */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
+        <a
+          href="/fahrzeuge"
+          className="w-full flex items-center gap-3 px-4 py-4 text-left"
+        >
+          <div className="flex items-center gap-3 flex-1">
+            <span className="text-2xl">📁</span>
+            <div>
+              <span className="font-semibold text-gray-800">Projektverwaltung</span>
+              <p className="text-xs text-gray-400 mt-0.5">Projekte anlegen, bearbeiten, archivieren</p>
+            </div>
+          </div>
+          <span className="text-gray-400 text-sm">›</span>
+        </a>
+      </div>
+
       {/* App-Info */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 px-4 py-4">
         <div className="flex items-center gap-3 mb-3">
@@ -389,7 +406,7 @@ export default function Einstellungen() {
           </div>
           <div className="flex justify-between">
             <span className="text-gray-400">Version</span>
-            <span>2.0.0</span>
+            <span>1.7.0</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-400">Betreiber</span>
