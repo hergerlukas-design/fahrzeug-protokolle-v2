@@ -638,6 +638,10 @@ function NewVehicleFlow({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!plate.trim()) { setError('Kennzeichen ist Pflichtfeld.'); return }
+    if (activeProjects.length > 0 && selectedProjectIds.length === 0) {
+      setError('Bitte mindestens ein Projekt auswählen.')
+      return
+    }
     setSaving(true)
     setError(null)
     try {
@@ -713,7 +717,7 @@ function NewVehicleFlow({
           {activeProjects.length > 0 && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Projekt <span className="text-gray-400 font-normal">(optional)</span>
+                Projekt <span className="text-red-500">*</span>
               </label>
               <div className="flex flex-wrap gap-2">
                 {activeProjects.map((p) => (
