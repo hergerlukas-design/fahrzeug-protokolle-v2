@@ -189,6 +189,19 @@ export default function Einstellungen() {
 
   return (
     <div className="flex flex-col min-h-full bg-gray-50">
+      {/* Archiv – immer sichtbar ganz oben */}
+      <a
+        href="/archiv"
+        className="mx-4 mt-4 flex items-center gap-3 bg-white rounded-2xl shadow-sm border border-gray-100 px-4 py-4 hover:bg-gray-50 active:scale-95 transition-all"
+      >
+        <span className="text-2xl">🗃️</span>
+        <div className="flex-1">
+          <span className="font-semibold text-gray-800">Archiv</span>
+          <p className="text-xs text-gray-400 mt-0.5">Archivierte Fahrzeuge &amp; Projekte</p>
+        </div>
+        <span className="text-gray-400">›</span>
+      </a>
+
       {/* Sub-Tab Bar */}
       <div className="bg-white border-b border-gray-200 flex sticky top-0 z-10">
         <button
@@ -297,23 +310,6 @@ export default function Einstellungen() {
         {/* ── Tab: Verwaltung ── */}
         {activeTab === 'verwaltung' && (
           <>
-            {/* Archiv */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
-              <a
-                href="/archiv"
-                className="w-full flex items-center gap-3 px-4 py-4 text-left"
-              >
-                <div className="flex items-center gap-3 flex-1">
-                  <span className="text-2xl">🗃️</span>
-                  <div>
-                    <span className="font-semibold text-gray-800">Archiv</span>
-                    <p className="text-xs text-gray-400 mt-0.5">Archivierte Fahrzeuge & Projekte</p>
-                  </div>
-                </div>
-                <span className="text-gray-400 text-sm">›</span>
-              </a>
-            </div>
-
             {/* Projektverwaltung */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
               <a
