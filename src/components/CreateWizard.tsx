@@ -94,23 +94,23 @@ function ProtokollStep({
       </div>
       <div className="space-y-3">
         <button
-          onClick={onNew}
-          className="w-full flex items-center gap-4 rounded-2xl bg-brand-50 border-2 border-brand-200 px-4 py-5 active:bg-brand-100 text-left"
-        >
-          <span className="text-3xl">🚗</span>
-          <div>
-            <p className="font-bold text-brand-800">Neues Fahrzeug</p>
-            <p className="text-sm text-brand-600 mt-0.5">Fahrzeug anlegen &amp; Annahmeprotokoll starten</p>
-          </div>
-        </button>
-        <button
           onClick={onExisting}
-          className="w-full flex items-center gap-4 rounded-2xl bg-gray-50 border-2 border-gray-200 px-4 py-5 active:bg-gray-100 text-left"
+          className="w-full flex items-center gap-4 rounded-2xl bg-brand-50 border-2 border-brand-200 px-4 py-5 active:bg-brand-100 text-left"
         >
           <span className="text-3xl">🔍</span>
           <div>
-            <p className="font-bold text-gray-800">Bestehendes Fahrzeug</p>
-            <p className="text-sm text-gray-500 mt-0.5">Kennzeichen suchen &amp; Protokolltyp wählen</p>
+            <p className="font-bold text-brand-800">Bestehendes Fahrzeug</p>
+            <p className="text-sm text-brand-600 mt-0.5">Kennzeichen suchen &amp; Überführung starten</p>
+          </div>
+        </button>
+        <button
+          onClick={onNew}
+          className="w-full flex items-center gap-4 rounded-2xl bg-gray-50 border-2 border-gray-200 px-4 py-5 active:bg-gray-100 text-left"
+        >
+          <span className="text-3xl">🚗</span>
+          <div>
+            <p className="font-bold text-gray-800">Neues Fahrzeug</p>
+            <p className="text-sm text-gray-500 mt-0.5">Fahrzeug anlegen &amp; Annahmeprotokoll starten</p>
           </div>
         </button>
       </div>

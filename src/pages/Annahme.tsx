@@ -18,7 +18,7 @@ import {
 import { OFFLINE_SAVED_EVENT } from '../components/OfflineIndicator'
 import PdfButton from '../components/PdfButton'
 import type { PdfData } from '../lib/generatePdf'
-import { updateVehicleKnownDamages } from '../lib/vehicles'
+import { updateVehicle, updateVehicleKnownDamages } from '../lib/vehicles'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -404,6 +404,7 @@ export default function Annahme() {
   const [battery, setBattery] = useState(ed?.battery ?? 100)
   const [odometer, setOdometer] = useState(ed?.odometer ?? 0)
   const [remarks, setRemarks] = useState(ed?.remarks ?? '')
+  const [vin, setVin] = useState(prefill?.vin ?? '')
   const [checklist, setChecklist] = useState<Checkliste>(ed?.checkliste ?? { ...DEFAULT_CHECKLISTE })
 
   const [damages, setDamages] = useState<DamageFormItem[]>(() =>
@@ -576,6 +577,10 @@ export default function Annahme() {
         if (damageRecords.length > 0) {
           await updateVehicleKnownDamages(prefill.vehicle_id, damageRecords)
         }
+        const vinTrimmed = vin.trim().toUpperCase()
+        if (vinTrimmed !== prefill.vin) {
+          await updateVehicle(prefill.vehicle_id, { vin: vinTrimmed })
+        }
       } else {
         // Offline: store in IndexedDB
         const photoBlobs: Record<string, Blob> = {}
@@ -620,7 +625,7 @@ export default function Annahme() {
         inspection_date: basePayload.inspection_date,
         license_plate: prefill.license_plate,
         brand_model: prefill.brand_model,
-        vin: prefill.vin,
+        vin: vin.trim().toUpperCase() || prefill.vin,
         photos: { ...basePayload.condition_data.photos },
         conditions: basePayload.condition_data.conditions,
         damage_records: basePayload.condition_data.damage_records,
@@ -743,9 +748,23 @@ export default function Annahme() {
             <span className="text-sm text-gray-500">Marke / Modell</span>
             <span className="text-sm text-gray-700">{prefill.brand_model || '—'}</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-sm text-gray-500">FIN</span>
-            <span className="text-sm text-gray-700 font-mono">{prefill.vin || '—'}</span>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm text-gray-500 flex-shrink-0">FIN</span>
+            <input
+              type="text"
+              value={vin}
+              onChange={(e) => setVin(e.target.value.toUpperCase())}
+              onBlur={async () => {
+                const v = vin.trim().toUpperCase()
+                if (v && v !== prefill.vin) {
+                  try { await updateVehicle(prefill.vehicle_id, { vin: v }) } catch { /* silent */ }
+                }
+              }}
+              placeholder="17-stellige FIN …"
+              maxLength={17}
+              autoCapitalize="characters"
+              className="flex-1 text-right text-sm font-mono text-gray-700 bg-transparent border-b border-gray-300 focus:outline-none focus:border-brand-400 min-w-0"
+            />
           </div>
         </div>
       </Card>
