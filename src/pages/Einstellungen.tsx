@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { logout, changePin } from '../lib/auth'
 import { supabase } from '../lib/supabase'
+import { TUTORIAL_EVENT } from '../components/OnboardingOverlay'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -417,6 +418,22 @@ export default function Einstellungen() {
             <span>React + Supabase + PWA</span>
           </div>
         </div>
+      </div>
+
+      {/* Tutorial */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent(TUTORIAL_EVENT))}
+          className="w-full flex items-center gap-3 px-4 py-4 text-left hover:bg-gray-50 active:scale-95 transition-all"
+        >
+          <span className="text-2xl">🎓</span>
+          <div>
+            <span className="font-semibold text-gray-800">Tutorial anzeigen</span>
+            <p className="text-xs text-gray-400 mt-0.5">Einführung in die App erneut starten</p>
+          </div>
+          <span className="ml-auto text-gray-400">›</span>
+        </button>
       </div>
 
       {/* Abmelden */}
