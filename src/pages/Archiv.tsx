@@ -570,6 +570,7 @@ export default function Archiv() {
                       damages: cd?.damage_records ?? [],
                       photos: cd?.photos ?? {},
                       receiver_name: cd?.receiver_name,
+                      transfer_type: cd?.transfer_type,
                     },
                   },
                 })

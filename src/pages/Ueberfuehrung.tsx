@@ -36,6 +36,7 @@ export interface ProtocolEditData {
   damages: DamageItem[]
   photos: Record<string, string>
   receiver_name?: string
+  transfer_type?: string
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -410,6 +411,7 @@ export default function Ueberfuehrung() {
     const loc = ed?.location ?? ''
     return loc.includes(' → ') ? (loc.split(' → ')[1] ?? '') : ''
   })
+  const [transferType, setTransferType] = useState<string>(ed?.transfer_type ?? 'Hinbringen')
   const [conditions, setConditions] = useState<string[]>(ed?.conditions ?? [])
   const [fuel, setFuel] = useState(ed?.fuel ?? 100)
   const [battery, setBattery] = useState(ed?.battery ?? 100)
@@ -532,6 +534,7 @@ export default function Ueberfuehrung() {
         damage_records: damageRecords,
         checkliste: checklist,
         receiver_name: receiverName.trim() || undefined,
+        transfer_type: transferType || undefined,
       },
     }
 
@@ -640,6 +643,7 @@ export default function Ueberfuehrung() {
         damage_records: basePayload.condition_data.damage_records,
         checkliste: basePayload.condition_data.checkliste,
         receiver_name: receiverName.trim() || undefined,
+        transfer_type: transferType || undefined,
       })
       setSuccess(true)
     } catch (err: unknown) {
@@ -728,6 +732,13 @@ export default function Ueberfuehrung() {
     <form onSubmit={handleSave} className="flex flex-col min-h-full bg-gray-50 pb-8">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10">
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="text-brand-600 text-sm font-medium mb-1 block"
+        >
+          ← Zurück
+        </button>
         <h1 className="text-xl font-bold text-gray-900">
           🚙 {ed ? 'Protokoll bearbeiten' : 'Überführungsprotokoll'}
         </h1>
@@ -764,8 +775,29 @@ export default function Ueberfuehrung() {
         </div>
       </Card>
 
-      {/* ── 2. Fahrer & Route ── */}
-      <SectionHeader title="2. Fahrer & Route" />
+      {/* ── 2. Art der Überführung ── */}
+      <SectionHeader title="2. Art der Überführung" />
+      <Card>
+        <div className="flex gap-2 flex-wrap">
+          {['Hinbringen', 'Rücknahme'].map((option) => (
+            <button
+              key={option}
+              type="button"
+              onClick={() => setTransferType(option)}
+              className={`flex-1 min-w-[7rem] py-2.5 rounded-xl text-sm font-medium transition-colors border ${
+                transferType === option
+                  ? 'bg-brand-600 text-white border-brand-600'
+                  : 'bg-white text-gray-600 border-gray-300'
+              }`}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      </Card>
+
+      {/* ── 3. Fahrer & Route ── */}
+      <SectionHeader title="3. Fahrer & Route" />
       <Card className="space-y-3">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -816,8 +848,8 @@ export default function Ueberfuehrung() {
         </div>
       </Card>
 
-      {/* ── 3. Sichtbedingungen ── */}
-      <SectionHeader title="3. Sichtbedingungen" />
+      {/* ── 4. Sichtbedingungen ── */}
+      <SectionHeader title="4. Sichtbedingungen" />
       <Card>
         <p className="text-xs text-gray-500 mb-2">Erschwerende Bedingungen (optional):</p>
         <div className="flex flex-wrap gap-2">
@@ -838,8 +870,8 @@ export default function Ueberfuehrung() {
         </div>
       </Card>
 
-      {/* ── 4. Fahrzeugzustand ── */}
-      <SectionHeader title="4. Fahrzeugzustand" />
+      {/* ── 5. Fahrzeugzustand ── */}
+      <SectionHeader title="5. Fahrzeugzustand" />
       <Card className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Kilometerstand</label>
@@ -856,8 +888,8 @@ export default function Ueberfuehrung() {
         <LevelSlider label="Akkustand (E-Fahrzeug)" value={battery} onChange={setBattery} />
       </Card>
 
-      {/* ── 5. Checkliste ── */}
-      <SectionHeader title="5. Checkliste" />
+      {/* ── 6. Checkliste ── */}
+      <SectionHeader title="6. Checkliste" />
       <Card className="space-y-2">
         <p className="text-xs text-gray-500 mb-1">Innenraum-Zustand:</p>
         <Toggle label="Boden" checked={checklist.floor} onChange={(v) => setChecklist((p) => ({ ...p, floor: v }))} trueLabel="Sauber" falseLabel="Schmutzig" />
@@ -875,8 +907,8 @@ export default function Ueberfuehrung() {
         <Toggle label="Ladekarte" checked={checklist.card} onChange={(v) => setChecklist((p) => ({ ...p, card: v }))} trueLabel="Ja" falseLabel="Nein" />
       </Card>
 
-      {/* ── 6. Fahrzeugfotos ── */}
-      <SectionHeader title="6. Fahrzeugfotos" />
+      {/* ── 7. Fahrzeugfotos ── */}
+      <SectionHeader title="7. Fahrzeugfotos" />
       <Card>
         <div className="grid grid-cols-3 gap-3">
           {PHOTO_KEYS.map((pk) => {
@@ -952,8 +984,8 @@ export default function Ueberfuehrung() {
         </div>
       )}
 
-      {/* ── 7. Schäden ── */}
-      <SectionHeader title="7. Schäden" />
+      {/* ── 8. Schäden ── */}
+      <SectionHeader title="8. Schäden" />
       <Card className="space-y-3">
         {damages.length === 0 && (
           <p className="text-sm text-gray-400 text-center py-2">Keine Schäden erfasst.</p>
@@ -976,8 +1008,8 @@ export default function Ueberfuehrung() {
         </button>
       </Card>
 
-      {/* ── 8. Bemerkungen ── */}
-      <SectionHeader title="8. Bemerkungen" />
+      {/* ── 9. Bemerkungen ── */}
+      <SectionHeader title="9. Bemerkungen" />
       <Card>
         <textarea
           value={remarks}
@@ -988,8 +1020,8 @@ export default function Ueberfuehrung() {
         />
       </Card>
 
-      {/* ── 9. Unterschrift Fahrer ── */}
-      <SectionHeader title="9. Unterschrift Fahrer" />
+      {/* ── 10. Unterschrift Fahrer ── */}
+      <SectionHeader title="10. Unterschrift Fahrer" />
       <Card>
         <p className="text-xs text-gray-500 mb-3">
           Mit Ihrer Unterschrift bestätigen Sie die Richtigkeit der Angaben.
@@ -1004,8 +1036,8 @@ export default function Ueberfuehrung() {
         <SignatureCanvas canvasRef={canvasRef} onHasStroke={setHasSig} />
       </Card>
 
-      {/* ── 10. Übernahme durch Empfänger ── */}
-      <SectionHeader title="10. Übernahme durch Empfänger" />
+      {/* ── 11. Übernahme durch Empfänger ── */}
+      <SectionHeader title="11. Übernahme durch Empfänger" />
       <Card className="space-y-3">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">

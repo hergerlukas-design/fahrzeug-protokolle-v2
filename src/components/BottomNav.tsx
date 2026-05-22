@@ -1,9 +1,5 @@
 import { NavLink } from 'react-router-dom'
-
-const TABS = [
-  { path: '/fahrzeuge', label: 'Projekte', icon: '📁' },
-  { path: '/einstellungen', label: 'Einstellungen', icon: '⚙️' },
-]
+import { CREATE_EVENT } from './CreateWizard'
 
 export default function BottomNav() {
   return (
@@ -11,20 +7,39 @@ export default function BottomNav() {
       className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex z-50"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
-      {TABS.map((tab) => (
-        <NavLink
-          key={tab.path}
-          to={tab.path}
-          className={({ isActive }) =>
-            `flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
-              isActive ? 'text-brand-600' : 'text-gray-500'
-            }`
-          }
-        >
-          <span className="text-xl leading-none">{tab.icon}</span>
-          <span className="text-xs leading-tight">{tab.label}</span>
-        </NavLink>
-      ))}
+      <NavLink
+        to="/fahrzeuge"
+        className={({ isActive }) =>
+          `flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
+            isActive ? 'text-brand-600' : 'text-gray-500'
+          }`
+        }
+      >
+        <span className="text-xl leading-none">📁</span>
+        <span className="text-xs leading-tight">Projekte</span>
+      </NavLink>
+
+      <button
+        onClick={() => window.dispatchEvent(new CustomEvent(CREATE_EVENT))}
+        className="flex-1 flex flex-col items-center justify-center py-1 gap-0.5 text-gray-500"
+      >
+        <span className="w-11 h-11 bg-brand-600 rounded-full flex items-center justify-center text-white text-2xl font-light -mt-4 shadow-lg">
+          +
+        </span>
+        <span className="text-xs leading-tight">Erstellen</span>
+      </button>
+
+      <NavLink
+        to="/einstellungen"
+        className={({ isActive }) =>
+          `flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
+            isActive ? 'text-brand-600' : 'text-gray-500'
+          }`
+        }
+      >
+        <span className="text-xl leading-none">⚙️</span>
+        <span className="text-xs leading-tight">Einstellungen</span>
+      </NavLink>
     </nav>
   )
 }

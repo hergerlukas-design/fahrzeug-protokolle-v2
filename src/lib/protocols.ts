@@ -33,6 +33,7 @@ export interface ProtocolConditionData {
   damage_records: DamageItem[]
   checkliste: Checkliste
   receiver_name?: string
+  transfer_type?: string
 }
 
 export interface ProtocolPayload {

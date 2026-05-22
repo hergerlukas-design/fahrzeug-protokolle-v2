@@ -65,6 +65,8 @@ export interface PdfData {
   checkliste: Checkliste
   /** For transfer protocols: name of the receiving party. */
   receiver_name?: string
+  /** For transfer protocols: art der Überführung (e.g. Selbstfahrer). */
+  transfer_type?: string
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -302,6 +304,10 @@ function drawSection1Basisdaten(
     for (const [l1, v1, l2, v2] of rows) {
       drawCell(page, fonts, ML,        cursorY, C2, ROW8, l1, v1)
       drawCell(page, fonts, ML + C2,   cursorY, C2, ROW8, l2, v2)
+      cursorY -= ROW8
+    }
+    if (data.transfer_type) {
+      drawCell(page, fonts, ML, cursorY, CW, ROW8, 'Art der Überführung', data.transfer_type)
       cursorY -= ROW8
     }
     // Full-width Bedingungen

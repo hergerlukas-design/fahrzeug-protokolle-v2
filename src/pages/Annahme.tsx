@@ -709,6 +709,13 @@ export default function Annahme() {
     <form onSubmit={handleSave} className="flex flex-col min-h-full bg-gray-50 pb-8">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10">
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="text-brand-600 text-sm font-medium mb-1 block"
+        >
+          ← Zurück
+        </button>
         <h1 className="text-xl font-bold text-gray-900">📝 Annahmeprotokoll</h1>
         <p className="text-sm text-gray-500 mt-0.5">{prefill.license_plate}</p>
       </div>
