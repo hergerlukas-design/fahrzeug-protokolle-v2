@@ -1215,9 +1215,22 @@ function VehicleProjectSection({
   const [assignments, setAssignments] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
+  const [addDropdownOpen, setAddDropdownOpen] = useState(false)
+  const addDropdownRef = useRef<HTMLDivElement>(null)
   const [savingId, setSavingId] = useState<string | null>(null)
   const [removeConfirm, setRemoveConfirm] = useState<Project | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!addDropdownOpen) return
+    function handleOutside(e: MouseEvent) {
+      if (addDropdownRef.current && !addDropdownRef.current.contains(e.target as Node)) {
+        setAddDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [addDropdownOpen])
 
   const loadAssignments = useCallback(async () => {
     try {
@@ -1238,7 +1251,7 @@ function VehicleProjectSection({
     try {
       await addVehicleToProject(vehicleId, projectId)
       await loadAssignments()
-      setShowAdd(false)
+      setAddDropdownOpen(false)
       onProjectsChanged?.()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Fehler beim Hinzufügen.')
@@ -1325,21 +1338,33 @@ function VehicleProjectSection({
 
       {showAdd && available.length > 0 && (
         <div className="mt-3 border-t border-gray-100 pt-3">
-          <p className="text-xs text-gray-500 mb-2">Projekt wählen:</p>
-          <div className="flex flex-wrap gap-2">
-            {available.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => handleAdd(p.id)}
-                disabled={savingId === p.id}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border border-brand-200 bg-brand-50 text-brand-700 active:bg-brand-100 disabled:opacity-50"
-              >
-                {p.color && (
-                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
-                )}
-                {savingId === p.id ? '…' : `+ ${p.name}`}
-              </button>
-            ))}
+          <div className="relative" ref={addDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setAddDropdownOpen((o) => !o)}
+              className="w-full flex items-center justify-between border border-gray-300 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
+            >
+              <span className="text-gray-400">Projekt auswählen …</span>
+              <span className="text-gray-400 text-xs ml-2">{addDropdownOpen ? '▲' : '▼'}</span>
+            </button>
+            {addDropdownOpen && (
+              <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
+                {available.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => handleAdd(p.id)}
+                    disabled={savingId === p.id}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-gray-50 transition-colors text-left disabled:opacity-50"
+                  >
+                    {p.color && (
+                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
+                    )}
+                    <span className="flex-1 text-gray-800">{savingId === p.id ? '…' : p.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
