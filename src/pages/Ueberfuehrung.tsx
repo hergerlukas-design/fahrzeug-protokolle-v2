@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   DEFAULT_CHECKLISTE,
@@ -6,10 +6,8 @@ import {
   DAMAGE_POSITIONS,
   DAMAGE_TYPES,
   INSPECTION_CONDITIONS,
-  getPendingOffline,
   saveOffline,
   saveProtocol,
-  syncOffline,
   uploadProtocolPhoto,
   uploadSignature,
   type Checkliste,
@@ -17,6 +15,7 @@ import {
   type OfflineEntry,
   updateProtocol,
 } from '../lib/protocols'
+import { OFFLINE_SAVED_EVENT } from '../components/OfflineIndicator'
 import PdfButton from '../components/PdfButton'
 import type { PdfData } from '../lib/generatePdf'
 import { updateVehicleKnownDamages } from '../lib/vehicles'
@@ -459,36 +458,6 @@ export default function Ueberfuehrung() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [savedPdfData, setSavedPdfData] = useState<PdfData | null>(null)
-  const [pendingCount, setPendingCount] = useState(0)
-  const [syncing, setSyncing] = useState(false)
-  const [syncMsg, setSyncMsg] = useState<string | null>(null)
-
-  // ── Effects ────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    loadPendingCount()
-
-    async function handleOnline() {
-      setSyncing(true)
-      try {
-        const count = await syncOffline()
-        if (count > 0) {
-          setSyncMsg(`${count} Protokoll${count !== 1 ? 'e' : ''} synchronisiert.`)
-          setTimeout(() => setSyncMsg(null), 4000)
-          await loadPendingCount()
-        }
-      } finally {
-        setSyncing(false)
-      }
-    }
-
-    window.addEventListener('online', handleOnline)
-    return () => window.removeEventListener('online', handleOnline)
-  }, [])
-
-  async function loadPendingCount() {
-    const pending = await getPendingOffline()
-    setPendingCount(pending.length)
-  }
 
   // ── Handlers ───────────────────────────────────────────────────────────────
   function toggleCondition(c: string) {
@@ -651,7 +620,7 @@ export default function Ueberfuehrung() {
           signatureReceiverBlob,
         }
         await saveOffline(offlineEntry)
-        await loadPendingCount()
+        window.dispatchEvent(new CustomEvent(OFFLINE_SAVED_EVENT))
       }
       setSavedPdfData({
         protocol_type: 'transfer',
@@ -764,23 +733,6 @@ export default function Ueberfuehrung() {
         </h1>
         <p className="text-sm text-gray-500 mt-0.5">{prefill.license_plate}</p>
       </div>
-
-      {/* Offline banner */}
-      {(pendingCount > 0 || syncing) && (
-        <div className="mx-4 mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2">
-          <span className="text-amber-600">📶</span>
-          <p className="text-sm text-amber-800 flex-1">
-            {syncing
-              ? 'Synchronisiere …'
-              : `${pendingCount} Protokoll${pendingCount !== 1 ? 'e' : ''} warten auf Sync`}
-          </p>
-        </div>
-      )}
-      {syncMsg && (
-        <div className="mx-4 mt-2 p-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-800">
-          ✅ {syncMsg}
-        </div>
-      )}
 
       {/* Error */}
       {error && (

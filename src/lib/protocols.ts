@@ -297,85 +297,62 @@ async function deleteOffline(localId: number): Promise<void> {
   })
 }
 
+async function uploadBlobAsSignature(
+  vehicleId: string,
+  sessionKey: string,
+  blob: Blob,
+  suffix = 'signature'
+): Promise<string> {
+  const url = URL.createObjectURL(blob)
+  try {
+    return await uploadSignature(vehicleId, sessionKey, url, suffix)
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
+
+let syncInProgress = false
+
 /** Syncs all pending offline entries to Supabase. Returns number of synced entries. */
 export async function syncOffline(): Promise<number> {
-  const pending = await getPendingOffline()
-  let synced = 0
-  for (const entry of pending) {
-    try {
-      const photos: Record<string, string> = {}
-      for (const [key, blob] of Object.entries(entry.photoBlobs)) {
-        const file = new File([blob], `${key}.jpg`, { type: 'image/jpeg' })
-        photos[key] = await uploadProtocolPhoto(entry.vehicleId, entry.sessionKey, key, file)
+  if (syncInProgress) return 0
+  syncInProgress = true
+  try {
+    const pending = await getPendingOffline()
+    let synced = 0
+    for (const entry of pending) {
+      try {
+        const photos: Record<string, string> = {}
+        for (const [key, blob] of Object.entries(entry.photoBlobs)) {
+          const file = new File([blob], `${key}.jpg`, { type: 'image/jpeg' })
+          photos[key] = await uploadProtocolPhoto(entry.vehicleId, entry.sessionKey, key, file)
+        }
+        if (entry.signatureBlob) {
+          photos.signature = await uploadBlobAsSignature(entry.vehicleId, entry.sessionKey, entry.signatureBlob)
+        }
+        if (entry.signatureReceiverBlob) {
+          photos.signature_receiver = await uploadBlobAsSignature(entry.vehicleId, entry.sessionKey, entry.signatureReceiverBlob, 'signature_receiver')
+        }
+        if (entry.signatureCarrierBlob) {
+          photos.signature_carrier = await uploadBlobAsSignature(entry.vehicleId, entry.sessionKey + '_carrier', entry.signatureCarrierBlob)
+        }
+        const finalPayload: ProtocolPayload = {
+          ...entry.payload,
+          condition_data: { ...entry.payload.condition_data, photos },
+        }
+        await saveProtocol(finalPayload)
+        const offlineDamages = finalPayload.condition_data.damage_records
+        if (offlineDamages.length > 0) {
+          await updateVehicleKnownDamages(entry.vehicleId, offlineDamages)
+        }
+        await deleteOffline(entry.localId!)
+        synced++
+      } catch {
+        // leave in queue for next attempt
       }
-      if (entry.signatureBlob) {
-        const canvas = document.createElement('canvas')
-        const ctx = canvas.getContext('2d')!
-        const img = new Image()
-        const url = URL.createObjectURL(entry.signatureBlob)
-        await new Promise<void>((res) => {
-          img.onload = () => {
-            canvas.width = img.width
-            canvas.height = img.height
-            ctx.drawImage(img, 0, 0)
-            URL.revokeObjectURL(url)
-            res()
-          }
-          img.src = url
-        })
-        const dataUrl = canvas.toDataURL('image/png')
-        photos.signature = await uploadSignature(entry.vehicleId, entry.sessionKey, dataUrl)
-      }
-      if (entry.signatureReceiverBlob) {
-        const canvas = document.createElement('canvas')
-        const ctx = canvas.getContext('2d')!
-        const img = new Image()
-        const url = URL.createObjectURL(entry.signatureReceiverBlob)
-        await new Promise<void>((res) => {
-          img.onload = () => {
-            canvas.width = img.width
-            canvas.height = img.height
-            ctx.drawImage(img, 0, 0)
-            URL.revokeObjectURL(url)
-            res()
-          }
-          img.src = url
-        })
-        const dataUrl = canvas.toDataURL('image/png')
-        photos.signature_receiver = await uploadSignature(entry.vehicleId, entry.sessionKey, dataUrl, 'signature_receiver')
-      }
-      if (entry.signatureCarrierBlob) {
-        const canvas = document.createElement('canvas')
-        const ctx = canvas.getContext('2d')!
-        const img = new Image()
-        const url = URL.createObjectURL(entry.signatureCarrierBlob)
-        await new Promise<void>((res) => {
-          img.onload = () => {
-            canvas.width = img.width
-            canvas.height = img.height
-            ctx.drawImage(img, 0, 0)
-            URL.revokeObjectURL(url)
-            res()
-          }
-          img.src = url
-        })
-        const dataUrl = canvas.toDataURL('image/png')
-        photos.signature_carrier = await uploadSignature(entry.vehicleId, entry.sessionKey + '_carrier', dataUrl)
-      }
-      const finalPayload: ProtocolPayload = {
-        ...entry.payload,
-        condition_data: { ...entry.payload.condition_data, photos },
-      }
-      await saveProtocol(finalPayload)
-      const offlineDamages = finalPayload.condition_data.damage_records
-      if (offlineDamages.length > 0) {
-        await updateVehicleKnownDamages(entry.vehicleId, offlineDamages)
-      }
-      await deleteOffline(entry.localId!)
-      synced++
-    } catch {
-      // leave in queue for next attempt
     }
+    return synced
+  } finally {
+    syncInProgress = false
   }
-  return synced
 }
