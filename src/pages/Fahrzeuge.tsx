@@ -628,6 +628,19 @@ function NewVehicleFlow({
   )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!dropdownOpen) return
+    function handleOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [dropdownOpen])
 
   function toggleProject(id: string) {
     setSelectedProjectIds((prev) =>
@@ -719,28 +732,69 @@ function NewVehicleFlow({
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Projekt <span className="text-red-500">*</span>
               </label>
-              <div className="flex flex-wrap gap-2">
-                {activeProjects.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => toggleProject(p.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
-                      selectedProjectIds.includes(p.id)
-                        ? 'bg-brand-600 text-white border-brand-600'
-                        : 'bg-gray-50 text-gray-600 border-gray-200'
-                    }`}
-                  >
-                    {p.color && (
-                      <span
-                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: p.color }}
-                      />
-                    )}
-                    {p.name}
-                  </button>
-                ))}
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setDropdownOpen((o) => !o)}
+                  className="w-full flex items-center justify-between border border-gray-300 rounded-xl px-4 py-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
+                >
+                  <span className={selectedProjectIds.length === 0 ? 'text-gray-400' : 'text-gray-900 font-medium'}>
+                    {selectedProjectIds.length === 0
+                      ? 'Projekt auswählen …'
+                      : `${selectedProjectIds.length} Projekt${selectedProjectIds.length !== 1 ? 'e' : ''} gewählt`}
+                  </span>
+                  <span className="text-gray-400 text-xs ml-2">{dropdownOpen ? '▲' : '▼'}</span>
+                </button>
+
+                {dropdownOpen && (
+                  <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
+                    {activeProjects.map((p) => {
+                      const selected = selectedProjectIds.includes(p.id)
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => toggleProject(p.id)}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-gray-50 transition-colors text-left"
+                        >
+                          <span className={`w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors ${selected ? 'bg-brand-600 border-brand-600' : 'border-gray-300'}`}>
+                            {selected && <span className="text-white text-xs leading-none">✓</span>}
+                          </span>
+                          {p.color && (
+                            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
+                          )}
+                          <span className="flex-1 text-gray-800">{p.name}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
+
+              {selectedProjectIds.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {selectedProjectIds.map((id) => {
+                    const p = activeProjects.find((x) => x.id === id)
+                    if (!p) return null
+                    return (
+                      <span
+                        key={id}
+                        className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-brand-50 text-brand-700 border border-brand-200"
+                      >
+                        {p.color && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />}
+                        {p.name}
+                        <button
+                          type="button"
+                          onClick={() => toggleProject(id)}
+                          className="ml-0.5 text-brand-400 hover:text-brand-600 leading-none font-bold"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           )}
           <div className="grid grid-cols-2 gap-3 pt-2">
