@@ -1062,14 +1062,20 @@ export default function Annahme() {
           onClick={() => { setCarrierPresent(v => !v); setHasSigCarrier(false) }}
           className="w-full flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 mb-3"
         >
-          <span className="text-sm font-medium text-gray-700">Fahrzeug wird von Spediteur übergeben</span>
+          <span className="text-sm font-medium text-gray-700">Fahrzeug von Spedition angenommen</span>
           <span className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${carrierPresent ? 'bg-brand-600' : 'bg-gray-300'}`}>
             <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${carrierPresent ? 'translate-x-6' : 'translate-x-1'}`} />
           </span>
         </button>
         {carrierPresent ? (
           <>
-            <p className="text-xs text-gray-500 mb-2">Unterschrift des Spediteurs — erscheint im PDF.</p>
+            <p className="text-xs text-gray-500 mb-3">
+              Mit Ihrer Unterschrift bestätigen Sie die Übergabe des Fahrzeugs.
+              Ihre Daten werden ausschließlich zur Dokumentation dieser Fahrzeugübergabe verwendet.{' '}
+              <a href="/datenschutz" className="text-brand-600 underline">
+                Datenschutzerklärung
+              </a>
+            </p>
             {ed?.photos?.['signature_carrier'] && !hasSigCarrier && (
               <p className="text-xs text-amber-600 mb-2">⚠️ Vorhandene Spediteur-Unterschrift bleibt erhalten, wenn du hier nichts zeichnest.</p>
             )}
