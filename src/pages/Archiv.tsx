@@ -5,6 +5,13 @@ import PdfButton from '../components/PdfButton'
 import type { PdfData } from '../lib/generatePdf'
 import { DEFAULT_CHECKLISTE, deleteProtocol, type ProtocolConditionData } from '../lib/protocols'
 import { SkeletonList } from '../components/Skeleton'
+import {
+  fetchArchivedProjectsWithCounts,
+  unarchiveProject,
+  deleteProject,
+  getProjectStats,
+  type ProjectWithCount,
+} from '../lib/projects'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -71,6 +78,7 @@ export default function Archiv() {
   const navigate = useNavigate()
   const loc = useLocation()
   const preselectedId = (loc.state as { protocol_id?: number } | null)?.protocol_id ?? null
+  const [tab, setTab] = useState<'protokolle' | 'projekte'>('protokolle')
   const [protocols, setProtocols] = useState<ProtocolRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -82,6 +90,12 @@ export default function Archiv() {
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  // ── Archived projects state ───────────────────────────────────────────────
+  const [archivedProjects, setArchivedProjects] = useState<ProjectWithCount[]>([])
+  const [projectsLoading, setProjectsLoading] = useState(false)
+  const [projectActionId, setProjectActionId] = useState<string | null>(null)
+  const [projectMsg, setProjectMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
   async function load() {
     setLoading(true)
@@ -106,6 +120,55 @@ export default function Archiv() {
   }
 
   useEffect(() => { load() }, [])
+
+  async function loadArchivedProjects() {
+    setProjectsLoading(true)
+    setProjectMsg(null)
+    try {
+      const data = await fetchArchivedProjectsWithCounts()
+      setArchivedProjects(data)
+    } catch (e) {
+      setProjectMsg({ ok: false, text: e instanceof Error ? e.message : 'Fehler beim Laden.' })
+    } finally {
+      setProjectsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (tab === 'projekte') loadArchivedProjects()
+  }, [tab])
+
+  async function handleProjectUnarchive(id: string) {
+    setProjectActionId(id)
+    setProjectMsg(null)
+    try {
+      await unarchiveProject(id)
+      setArchivedProjects((prev) => prev.filter((p) => p.id !== id))
+      setProjectMsg({ ok: true, text: 'Projekt reaktiviert.' })
+    } catch (e) {
+      setProjectMsg({ ok: false, text: e instanceof Error ? e.message : 'Fehler.' })
+    } finally {
+      setProjectActionId(null)
+    }
+  }
+
+  async function handleProjectDelete(id: string, name: string) {
+    const stats = await getProjectStats(id).catch(() => ({ vehicleCount: 0, protocolCount: 0 }))
+    const confirmed = window.confirm(
+      `Projekt „${name}" löschen?\n\nEs enthält ${stats.vehicleCount} Fahrzeug${stats.vehicleCount !== 1 ? 'e' : ''} und ${stats.protocolCount} Protokoll${stats.protocolCount !== 1 ? 'e' : ''}.\n\nDie Fahrzeuge werden NICHT gelöscht und landen in „Ohne Projekt".`
+    )
+    if (!confirmed) return
+    setProjectActionId(id)
+    try {
+      await deleteProject(id)
+      setArchivedProjects((prev) => prev.filter((p) => p.id !== id))
+      setProjectMsg({ ok: true, text: 'Projekt gelöscht.' })
+    } catch (e) {
+      setProjectMsg({ ok: false, text: e instanceof Error ? e.message : 'Fehler.' })
+    } finally {
+      setProjectActionId(null)
+    }
+  }
 
   async function handleDelete() {
     if (deleteId == null) return
@@ -157,67 +220,152 @@ export default function Archiv() {
       <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10">
         <h1 className="text-lg font-bold text-gray-800 mb-3">Archiv & Verwaltung</h1>
 
-        {/* Search */}
-        <input
-          type="text"
-          placeholder="Kennzeichen, Name, Datum…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500 mb-2"
-        />
-
-        {/* Type filter pills */}
-        <div className="flex gap-2 mb-2">
-          {(['all', 'annahme', 'transfer'] as const).map(t => (
-            <button
-              key={t}
-              onClick={() => setFilterType(t)}
-              className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                filterType === t
-                  ? t === 'annahme'
-                    ? 'bg-brand-600 text-white border-brand-600'
-                    : t === 'transfer'
-                    ? 'bg-green-600 text-white border-green-600'
-                    : 'bg-gray-700 text-white border-gray-700'
-                  : 'bg-white text-gray-600 border-gray-300'
-              }`}
-            >
-              {t === 'all' ? 'Alle' : t === 'annahme' ? 'Annahme' : 'Überführung'}
-            </button>
-          ))}
+        {/* Tab switcher */}
+        <div className="flex gap-1 mb-3 bg-gray-100 p-1 rounded-xl">
+          <button
+            onClick={() => setTab('protokolle')}
+            className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              tab === 'protokolle' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+            }`}
+          >
+            📄 Protokolle
+          </button>
+          <button
+            onClick={() => setTab('projekte')}
+            className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              tab === 'projekte' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+            }`}
+          >
+            📦 Projekte
+          </button>
         </div>
 
-        {/* Date range */}
-        <div className="flex gap-2">
-          <div className="flex-1">
-            <label className="text-[10px] text-gray-400 mb-0.5 block">Von</label>
+        {tab === 'protokolle' && (
+          <>
+            {/* Search */}
             <input
-              type="date"
-              value={filterFrom}
-              onChange={e => setFilterFrom(e.target.value)}
-              className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              type="text"
+              placeholder="Kennzeichen, Name, Datum…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500 mb-2"
             />
-          </div>
-          <div className="flex-1">
-            <label className="text-[10px] text-gray-400 mb-0.5 block">Bis</label>
-            <input
-              type="date"
-              value={filterTo}
-              onChange={e => setFilterTo(e.target.value)}
-              className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500"
-            />
-          </div>
-          {(filterFrom || filterTo) && (
-            <button
-              onClick={() => { setFilterFrom(''); setFilterTo('') }}
-              className="self-end mb-0 px-2 py-1.5 text-xs text-gray-400 active:text-gray-600"
-            >
-              ✕
-            </button>
-          )}
-        </div>
+
+            {/* Type filter pills */}
+            <div className="flex gap-2 mb-2">
+              {(['all', 'annahme', 'transfer'] as const).map(t => (
+                <button
+                  key={t}
+                  onClick={() => setFilterType(t)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                    filterType === t
+                      ? t === 'annahme'
+                        ? 'bg-brand-600 text-white border-brand-600'
+                        : t === 'transfer'
+                        ? 'bg-green-600 text-white border-green-600'
+                        : 'bg-gray-700 text-white border-gray-700'
+                      : 'bg-white text-gray-600 border-gray-300'
+                  }`}
+                >
+                  {t === 'all' ? 'Alle' : t === 'annahme' ? 'Annahme' : 'Überführung'}
+                </button>
+              ))}
+            </div>
+
+            {/* Date range */}
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="text-[10px] text-gray-400 mb-0.5 block">Von</label>
+                <input
+                  type="date"
+                  value={filterFrom}
+                  onChange={e => setFilterFrom(e.target.value)}
+                  className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="text-[10px] text-gray-400 mb-0.5 block">Bis</label>
+                <input
+                  type="date"
+                  value={filterTo}
+                  onChange={e => setFilterTo(e.target.value)}
+                  className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+              </div>
+              {(filterFrom || filterTo) && (
+                <button
+                  onClick={() => { setFilterFrom(''); setFilterTo('') }}
+                  className="self-end mb-0 px-2 py-1.5 text-xs text-gray-400 active:text-gray-600"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
+      {/* Archived projects tab */}
+      {tab === 'projekte' && (
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+          {projectMsg && (
+            <div className={`p-3 rounded-xl text-sm font-medium ${projectMsg.ok ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+              {projectMsg.text}
+            </div>
+          )}
+          {projectsLoading ? (
+            <SkeletonList count={3} />
+          ) : archivedProjects.length === 0 ? (
+            <div className="text-center py-16">
+              <p className="text-4xl mb-3">📦</p>
+              <p className="text-gray-500 font-medium">Keine archivierten Projekte</p>
+              <p className="text-gray-400 text-sm mt-1">Archivierte Projekte erscheinen hier.</p>
+            </div>
+          ) : (
+            archivedProjects.map((p) => (
+              <div key={p.id} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                <div className="flex items-start gap-3">
+                  {p.color ? (
+                    <div className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: p.color + '33' }}>
+                      <div className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: p.color }} />
+                    </div>
+                  ) : (
+                    <div className="w-9 h-9 rounded-xl bg-gray-100 flex-shrink-0 flex items-center justify-center text-lg">📦</div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-700 truncate">{p.name}</p>
+                    {p.description && <p className="text-xs text-gray-400 truncate">{p.description}</p>}
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {p.vehicle_count} Fahrzeug{p.vehicle_count !== 1 ? 'e' : ''} ·{' '}
+                      archiviert {p.archived_at ? new Date(p.archived_at).toLocaleDateString('de-DE') : ''}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={() => handleProjectUnarchive(p.id)}
+                    disabled={projectActionId === p.id}
+                    className="flex-1 py-2 rounded-lg bg-brand-50 text-brand-700 text-sm font-medium border border-brand-200 active:bg-brand-100 disabled:opacity-50"
+                  >
+                    {projectActionId === p.id ? '…' : '♻️ Reaktivieren'}
+                  </button>
+                  <button
+                    onClick={() => handleProjectDelete(p.id, p.name)}
+                    disabled={projectActionId === p.id}
+                    className="flex-1 py-2 rounded-lg bg-red-50 text-red-600 text-sm font-medium border border-red-200 active:bg-red-100 disabled:opacity-50"
+                  >
+                    🗑️ Löschen
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Protocol tab content */}
+      {tab === 'protokolle' && (
+        <>
       {/* Count */}
       {!loading && !error && (
         <div className="px-4 pt-2 pb-0">
@@ -277,6 +425,8 @@ export default function Archiv() {
           </button>
         ))}
       </div>
+        </>
+      )}
 
       {/* ── Detail Modal ────────────────────────────────────────────────────── */}
       {selected && (
