@@ -579,7 +579,7 @@ export default function Annahme() {
         }
         const vinTrimmed = vin.trim().toUpperCase()
         if (vinTrimmed !== prefill.vin) {
-          await updateVehicle(prefill.vehicle_id, { vin: vinTrimmed })
+          await updateVehicle(prefill.vehicle_id, { license_plate: prefill.license_plate, brand_model: prefill.brand_model, vin: vinTrimmed })
         }
       } else {
         // Offline: store in IndexedDB
@@ -757,7 +757,7 @@ export default function Annahme() {
               onBlur={async () => {
                 const v = vin.trim().toUpperCase()
                 if (v && v !== prefill.vin) {
-                  try { await updateVehicle(prefill.vehicle_id, { vin: v }) } catch { /* silent */ }
+                  try { await updateVehicle(prefill.vehicle_id, { license_plate: prefill.license_plate, brand_model: prefill.brand_model, vin: v }) } catch { /* silent */ }
                 }
               }}
               placeholder="17-stellige FIN …"
