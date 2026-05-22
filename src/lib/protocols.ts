@@ -264,6 +264,7 @@ export interface OfflineEntry {
   photoBlobs: Record<string, Blob>
   signatureBlob?: Blob
   signatureReceiverBlob?: Blob
+  signatureCarrierBlob?: Blob
 }
 
 export async function saveOffline(entry: OfflineEntry): Promise<void> {
@@ -342,6 +343,24 @@ export async function syncOffline(): Promise<number> {
         })
         const dataUrl = canvas.toDataURL('image/png')
         photos.signature_receiver = await uploadSignature(entry.vehicleId, entry.sessionKey, dataUrl, 'signature_receiver')
+      }
+      if (entry.signatureCarrierBlob) {
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')!
+        const img = new Image()
+        const url = URL.createObjectURL(entry.signatureCarrierBlob)
+        await new Promise<void>((res) => {
+          img.onload = () => {
+            canvas.width = img.width
+            canvas.height = img.height
+            ctx.drawImage(img, 0, 0)
+            URL.revokeObjectURL(url)
+            res()
+          }
+          img.src = url
+        })
+        const dataUrl = canvas.toDataURL('image/png')
+        photos.signature_carrier = await uploadSignature(entry.vehicleId, entry.sessionKey + '_carrier', dataUrl)
       }
       const finalPayload: ProtocolPayload = {
         ...entry.payload,

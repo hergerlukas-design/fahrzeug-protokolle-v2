@@ -462,43 +462,45 @@ async function drawSignatures(
   fonts: Fonts,
   data: PdfData,
   sigImg: PDFImage | null,
-  sigImgReceiver: PDFImage | null = null
+  sigImgReceiver: PDFImage | null = null,
+  sigImgCarrier: PDFImage | null = null
 ) {
   const dateStr = data.inspection_date
     ? new Date(data.inspection_date).toLocaleDateString('de-DE')
     : ''
 
   if (data.protocol_type === 'annahme') {
-    // Annahme: absolute bottom-right, x=145, y=250 from top, w=55mm, h=30mm
-    const x = mm(145)
-    const y = top(250, 30)   // = (297-250-30)*PT = 17*PT
-    const w = mm(55)
     const h = mm(30)
+    const y = top(250, 30)
 
-    page.drawRectangle({ x, y, width: w, height: h, borderColor: C_BLACK, borderWidth: 0.5 })
-    page.drawText('Annahme durch (Ersteller)', {
-      x: x + mm(1), y: y + h - mm(4), size: 7, font: fonts.bold, color: C_BLACK,
-    })
-    page.drawText(safe(data.inspector_name), {
-      x: x + mm(1), y: y + mm(5.5), size: 8, font: fonts.regular, color: C_BLACK,
-    })
-    page.drawText(dateStr, {
-      x: x + mm(1), y: y + mm(2), size: 7, font: fonts.regular, color: C_LABEL,
-    })
+    function drawSigBox(x: number, w: number, label: string, name: string, img: PDFImage | null) {
+      page.drawRectangle({ x, y, width: w, height: h, borderColor: C_BLACK, borderWidth: 0.5 })
+      page.drawText(label, { x: x + mm(1), y: y + h - mm(4), size: 7, font: fonts.bold, color: C_BLACK })
+      page.drawText(safe(name), { x: x + mm(1), y: y + mm(5.5), size: 8, font: fonts.regular, color: C_BLACK })
+      page.drawText(dateStr, { x: x + mm(1), y: y + mm(2), size: 7, font: fonts.regular, color: C_LABEL })
+      if (img) {
+        const sigMaxW = w - mm(8)
+        const sigMaxH = mm(18)
+        const aspect = img.width / img.height
+        const sigW = Math.min(sigMaxW, sigMaxH * aspect)
+        const sigH = sigW / aspect
+        page.drawImage(img, {
+          x: x + (w - sigW) / 2,
+          y: y + (h - sigH) / 2 - mm(1),
+          width: sigW,
+          height: sigH,
+          opacity: 0.9,
+        })
+      }
+    }
 
-    if (sigImg) {
-      const sigMaxW = mm(45)
-      const sigMaxH = mm(18)
-      const aspect = sigImg.width / sigImg.height
-      const sigW = Math.min(sigMaxW, sigMaxH * aspect)
-      const sigH = sigW / aspect
-      page.drawImage(sigImg, {
-        x: x + (w - sigW) / 2,
-        y: y + (h - sigH) / 2 - mm(1),
-        width: sigW,
-        height: sigH,
-        opacity: 0.9,
-      })
+    if (sigImgCarrier) {
+      // Two boxes side by side when carrier signature is present
+      drawSigBox(mm(85), mm(55), 'Übergabe durch Spediteur', '', sigImgCarrier)
+      drawSigBox(mm(145), mm(55), 'Annahme durch (Ersteller)', data.inspector_name, sigImg)
+    } else {
+      // Single box bottom-right
+      drawSigBox(mm(145), mm(55), 'Annahme durch (Ersteller)', data.inspector_name, sigImg)
     }
   } else {
     // Überführung: 2 columns, absolute y=250 from top, each 87mm wide
@@ -803,6 +805,13 @@ export async function generatePdf(data: PdfData): Promise<Uint8Array> {
     if (sigReceiverBytes) sigImgReceiver = await pdfDoc.embedPng(sigReceiverBytes)
   }
 
+  let sigImgCarrier: PDFImage | null = null
+  const sigCarrierUrl = data.photos['signature_carrier']
+  if (sigCarrierUrl) {
+    const sigCarrierBytes = await fetchPng(sigCarrierUrl)
+    if (sigCarrierBytes) sigImgCarrier = await pdfDoc.embedPng(sigCarrierBytes)
+  }
+
   // ── Load damage photos ──────────────────────────────────────────────────────
   const damagePhotoImgs: Record<string, PDFImage> = {}
   const damagePhotoEntries = Object.entries(data.photos).filter(([k]) => k.startsWith('schaden_'))
@@ -824,7 +833,7 @@ export async function generatePdf(data: PdfData): Promise<Uint8Array> {
   cursorY = drawSection4Bemerkungen(page1, fonts, cursorY, data)
   void cursorY
 
-  await drawSignatures(page1, pdfDoc, fonts, data, sigImg, sigImgReceiver)
+  await drawSignatures(page1, pdfDoc, fonts, data, sigImg, sigImgReceiver, sigImgCarrier)
 
   // ── Page 2: Photos ──────────────────────────────────────────────────────────
   await buildPhotoPage(pdfDoc, fonts, logoImg, data, vehiclePhotoImgs)

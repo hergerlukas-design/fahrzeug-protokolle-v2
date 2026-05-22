@@ -440,6 +440,10 @@ export default function Annahme() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [hasSig, setHasSig] = useState(false)
 
+  const canvasRefCarrier = useRef<HTMLCanvasElement>(null)
+  const [carrierPresent, setCarrierPresent] = useState(() => !!ed?.photos?.['signature_carrier'])
+  const [hasSigCarrier, setHasSigCarrier] = useState(false)
+
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -584,6 +588,16 @@ export default function Annahme() {
             sigDataUrl
           )
         }
+        if (carrierPresent && hasSigCarrier && canvasRefCarrier.current) {
+          const carrierDataUrl = canvasRefCarrier.current.toDataURL('image/png')
+          photos.signature_carrier = await uploadSignature(
+            prefill.vehicle_id,
+            sessionKey.current + '_carrier',
+            carrierDataUrl
+          )
+        } else if (carrierPresent && ed?.photos?.['signature_carrier']) {
+          photos.signature_carrier = ed.photos['signature_carrier']
+        }
         basePayload.condition_data.photos = photos
         if (ed) {
           await updateProtocol(ed.protocol_id, basePayload)
@@ -608,6 +622,11 @@ export default function Annahme() {
         if (sigDataUrl) {
           signatureBlob = await (await fetch(sigDataUrl)).blob()
         }
+        let signatureCarrierBlob: Blob | undefined
+        if (carrierPresent && hasSigCarrier && canvasRefCarrier.current) {
+          const carrierDataUrl = canvasRefCarrier.current.toDataURL('image/png')
+          signatureCarrierBlob = await (await fetch(carrierDataUrl)).blob()
+        }
         const offlineEntry: OfflineEntry = {
           createdAt: new Date().toISOString(),
           vehicleId: prefill.vehicle_id,
@@ -615,6 +634,7 @@ export default function Annahme() {
           payload: basePayload,
           photoBlobs,
           signatureBlob,
+          signatureCarrierBlob,
         }
         await saveOffline(offlineEntry)
         await loadPendingCount()
@@ -1033,6 +1053,31 @@ export default function Annahme() {
             : 'Ohne Unterschrift wird das Protokoll als Entwurf gespeichert.'}
         </p>
         <SignatureCanvas canvasRef={canvasRef} onHasStroke={setHasSig} />
+      </Card>
+
+      <SectionHeader title="10. Spediteur-Unterschrift (optional)" />
+      <Card>
+        <button
+          type="button"
+          onClick={() => { setCarrierPresent(v => !v); setHasSigCarrier(false) }}
+          className="w-full flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 mb-3"
+        >
+          <span className="text-sm font-medium text-gray-700">Fahrzeug wird von Spediteur übergeben</span>
+          <span className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${carrierPresent ? 'bg-brand-600' : 'bg-gray-300'}`}>
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${carrierPresent ? 'translate-x-6' : 'translate-x-1'}`} />
+          </span>
+        </button>
+        {carrierPresent ? (
+          <>
+            <p className="text-xs text-gray-500 mb-2">Unterschrift des Spediteurs — erscheint im PDF.</p>
+            {ed?.photos?.['signature_carrier'] && !hasSigCarrier && (
+              <p className="text-xs text-amber-600 mb-2">⚠️ Vorhandene Spediteur-Unterschrift bleibt erhalten, wenn du hier nichts zeichnest.</p>
+            )}
+            <SignatureCanvas canvasRef={canvasRefCarrier} onHasStroke={setHasSigCarrier} />
+          </>
+        ) : (
+          <p className="text-xs text-gray-400 italic">Kein Spediteur — Feld erscheint nicht im PDF.</p>
+        )}
       </Card>
 
       {/* ── Save button ── */}
