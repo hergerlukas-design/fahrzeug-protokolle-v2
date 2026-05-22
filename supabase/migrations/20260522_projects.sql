@@ -1,5 +1,5 @@
 -- Migration: Projektordner-Struktur für Fahrzeug-Protokolle
--- Idempotent (safe to run multiple times)
+-- Idempotent (safe to run multiple times, handles existing tables)
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- projects table
@@ -15,6 +15,13 @@ CREATE TABLE IF NOT EXISTS projects (
   created_at  timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT projects_name_unique UNIQUE (name)
 );
+
+-- Add missing columns if table already existed without them
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS description text;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS color       text;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS is_archived boolean NOT NULL DEFAULT false;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS archived_at timestamptz;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS created_at  timestamptz NOT NULL DEFAULT now();
 
 CREATE INDEX IF NOT EXISTS projects_is_archived_idx ON projects (is_archived);
 
@@ -40,7 +47,6 @@ CREATE INDEX IF NOT EXISTS vehicle_projects_project_id_idx ON vehicle_projects (
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE vehicle_projects ENABLE ROW LEVEL SECURITY;
 
--- Allow full access (same pattern as existing tables using anon key)
 DO $$
 BEGIN
   IF NOT EXISTS (
