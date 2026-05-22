@@ -23,6 +23,9 @@ interface ProtocolRow {
 
 export default function Einstellungen() {
   const navigate = useNavigate()
+  const [activeTab, setActiveTab] = useState<'einstellungen' | 'verwaltung'>('einstellungen')
+
+  // ── PIN ──────────────────────────────────────────────────────────────────
   const [pinSection, setPinSection] = useState(false)
   const [currentPin, setCurrentPin] = useState('')
   const [newPin, setNewPin] = useState('')
@@ -83,7 +86,6 @@ export default function Einstellungen() {
         .order('id', { ascending: true })
       if (error) throw error
 
-      // Gruppe: vehicle_id + protocol_type + Datum (YYYY-MM-DD)
       const groups: Record<string, { id: number }[]> = {}
       for (const p of data ?? []) {
         const dateKey = (p.inspection_date ?? '').slice(0, 10)
@@ -92,7 +94,6 @@ export default function Einstellungen() {
         groups[key].push({ id: p.id })
       }
 
-      // Älteste behalten (höchste ID = neueste), Rest als Duplikat markieren
       const toDelete: number[] = []
       for (const group of Object.values(groups)) {
         if (group.length > 1) {
@@ -187,284 +188,327 @@ export default function Einstellungen() {
   }
 
   return (
-    <div className="p-4 max-w-lg mx-auto">
-      <h1 className="text-xl font-bold text-gray-800 mb-6">Einstellungen</h1>
-
-      {/* PIN ändern */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
-        <button
-          className="w-full flex items-center justify-between px-4 py-4 text-left"
-          onClick={() => { setPinSection(v => !v); setPinMsg(null) }}
-        >
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">🔑</span>
-            <span className="font-semibold text-gray-800">PIN ändern</span>
-          </div>
-          <span className="text-gray-400 text-sm">{pinSection ? '▲' : '▼'}</span>
-        </button>
-
-        {pinSection && (
-          <form onSubmit={handlePinChange} className="px-4 pb-4 flex flex-col gap-3 border-t border-gray-100 pt-4">
-            <input
-              type="password"
-              inputMode="numeric"
-              placeholder="Aktueller PIN"
-              value={currentPin}
-              onChange={e => setCurrentPin(e.target.value)}
-              className="border border-gray-300 rounded-xl px-4 py-3 text-lg tracking-widest w-full focus:outline-none focus:ring-2 focus:ring-brand-500"
-              autoComplete="current-password"
-            />
-            <input
-              type="password"
-              inputMode="numeric"
-              placeholder="Neuer PIN"
-              value={newPin}
-              onChange={e => setNewPin(e.target.value)}
-              className="border border-gray-300 rounded-xl px-4 py-3 text-lg tracking-widest w-full focus:outline-none focus:ring-2 focus:ring-brand-500"
-              autoComplete="new-password"
-            />
-            <input
-              type="password"
-              inputMode="numeric"
-              placeholder="Neuer PIN bestätigen"
-              value={confirmPin}
-              onChange={e => setConfirmPin(e.target.value)}
-              className="border border-gray-300 rounded-xl px-4 py-3 text-lg tracking-widest w-full focus:outline-none focus:ring-2 focus:ring-brand-500"
-              autoComplete="new-password"
-            />
-            {pinMsg && (
-              <p className={`text-sm font-medium ${pinMsg.ok ? 'text-green-600' : 'text-red-600'}`}>
-                {pinMsg.text}
-              </p>
-            )}
-            <button
-              type="submit"
-              className="w-full py-3 rounded-xl bg-brand-600 text-white font-semibold hover:bg-brand-700 active:scale-95 transition-all"
-            >
-              PIN speichern
-            </button>
-          </form>
-        )}
-      </div>
-
-      {/* Duplikate bereinigen */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
-        <button
-          className="w-full flex items-center justify-between px-4 py-4 text-left"
-          onClick={() => { setDupSection(v => !v); setDupMsg(null); setDupIds(null) }}
-        >
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">🔁</span>
-            <div>
-              <span className="font-semibold text-gray-800">Duplikate bereinigen</span>
-              <p className="text-xs text-gray-400 mt-0.5">Doppelte Protokolle finden und löschen</p>
-            </div>
-          </div>
-          <span className="text-gray-400 text-sm">{dupSection ? '▲' : '▼'}</span>
-        </button>
-
-        {dupSection && (
-          <div className="px-4 pb-4 border-t border-gray-100 pt-4 space-y-3">
-            <p className="text-sm text-gray-500">
-              Sucht Protokolle mit gleicher Fahrzeug-ID, gleichem Protokolltyp und gleichem Datum.
-              Bei Duplikaten wird jeweils der neueste Eintrag behalten.
-            </p>
-
-            <button
-              type="button"
-              onClick={findDuplicates}
-              disabled={dupSearching}
-              className="w-full py-3 rounded-xl border border-brand-300 text-brand-700 font-medium text-sm active:bg-brand-50 disabled:opacity-50"
-            >
-              {dupSearching ? 'Suche läuft …' : '🔍 Duplikate suchen'}
-            </button>
-
-            {dupMsg && (
-              <p className={`text-sm font-medium ${dupMsg.ok ? 'text-green-600' : 'text-red-600'}`}>
-                {dupMsg.text}
-              </p>
-            )}
-
-            {dupIds && dupIds.length > 0 && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-3">
-                <p className="text-sm text-amber-800 font-medium">
-                  {dupIds.length} Duplikat{dupIds.length !== 1 ? 'e' : ''} gefunden (IDs: {dupIds.join(', ')})
-                </p>
-                <p className="text-xs text-amber-700">
-                  Diese Einträge werden unwiderruflich gelöscht.
-                </p>
-                <button
-                  type="button"
-                  onClick={deleteDuplicates}
-                  disabled={dupDeleting}
-                  className="w-full py-3 rounded-xl bg-red-600 text-white font-semibold text-sm disabled:opacity-60"
-                >
-                  {dupDeleting ? 'Lösche …' : `🗑 ${dupIds.length} Duplikat${dupIds.length !== 1 ? 'e' : ''} löschen`}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Leere Beiträge bereinigen */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
-        <button
-          className="w-full flex items-center justify-between px-4 py-4 text-left"
-          onClick={() => { setEmptySection(v => !v); setEmptyMsg(null); setEmptyRows(null) }}
-        >
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">🧹</span>
-            <div>
-              <span className="font-semibold text-gray-800">Leere Beiträge bereinigen</span>
-              <p className="text-xs text-gray-400 mt-0.5">Leere Entwürfe ohne Inhalt löschen</p>
-            </div>
-          </div>
-          <span className="text-gray-400 text-sm">{emptySection ? '▲' : '▼'}</span>
-        </button>
-
-        {emptySection && (
-          <div className="px-4 pb-4 border-t border-gray-100 pt-4 space-y-3">
-            <p className="text-sm text-gray-500">
-              Sucht Protokolle im Status "Entwurf" ohne Fotos, Schäden, Checkliste oder Bedingungen.
-            </p>
-
-            <button
-              type="button"
-              onClick={findEmptyProtocols}
-              disabled={emptySearching}
-              className="w-full py-3 rounded-xl border border-brand-300 text-brand-700 font-medium text-sm active:bg-brand-50 disabled:opacity-50"
-            >
-              {emptySearching ? 'Suche läuft …' : '🔍 Leere Entwürfe suchen'}
-            </button>
-
-            {emptyMsg && (
-              <p className={`text-sm font-medium ${emptyMsg.ok ? 'text-green-600' : 'text-red-600'}`}>
-                {emptyMsg.text}
-              </p>
-            )}
-
-            {emptyRows && emptyRows.length > 0 && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-3">
-                <p className="text-sm text-amber-800 font-medium">
-                  {emptyRows.length} leere{emptyRows.length !== 1 ? ' Entwürfe' : 'r Entwurf'} gefunden:
-                </p>
-                <ul className="space-y-1">
-                  {emptyRows.map((r) => (
-                    <li key={r.id} className="text-xs text-amber-700">
-                      #{r.id} — {r.protocol_type === 'transfer' ? 'Überführung' : 'Annahme'},{' '}
-                      {r.inspector_name || '(kein Name)'},{' '}
-                      {r.inspection_date?.slice(0, 10) ?? '—'}
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-xs text-amber-700">
-                  Diese Einträge werden unwiderruflich gelöscht.
-                </p>
-                <button
-                  type="button"
-                  onClick={deleteEmptyProtocols}
-                  disabled={emptyDeleting}
-                  className="w-full py-3 rounded-xl bg-red-600 text-white font-semibold text-sm disabled:opacity-60"
-                >
-                  {emptyDeleting
-                    ? 'Lösche …'
-                    : `🗑 ${emptyRows.length} leere${emptyRows.length !== 1 ? ' Entwürfe' : 'n Entwurf'} löschen`}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Projektverwaltung */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
-        <a
-          href="/fahrzeuge"
-          className="w-full flex items-center gap-3 px-4 py-4 text-left"
-        >
-          <div className="flex items-center gap-3 flex-1">
-            <span className="text-2xl">📁</span>
-            <div>
-              <span className="font-semibold text-gray-800">Projektverwaltung</span>
-              <p className="text-xs text-gray-400 mt-0.5">Projekte anlegen, bearbeiten, archivieren</p>
-            </div>
-          </div>
-          <span className="text-gray-400 text-sm">›</span>
-        </a>
-      </div>
-
-      {/* App-Info */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 px-4 py-4">
-        <div className="flex items-center gap-3 mb-3">
-          <span className="text-2xl">ℹ️</span>
-          <span className="font-semibold text-gray-800">App-Info</span>
-        </div>
-        <div className="flex flex-col gap-1.5 text-sm text-gray-600">
-          <div className="flex justify-between">
-            <span className="text-gray-400">App</span>
-            <span>Fahrzeug-Protokolle v2</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-400">Version</span>
-            <span>1.7.0</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-400">Betreiber</span>
-            <span>CarHandling</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-400">Stack</span>
-            <span>React + Supabase + PWA</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Tutorial */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
+    <div className="flex flex-col min-h-full bg-gray-50">
+      {/* Sub-Tab Bar */}
+      <div className="bg-white border-b border-gray-200 flex sticky top-0 z-10">
         <button
           type="button"
-          onClick={() => window.dispatchEvent(new CustomEvent(TUTORIAL_EVENT))}
-          className="w-full flex items-center gap-3 px-4 py-4 text-left hover:bg-gray-50 active:scale-95 transition-all"
+          onClick={() => setActiveTab('einstellungen')}
+          className={`flex-1 py-3 text-sm font-semibold transition-colors border-b-2 ${
+            activeTab === 'einstellungen'
+              ? 'text-brand-600 border-brand-600'
+              : 'text-gray-500 border-transparent'
+          }`}
         >
-          <span className="text-2xl">🎓</span>
-          <div>
-            <span className="font-semibold text-gray-800">Tutorial anzeigen</span>
-            <p className="text-xs text-gray-400 mt-0.5">Einführung in die App erneut starten</p>
-          </div>
-          <span className="ml-auto text-gray-400">›</span>
+          Einstellungen
         </button>
-      </div>
-
-      {/* Abmelden */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <button
-          onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-4 py-4 text-red-600 font-semibold hover:bg-red-50 active:scale-95 transition-all"
+          type="button"
+          onClick={() => setActiveTab('verwaltung')}
+          className={`flex-1 py-3 text-sm font-semibold transition-colors border-b-2 ${
+            activeTab === 'verwaltung'
+              ? 'text-brand-600 border-brand-600'
+              : 'text-gray-500 border-transparent'
+          }`}
         >
-          <span className="text-2xl">🚪</span>
-          <span>Abmelden</span>
+          Verwaltung
         </button>
       </div>
 
-      {/* Rechtliches */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mt-4">
-        <a
-          href="/impressum"
-          className="flex items-center gap-3 px-4 py-4 text-gray-600 hover:bg-gray-50 border-b border-gray-100"
-        >
-          <span className="text-2xl">⚖️</span>
-          <span className="font-medium">Impressum</span>
-          <span className="ml-auto text-gray-400">›</span>
-        </a>
-        <a
-          href="/datenschutz"
-          className="flex items-center gap-3 px-4 py-4 text-gray-600 hover:bg-gray-50"
-        >
-          <span className="text-2xl">🔒</span>
-          <span className="font-medium">Datenschutzerklärung</span>
-          <span className="ml-auto text-gray-400">›</span>
-        </a>
+      <div className="p-4 max-w-lg mx-auto w-full">
+        {/* ── Tab: Einstellungen ── */}
+        {activeTab === 'einstellungen' && (
+          <>
+            {/* Tutorial */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent(TUTORIAL_EVENT))}
+                className="w-full flex items-center gap-3 px-4 py-4 text-left hover:bg-gray-50 active:scale-95 transition-all"
+              >
+                <span className="text-2xl">🎓</span>
+                <div>
+                  <span className="font-semibold text-gray-800">Tutorial anzeigen</span>
+                  <p className="text-xs text-gray-400 mt-0.5">Einführung in die App erneut starten</p>
+                </div>
+                <span className="ml-auto text-gray-400">›</span>
+              </button>
+            </div>
+
+            {/* App-Info */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 px-4 py-4">
+              <div className="flex items-center gap-3 mb-3">
+                <span className="text-2xl">ℹ️</span>
+                <span className="font-semibold text-gray-800">App-Info</span>
+              </div>
+              <div className="flex flex-col gap-1.5 text-sm text-gray-600">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">App</span>
+                  <span>Fahrzeug-Protokolle v2</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Version</span>
+                  <span>1.7.0</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Betreiber</span>
+                  <span>CarHandling</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Stack</span>
+                  <span>React + Supabase + PWA</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Abmelden */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-3 px-4 py-4 text-red-600 font-semibold hover:bg-red-50 active:scale-95 transition-all"
+              >
+                <span className="text-2xl">🚪</span>
+                <span>Abmelden</span>
+              </button>
+            </div>
+
+            {/* Rechtliches */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <a
+                href="/impressum"
+                className="flex items-center gap-3 px-4 py-4 text-gray-600 hover:bg-gray-50 border-b border-gray-100"
+              >
+                <span className="text-2xl">⚖️</span>
+                <span className="font-medium">Impressum</span>
+                <span className="ml-auto text-gray-400">›</span>
+              </a>
+              <a
+                href="/datenschutz"
+                className="flex items-center gap-3 px-4 py-4 text-gray-600 hover:bg-gray-50"
+              >
+                <span className="text-2xl">🔒</span>
+                <span className="font-medium">Datenschutzerklärung</span>
+                <span className="ml-auto text-gray-400">›</span>
+              </a>
+            </div>
+          </>
+        )}
+
+        {/* ── Tab: Verwaltung ── */}
+        {activeTab === 'verwaltung' && (
+          <>
+            {/* Archiv */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
+              <a
+                href="/archiv"
+                className="w-full flex items-center gap-3 px-4 py-4 text-left"
+              >
+                <div className="flex items-center gap-3 flex-1">
+                  <span className="text-2xl">🗃️</span>
+                  <div>
+                    <span className="font-semibold text-gray-800">Archiv</span>
+                    <p className="text-xs text-gray-400 mt-0.5">Archivierte Fahrzeuge & Projekte</p>
+                  </div>
+                </div>
+                <span className="text-gray-400 text-sm">›</span>
+              </a>
+            </div>
+
+            {/* Projektverwaltung */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
+              <a
+                href="/fahrzeuge"
+                className="w-full flex items-center gap-3 px-4 py-4 text-left"
+              >
+                <div className="flex items-center gap-3 flex-1">
+                  <span className="text-2xl">📁</span>
+                  <div>
+                    <span className="font-semibold text-gray-800">Projektverwaltung</span>
+                    <p className="text-xs text-gray-400 mt-0.5">Projekte anlegen, bearbeiten, archivieren</p>
+                  </div>
+                </div>
+                <span className="text-gray-400 text-sm">›</span>
+              </a>
+            </div>
+
+            {/* PIN ändern */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
+              <button
+                className="w-full flex items-center justify-between px-4 py-4 text-left"
+                onClick={() => { setPinSection(v => !v); setPinMsg(null) }}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🔑</span>
+                  <span className="font-semibold text-gray-800">PIN ändern</span>
+                </div>
+                <span className="text-gray-400 text-sm">{pinSection ? '▲' : '▼'}</span>
+              </button>
+
+              {pinSection && (
+                <form onSubmit={handlePinChange} className="px-4 pb-4 flex flex-col gap-3 border-t border-gray-100 pt-4">
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    placeholder="Aktueller PIN"
+                    value={currentPin}
+                    onChange={e => setCurrentPin(e.target.value)}
+                    className="border border-gray-300 rounded-xl px-4 py-3 text-lg tracking-widest w-full focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    autoComplete="current-password"
+                  />
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    placeholder="Neuer PIN"
+                    value={newPin}
+                    onChange={e => setNewPin(e.target.value)}
+                    className="border border-gray-300 rounded-xl px-4 py-3 text-lg tracking-widest w-full focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    autoComplete="new-password"
+                  />
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    placeholder="Neuer PIN bestätigen"
+                    value={confirmPin}
+                    onChange={e => setConfirmPin(e.target.value)}
+                    className="border border-gray-300 rounded-xl px-4 py-3 text-lg tracking-widest w-full focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    autoComplete="new-password"
+                  />
+                  {pinMsg && (
+                    <p className={`text-sm font-medium ${pinMsg.ok ? 'text-green-600' : 'text-red-600'}`}>
+                      {pinMsg.text}
+                    </p>
+                  )}
+                  <button
+                    type="submit"
+                    className="w-full py-3 rounded-xl bg-brand-600 text-white font-semibold hover:bg-brand-700 active:scale-95 transition-all"
+                  >
+                    PIN speichern
+                  </button>
+                </form>
+              )}
+            </div>
+
+            {/* Duplikate bereinigen */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
+              <button
+                className="w-full flex items-center justify-between px-4 py-4 text-left"
+                onClick={() => { setDupSection(v => !v); setDupMsg(null); setDupIds(null) }}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🔁</span>
+                  <div>
+                    <span className="font-semibold text-gray-800">Duplikate bereinigen</span>
+                    <p className="text-xs text-gray-400 mt-0.5">Doppelte Protokolle finden und löschen</p>
+                  </div>
+                </div>
+                <span className="text-gray-400 text-sm">{dupSection ? '▲' : '▼'}</span>
+              </button>
+
+              {dupSection && (
+                <div className="px-4 pb-4 border-t border-gray-100 pt-4 space-y-3">
+                  <p className="text-sm text-gray-500">
+                    Sucht Protokolle mit gleicher Fahrzeug-ID, gleichem Protokolltyp und gleichem Datum.
+                    Bei Duplikaten wird jeweils der neueste Eintrag behalten.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={findDuplicates}
+                    disabled={dupSearching}
+                    className="w-full py-3 rounded-xl border border-brand-300 text-brand-700 font-medium text-sm active:bg-brand-50 disabled:opacity-50"
+                  >
+                    {dupSearching ? 'Suche läuft …' : '🔍 Duplikate suchen'}
+                  </button>
+                  {dupMsg && (
+                    <p className={`text-sm font-medium ${dupMsg.ok ? 'text-green-600' : 'text-red-600'}`}>
+                      {dupMsg.text}
+                    </p>
+                  )}
+                  {dupIds && dupIds.length > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-3">
+                      <p className="text-sm text-amber-800 font-medium">
+                        {dupIds.length} Duplikat{dupIds.length !== 1 ? 'e' : ''} gefunden (IDs: {dupIds.join(', ')})
+                      </p>
+                      <p className="text-xs text-amber-700">Diese Einträge werden unwiderruflich gelöscht.</p>
+                      <button
+                        type="button"
+                        onClick={deleteDuplicates}
+                        disabled={dupDeleting}
+                        className="w-full py-3 rounded-xl bg-red-600 text-white font-semibold text-sm disabled:opacity-60"
+                      >
+                        {dupDeleting ? 'Lösche …' : `🗑 ${dupIds.length} Duplikat${dupIds.length !== 1 ? 'e' : ''} löschen`}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Leere Beiträge bereinigen */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
+              <button
+                className="w-full flex items-center justify-between px-4 py-4 text-left"
+                onClick={() => { setEmptySection(v => !v); setEmptyMsg(null); setEmptyRows(null) }}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🧹</span>
+                  <div>
+                    <span className="font-semibold text-gray-800">Leere Beiträge bereinigen</span>
+                    <p className="text-xs text-gray-400 mt-0.5">Leere Entwürfe ohne Inhalt löschen</p>
+                  </div>
+                </div>
+                <span className="text-gray-400 text-sm">{emptySection ? '▲' : '▼'}</span>
+              </button>
+
+              {emptySection && (
+                <div className="px-4 pb-4 border-t border-gray-100 pt-4 space-y-3">
+                  <p className="text-sm text-gray-500">
+                    Sucht Protokolle im Status "Entwurf" ohne Fotos, Schäden, Checkliste oder Bedingungen.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={findEmptyProtocols}
+                    disabled={emptySearching}
+                    className="w-full py-3 rounded-xl border border-brand-300 text-brand-700 font-medium text-sm active:bg-brand-50 disabled:opacity-50"
+                  >
+                    {emptySearching ? 'Suche läuft …' : '🔍 Leere Entwürfe suchen'}
+                  </button>
+                  {emptyMsg && (
+                    <p className={`text-sm font-medium ${emptyMsg.ok ? 'text-green-600' : 'text-red-600'}`}>
+                      {emptyMsg.text}
+                    </p>
+                  )}
+                  {emptyRows && emptyRows.length > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-3">
+                      <p className="text-sm text-amber-800 font-medium">
+                        {emptyRows.length} leere{emptyRows.length !== 1 ? ' Entwürfe' : 'r Entwurf'} gefunden:
+                      </p>
+                      <ul className="space-y-1">
+                        {emptyRows.map((r) => (
+                          <li key={r.id} className="text-xs text-amber-700">
+                            #{r.id} — {r.protocol_type === 'transfer' ? 'Überführung' : 'Annahme'},{' '}
+                            {r.inspector_name || '(kein Name)'},{' '}
+                            {r.inspection_date?.slice(0, 10) ?? '—'}
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="text-xs text-amber-700">Diese Einträge werden unwiderruflich gelöscht.</p>
+                      <button
+                        type="button"
+                        onClick={deleteEmptyProtocols}
+                        disabled={emptyDeleting}
+                        className="w-full py-3 rounded-xl bg-red-600 text-white font-semibold text-sm disabled:opacity-60"
+                      >
+                        {emptyDeleting
+                          ? 'Lösche …'
+                          : `🗑 ${emptyRows.length} leere${emptyRows.length !== 1 ? ' Entwürfe' : 'n Entwurf'} löschen`}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   )

@@ -1,8 +1,7 @@
 import { NavLink } from 'react-router-dom'
 
 const TABS = [
-  { path: '/fahrzeuge', label: 'Fahrzeuge', icon: '🚗' },
-  { path: '/archiv', label: 'Archiv', icon: '🔍' },
+  { path: '/fahrzeuge', label: 'Projekte', icon: '📁' },
   { path: '/einstellungen', label: 'Einstellungen', icon: '⚙️' },
 ]
 
