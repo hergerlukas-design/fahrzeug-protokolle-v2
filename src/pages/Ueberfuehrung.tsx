@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   DEFAULT_CHECKLISTE,
   DAMAGE_INTENSITIES,
-  DAMAGE_POSITIONS,
   DAMAGE_TYPES,
   INSPECTION_CONDITIONS,
   saveOffline,
@@ -17,6 +17,7 @@ import {
 } from '../lib/protocols'
 import { OFFLINE_SAVED_EVENT } from '../components/OfflineIndicator'
 import PdfButton from '../components/PdfButton'
+import CarDamageSelector from '../components/CarDamageSelector'
 import type { PdfData } from '../lib/generatePdf'
 import { updateVehicle, updateVehicleKnownDamages } from '../lib/vehicles'
 
@@ -86,6 +87,7 @@ function SignatureCanvas({
   canvasRef: React.RefObject<HTMLCanvasElement | null>
   onHasStroke: (v: boolean) => void
 }) {
+  const { t } = useTranslation()
   const isDrawing = useRef(false)
   const lastPos = useRef<{ x: number; y: number } | null>(null)
   const initialized = useRef(false)
@@ -185,7 +187,7 @@ function SignatureCanvas({
         onClick={clearCanvas}
         className="mt-2 text-sm text-red-500 active:text-red-700"
       >
-        ✕ Unterschrift löschen
+        ✕ {t('annahme.sig_clear')}
       </button>
     </div>
   )
@@ -293,6 +295,7 @@ function DamageRow({
   onUpdate: (key: string, fields: Partial<DamageFormItem>) => void
   onRemove: (key: string) => void
 }) {
+  const { t } = useTranslation()
   const galleryRef = useRef<HTMLInputElement>(null)
   const cameraRef = useRef<HTMLInputElement>(null)
 
@@ -307,34 +310,28 @@ function DamageRow({
   return (
     <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-gray-500">Schaden {index + 1}</span>
+        <span className="text-xs font-semibold text-gray-500">{t('annahme.damage_label', { count: index + 1 })}</span>
         <button
           type="button"
           onClick={() => onRemove(item.key)}
           className="text-red-400 text-sm active:text-red-600"
         >
-          ✕ Entfernen
+          ✕ {t('annahme.damage_remove')}
         </button>
       </div>
-      <select
-        value={item.pos}
-        onChange={(e) => onUpdate(item.key, { pos: e.target.value })}
-        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-400"
-      >
-        <option value="">Position wählen …</option>
-        {DAMAGE_POSITIONS.map((p) => (
-          <option key={p} value={p}>{p}</option>
-        ))}
-      </select>
+      <CarDamageSelector
+        value={item.pos || null}
+        onChange={(pos) => onUpdate(item.key, { pos })}
+      />
       <div className="grid grid-cols-2 gap-2">
         <select
           value={item.type}
           onChange={(e) => onUpdate(item.key, { type: e.target.value })}
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-400"
         >
-          <option value="">Art …</option>
-          {DAMAGE_TYPES.map((t) => (
-            <option key={t} value={t}>{t}</option>
+          <option value="">{t('annahme.damage_type_placeholder')}</option>
+          {DAMAGE_TYPES.map((dt) => (
+            <option key={dt} value={dt}>{t(`damage.types.${dt}`, { defaultValue: dt })}</option>
           ))}
         </select>
         <select
@@ -342,9 +339,9 @@ function DamageRow({
           onChange={(e) => onUpdate(item.key, { int: e.target.value })}
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-400"
         >
-          <option value="">Intensität …</option>
-          {DAMAGE_INTENSITIES.map((i) => (
-            <option key={i} value={i}>{i}</option>
+          <option value="">{t('annahme.damage_intensity_placeholder')}</option>
+          {DAMAGE_INTENSITIES.map((di) => (
+            <option key={di} value={di}>{t(`damage.intensities.${di}`, { defaultValue: di })}</option>
           ))}
         </select>
       </div>
@@ -353,7 +350,7 @@ function DamageRow({
           <div className="relative">
             <img
               src={item.previewUrl}
-              alt="Schaden"
+              alt={t('annahme.damage_label', { count: index + 1 })}
               className="w-16 h-16 object-cover rounded-lg border border-gray-200"
             />
             <button
@@ -371,14 +368,14 @@ function DamageRow({
               onClick={() => cameraRef.current?.click()}
               className="flex items-center gap-1.5 text-sm text-green-600 border border-green-200 rounded-lg px-3 py-2 bg-green-50 active:bg-green-100"
             >
-              📷 <span>Kamera</span>
+              📷 <span>{t('damage.camera')}</span>
             </button>
             <button
               type="button"
               onClick={() => galleryRef.current?.click()}
               className="flex items-center gap-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 active:bg-gray-100"
             >
-              🖼 <span>Galerie</span>
+              🖼 <span>{t('damage.gallery')}</span>
             </button>
           </div>
         )}
@@ -396,6 +393,7 @@ function DamageRow({
 export default function Ueberfuehrung() {
   const loc = useLocation()
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const prefill = (loc.state as PrefillState) ?? null
 
   const sessionKey = useRef(Date.now().toString())
@@ -496,11 +494,11 @@ export default function Ueberfuehrung() {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     if (!prefill) {
-      setError('Kein Fahrzeug ausgewählt. Bitte von der Fahrzeugliste starten.')
+      setError(t('ueberfuehrung.no_vehicle_error'))
       return
     }
     if (!fahrer.trim()) {
-      setError('Fahrer ist ein Pflichtfeld.')
+      setError(t('ueberfuehrung.creator_required'))
       return
     }
     setSaving(true)
@@ -652,7 +650,7 @@ export default function Ueberfuehrung() {
       })
       setSuccess(true)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Speichern fehlgeschlagen.')
+      setError(err instanceof Error ? err.message : t('ueberfuehrung.save_error'))
     } finally {
       setSaving(false)
     }
@@ -684,11 +682,9 @@ export default function Ueberfuehrung() {
       <div className="flex flex-col items-center justify-center min-h-full px-6 gap-6 text-center">
         <div className="text-6xl">✅</div>
         <div>
-          <h1 className="text-xl font-bold text-gray-900 mb-1">Protokoll gespeichert</h1>
+          <h1 className="text-xl font-bold text-gray-900 mb-1">{t('ueberfuehrung.success_title')}</h1>
           <p className="text-sm text-gray-500">
-            {navigator.onLine
-              ? 'Das Überführungsprotokoll wurde erfolgreich gespeichert.'
-              : 'Offline gespeichert — wird synchronisiert, sobald Internet verfügbar ist.'}
+            {navigator.onLine ? t('ueberfuehrung.success_online') : t('ueberfuehrung.success_offline')}
           </p>
         </div>
         {savedPdfData && <PdfButton data={savedPdfData} accent="green" />}
@@ -697,13 +693,13 @@ export default function Ueberfuehrung() {
             onClick={resetForm}
             className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm"
           >
-            Weiteres Protokoll
+            {t('ueberfuehrung.another_protocol')}
           </button>
           <button
             onClick={() => navigate('/fahrzeuge')}
             className="flex-1 py-3 rounded-xl bg-green-600 text-white font-semibold text-sm"
           >
-            Zur Übersicht
+            {t('ueberfuehrung.to_overview')}
           </button>
         </div>
       </div>
@@ -716,17 +712,13 @@ export default function Ueberfuehrung() {
       <div className="flex flex-col items-center justify-center min-h-full px-6 gap-4 text-center">
         <div className="text-5xl">🚙</div>
         <div>
-          <h1 className="text-lg font-bold text-gray-900 mb-1">Fahrzeug wählen</h1>
-          <p className="text-sm text-gray-500">
-            Öffne ein Fahrzeug in der Kartei und tippe auf{' '}
-            <strong>Neues Überführungsprotokoll</strong>.
-          </p>
+          <h1 className="text-lg font-bold text-gray-900 mb-1">{t('ueberfuehrung.no_vehicle_error')}</h1>
         </div>
         <button
           onClick={() => navigate('/fahrzeuge')}
           className="py-3 px-6 rounded-xl bg-green-600 text-white font-semibold text-sm"
         >
-          Zur Fahrzeugkartei
+          {t('ueberfuehrung.to_overview')}
         </button>
       </div>
     )
@@ -734,7 +726,7 @@ export default function Ueberfuehrung() {
 
   // ── Main form ──────────────────────────────────────────────────────────────
   return (
-    <form onSubmit={handleSave} className="flex flex-col min-h-full bg-gray-50 pb-8">
+    <form onSubmit={handleSave} className="block min-h-full bg-gray-50 pb-8">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10">
         <button
@@ -742,10 +734,10 @@ export default function Ueberfuehrung() {
           onClick={() => navigate(-1)}
           className="text-brand-600 text-sm font-medium mb-1 block"
         >
-          ← Zurück
+          ← {t('common.back')}
         </button>
         <h1 className="text-xl font-bold text-gray-900">
-          🚙 {ed ? 'Protokoll bearbeiten' : 'Überführungsprotokoll'}
+          🚙 {ed ? t('ueberfuehrung.edit_title') : t('ueberfuehrung.title')}
         </h1>
         <p className="text-sm text-gray-500 mt-0.5">{prefill.license_plate}</p>
       </div>
@@ -762,19 +754,19 @@ export default function Ueberfuehrung() {
       )}
 
       {/* ── 1. Fahrzeugdaten ── */}
-      <SectionHeader title="1. Fahrzeugdaten" />
+      <SectionHeader title={t('ueberfuehrung.section_vehicle')} />
       <Card>
         <div className="space-y-1.5">
           <div className="flex justify-between">
-            <span className="text-sm text-gray-500">Kennzeichen</span>
+            <span className="text-sm text-gray-500">{t('annahme.plate_label')}</span>
             <span className="text-sm font-semibold text-gray-900">{prefill.license_plate}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-sm text-gray-500">Marke / Modell</span>
+            <span className="text-sm text-gray-500">{t('annahme.brand_model_label')}</span>
             <span className="text-sm text-gray-700">{prefill.brand_model || '—'}</span>
           </div>
           <div className="flex items-center justify-between gap-3">
-            <span className="text-sm text-gray-500 flex-shrink-0">FIN</span>
+            <span className="text-sm text-gray-500 flex-shrink-0">{t('annahme.fin_label')}</span>
             <input
               type="text"
               value={vin}
@@ -785,7 +777,7 @@ export default function Ueberfuehrung() {
                   try { await updateVehicle(prefill.vehicle_id, { license_plate: prefill.license_plate, brand_model: prefill.brand_model, vin: v }) } catch { /* silent */ }
                 }
               }}
-              placeholder="17-stellige FIN …"
+              placeholder={t('annahme.fin_placeholder')}
               maxLength={17}
               autoCapitalize="characters"
               className="flex-1 text-right text-sm font-mono text-gray-700 bg-transparent border-b border-gray-300 focus:outline-none focus:border-brand-400 min-w-0"
@@ -795,63 +787,66 @@ export default function Ueberfuehrung() {
       </Card>
 
       {/* ── 2. Art der Überführung ── */}
-      <SectionHeader title="2. Art der Überführung" />
+      <SectionHeader title={t('ueberfuehrung.section_transfer_type')} />
       <Card>
         <div className="flex gap-2 flex-wrap">
-          {['Hinbringen', 'Rücknahme'].map((option) => (
+          {[
+            { value: 'Hinbringen', label: t('ueberfuehrung.transfer_hinbringen') },
+            { value: 'Rücknahme', label: t('ueberfuehrung.transfer_rucknahme') },
+          ].map(({ value, label }) => (
             <button
-              key={option}
+              key={value}
               type="button"
-              onClick={() => setTransferType(option)}
+              onClick={() => setTransferType(value)}
               className={`flex-1 min-w-[7rem] py-2.5 rounded-xl text-sm font-medium transition-colors border ${
-                transferType === option
+                transferType === value
                   ? 'bg-brand-600 text-white border-brand-600'
                   : 'bg-white text-gray-600 border-gray-300'
               }`}
             >
-              {option}
+              {label}
             </button>
           ))}
         </div>
       </Card>
 
       {/* ── 3. Fahrer & Route ── */}
-      <SectionHeader title="3. Fahrer & Route" />
+      <SectionHeader title={t('ueberfuehrung.section_driver_route')} />
       <Card className="space-y-3">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Fahrer <span className="text-red-500">*</span>
+            {t('ueberfuehrung.fahrer_label')} <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
             value={fahrer}
             onChange={(e) => setFahrer(e.target.value)}
-            placeholder="Name des Fahrers"
+            placeholder={t('ueberfuehrung.fahrer_placeholder')}
             className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Abholort</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('ueberfuehrung.abholort_label')}</label>
           <input
             type="text"
             value={abholort}
             onChange={(e) => setAbholort(e.target.value)}
-            placeholder="z. B. München, Depot 1"
+            placeholder={t('ueberfuehrung.abholort_placeholder')}
             className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Zielort</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('ueberfuehrung.zielort_label')}</label>
           <input
             type="text"
             value={zielort}
             onChange={(e) => setZielort(e.target.value)}
-            placeholder="z. B. Hamburg, Kunde"
+            placeholder={t('ueberfuehrung.zielort_placeholder')}
             className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Datum</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('ueberfuehrung.date_label')}</label>
           <input
             type="text"
             value={new Date().toLocaleString('de-DE', {
@@ -868,9 +863,9 @@ export default function Ueberfuehrung() {
       </Card>
 
       {/* ── 4. Sichtbedingungen ── */}
-      <SectionHeader title="4. Sichtbedingungen" />
+      <SectionHeader title={t('ueberfuehrung.section_conditions')} />
       <Card>
-        <p className="text-xs text-gray-500 mb-2">Erschwerende Bedingungen (optional):</p>
+        <p className="text-xs text-gray-500 mb-2">{t('annahme.conditions_hint')}</p>
         <div className="flex flex-wrap gap-2">
           {INSPECTION_CONDITIONS.map((c) => (
             <button
@@ -883,17 +878,17 @@ export default function Ueberfuehrung() {
                   : 'bg-gray-50 text-gray-600 border-gray-200'
               }`}
             >
-              {c}
+              {t(`conditions.${c}`, { defaultValue: c })}
             </button>
           ))}
         </div>
       </Card>
 
       {/* ── 5. Fahrzeugzustand ── */}
-      <SectionHeader title="5. Fahrzeugzustand" />
+      <SectionHeader title={t('ueberfuehrung.section_vehicle_state')} />
       <Card className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Kilometerstand</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('ueberfuehrung.odometer_label')}</label>
           <input
             type="number"
             inputMode="numeric"
@@ -903,44 +898,39 @@ export default function Ueberfuehrung() {
             className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
           />
         </div>
-        <LevelSlider label="Tankfüllstand" value={fuel} onChange={setFuel} />
-        <LevelSlider label="Akkustand (E-Fahrzeug)" value={battery} onChange={setBattery} />
+        <LevelSlider label={t('ueberfuehrung.fuel_label')} value={fuel} onChange={setFuel} />
+        <LevelSlider label={t('ueberfuehrung.battery_label')} value={battery} onChange={setBattery} />
       </Card>
 
       {/* ── 6. Checkliste ── */}
-      <SectionHeader title="6. Checkliste" />
+      <SectionHeader title={t('ueberfuehrung.section_checklist')} />
       <Card className="space-y-2">
-        <p className="text-xs text-gray-500 mb-1">Innenraum-Zustand:</p>
-        <Toggle label="Boden" checked={checklist.floor} onChange={(v) => setChecklist((p) => ({ ...p, floor: v }))} trueLabel="Sauber" falseLabel="Schmutzig" />
-        <Toggle label="Sitze" checked={checklist.seats} onChange={(v) => setChecklist((p) => ({ ...p, seats: v }))} trueLabel="Sauber" falseLabel="Schmutzig" />
-        <Toggle label="Einstiege" checked={checklist.entry} onChange={(v) => setChecklist((p) => ({ ...p, entry: v }))} trueLabel="Sauber" falseLabel="Schmutzig" />
-        <Toggle label="Armaturen" checked={checklist.instruments} onChange={(v) => setChecklist((p) => ({ ...p, instruments: v }))} trueLabel="Sauber" falseLabel="Schmutzig" />
-        <Toggle label="Kofferraum" checked={checklist.trunk} onChange={(v) => setChecklist((p) => ({ ...p, trunk: v }))} trueLabel="Sauber" falseLabel="Schmutzig" />
-        <Toggle label="Motorraum" checked={checklist.engine} onChange={(v) => setChecklist((p) => ({ ...p, engine: v }))} trueLabel="Sauber" falseLabel="Schmutzig" />
-        <p className="text-xs text-gray-500 pt-2">Ausstattung vorhanden:</p>
-        <Toggle label="Verbandskasten" checked={checklist.aid_kit} onChange={(v) => setChecklist((p) => ({ ...p, aid_kit: v }))} trueLabel="Ja" falseLabel="Nein" />
-        <Toggle label="Warndreieck" checked={checklist.triangle} onChange={(v) => setChecklist((p) => ({ ...p, triangle: v }))} trueLabel="Ja" falseLabel="Nein" />
-        <Toggle label="Warnweste" checked={checklist.vest} onChange={(v) => setChecklist((p) => ({ ...p, vest: v }))} trueLabel="Ja" falseLabel="Nein" />
-        <Toggle label="Ladekabel" checked={checklist.cable} onChange={(v) => setChecklist((p) => ({ ...p, cable: v }))} trueLabel="Ja" falseLabel="Nein" />
-        <Toggle label="Fahrzeugschein" checked={checklist.registration} onChange={(v) => setChecklist((p) => ({ ...p, registration: v }))} trueLabel="Ja" falseLabel="Nein" />
-        <Toggle label="Ladekarte" checked={checklist.card} onChange={(v) => setChecklist((p) => ({ ...p, card: v }))} trueLabel="Ja" falseLabel="Nein" />
+        <p className="text-xs text-gray-500 mb-1">{t('ueberfuehrung.checklist_interior')}</p>
+        {(['floor', 'seats', 'entry', 'instruments', 'trunk', 'engine'] as (keyof Checkliste)[]).map((key) => (
+          <Toggle key={key} label={t(`checklist.${key}`)} checked={checklist[key]} onChange={(v) => setChecklist((p) => ({ ...p, [key]: v }))} trueLabel={t('common.clean')} falseLabel={t('common.dirty')} />
+        ))}
+        <p className="text-xs text-gray-500 pt-2">{t('ueberfuehrung.checklist_equipment')}</p>
+        {(['aid_kit', 'triangle', 'vest', 'cable', 'registration', 'card'] as (keyof Checkliste)[]).map((key) => (
+          <Toggle key={key} label={t(`checklist.${key}`)} checked={checklist[key]} onChange={(v) => setChecklist((p) => ({ ...p, [key]: v }))} trueLabel={t('common.yes')} falseLabel={t('common.no')} />
+        ))}
       </Card>
 
       {/* ── 7. Fahrzeugfotos ── */}
-      <SectionHeader title="7. Fahrzeugfotos" />
+      <SectionHeader title={t('ueberfuehrung.section_photos')} />
       <Card>
         <div className="grid grid-cols-3 gap-3">
           {PHOTO_KEYS.map((pk) => {
             const entry = vehiclePhotos[pk]
             const existingUrl = existingPhotos[pk]
             const previewSrc = entry?.previewUrl ?? existingUrl ?? null
+            const pkLabel = t(`photo_labels.${pk}`, { defaultValue: PHOTO_LABELS[pk] })
             return (
               <div key={pk} className="flex flex-col items-center gap-1">
                 {previewSrc ? (
                   <div className="relative w-full aspect-square">
                     <img
                       src={previewSrc}
-                      alt={PHOTO_LABELS[pk]}
+                      alt={pkLabel}
                       className="w-full h-full object-cover rounded-xl border border-gray-200"
                     />
                     <button
@@ -965,13 +955,13 @@ export default function Ueberfuehrung() {
                     className="w-full aspect-square rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center gap-1 bg-gray-50 active:bg-gray-100"
                   >
                     <span className="text-2xl">📷</span>
-                    <span className="text-xs text-gray-500">{PHOTO_LABELS[pk]}</span>
+                    <span className="text-xs text-gray-500">{pkLabel}</span>
                   </button>
                 )}
                 <input ref={photoFileRefs.current[pk]} type="file" accept="image/*" className="hidden" onChange={(e) => { handleVehiclePhotoChange(pk, e); e.target.value = '' }} />
                 <input ref={cameraPhotoFileRefs.current[pk]} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { handleVehiclePhotoChange(pk, e); e.target.value = '' }} />
                 {previewSrc && (
-                  <span className="text-xs text-gray-500">{PHOTO_LABELS[pk]}</span>
+                  <span className="text-xs text-gray-500">{pkLabel}</span>
                 )}
               </div>
             )
@@ -982,21 +972,23 @@ export default function Ueberfuehrung() {
       {photoPickerKey && (
         <div className="fixed inset-0 z-[60] flex items-end" onClick={() => setPhotoPickerKey(null)}>
           <div className="w-full bg-white rounded-t-2xl p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <p className="text-sm font-medium text-gray-700 text-center mb-3">Foto auswählen — {PHOTO_LABELS[photoPickerKey]}</p>
+            <p className="text-sm font-medium text-gray-700 text-center mb-3">
+              {t('annahme.photo_picker_label', { label: t(`photo_labels.${photoPickerKey}`, { defaultValue: PHOTO_LABELS[photoPickerKey] }) })}
+            </p>
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => { const k = photoPickerKey; setPhotoPickerKey(null); cameraPhotoFileRefs.current[k].current?.click() }}
                 className="py-3 rounded-xl bg-green-50 border border-green-200 text-green-700 font-medium text-sm active:bg-green-100"
               >
-                📷 Kamera
+                📷 {t('damage.camera')}
               </button>
               <button
                 type="button"
                 onClick={() => { const k = photoPickerKey; setPhotoPickerKey(null); photoFileRefs.current[k].current?.click() }}
                 className="py-3 rounded-xl bg-gray-50 border border-gray-200 text-gray-700 font-medium text-sm active:bg-gray-100"
               >
-                🖼 Galerie
+                🖼 {t('damage.gallery')}
               </button>
             </div>
           </div>
@@ -1004,10 +996,10 @@ export default function Ueberfuehrung() {
       )}
 
       {/* ── 8. Schäden ── */}
-      <SectionHeader title="8. Schäden" />
+      <SectionHeader title={t('ueberfuehrung.section_damages')} />
       <Card className="space-y-3">
         {damages.length === 0 && (
-          <p className="text-sm text-gray-400 text-center py-2">Keine Schäden erfasst.</p>
+          <p className="text-sm text-gray-400 text-center py-2">{t('ueberfuehrung.no_damages')}</p>
         )}
         {damages.map((item, i) => (
           <DamageRow
@@ -1023,61 +1015,57 @@ export default function Ueberfuehrung() {
           onClick={addDamage}
           className="w-full py-3 rounded-xl border-2 border-dashed border-green-300 text-green-600 font-medium text-sm active:bg-green-50"
         >
-          + Schaden hinzufügen
+          {t('ueberfuehrung.add_damage')}
         </button>
       </Card>
 
       {/* ── 9. Bemerkungen ── */}
-      <SectionHeader title="9. Bemerkungen" />
+      <SectionHeader title={t('ueberfuehrung.section_remarks')} />
       <Card>
         <textarea
           value={remarks}
           onChange={(e) => setRemarks(e.target.value)}
-          placeholder="Optionale Bemerkungen zur Überführung …"
+          placeholder={t('ueberfuehrung.remarks_placeholder')}
           rows={3}
           className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"
         />
       </Card>
 
       {/* ── 10. Unterschrift Fahrer ── */}
-      <SectionHeader title="10. Unterschrift Fahrer" />
+      <SectionHeader title={t('ueberfuehrung.section_driver_sig')} />
       <Card>
         <p className="text-xs text-gray-500 mb-3">
-          Mit Ihrer Unterschrift bestätigen Sie die Richtigkeit der Angaben.
-          Ihre Daten werden ausschließlich zur Dokumentation dieser Fahrzeugübergabe verwendet.{' '}
+          {t('ueberfuehrung.sig_disclaimer')}{' '}
           <a href="/datenschutz" className="text-green-600 underline">
-            Datenschutzerklärung
+            {t('ueberfuehrung.privacy_link')}
           </a>
         </p>
-        <p className="text-xs text-gray-500 mb-2">
-          Unterschrift macht das Protokoll final. Ohne Unterschrift wird es als Entwurf gespeichert.
-        </p>
+        <p className="text-xs text-gray-500 mb-2">{t('ueberfuehrung.sig_creator_hint')}</p>
         <SignatureCanvas canvasRef={canvasRef} onHasStroke={setHasSig} />
       </Card>
 
       {/* ── 11. Übernahme durch Empfänger ── */}
-      <SectionHeader title="11. Übernahme durch Empfänger" />
+      <SectionHeader title={t('ueberfuehrung.section_receiver')} />
       <Card className="space-y-3">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Name Empfänger <span className="text-gray-400 font-normal">(optional)</span>
+            {t('ueberfuehrung.receiver_name_label')} <span className="text-gray-400 font-normal">({t('annahme.section_carrier_sig').split('(')[1]?.replace(')', '') ?? 'optional'})</span>
           </label>
           <input
             type="text"
             value={receiverName}
             onChange={(e) => setReceiverName(e.target.value)}
-            placeholder="Name des Empfängers"
+            placeholder={t('ueberfuehrung.receiver_placeholder')}
             className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
           />
         </div>
         <p className="text-xs text-gray-500 mb-1">
-          Mit Ihrer Unterschrift bestätigen Sie die Richtigkeit der Angaben.
-          Ihre Daten werden ausschließlich zur Dokumentation dieser Fahrzeugübergabe verwendet.{' '}
+          {t('ueberfuehrung.sig_disclaimer')}{' '}
           <a href="/datenschutz" className="text-green-600 underline">
-            Datenschutzerklärung
+            {t('ueberfuehrung.privacy_link')}
           </a>
         </p>
-        <p className="text-xs text-gray-500">Unterschrift Empfänger (optional):</p>
+        <p className="text-xs text-gray-500">{t('ueberfuehrung.receiver_sig_hint')}</p>
         <SignatureCanvas canvasRef={canvasRefReceiver} onHasStroke={setHasSigReceiver} />
       </Card>
 
@@ -1089,14 +1077,14 @@ export default function Ueberfuehrung() {
           className="w-full py-4 rounded-2xl bg-green-600 text-white font-bold text-base active:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {saving
-            ? 'Wird gespeichert …'
+            ? t('ueberfuehrung.saving')
             : hasSig
-            ? '✅ Protokoll final speichern'
-            : '💾 Als Entwurf speichern'}
+            ? `✅ ${t('ueberfuehrung.save_final')}`
+            : `💾 ${t('ueberfuehrung.save_draft')}`}
         </button>
         {!hasSig && (
           <p className="text-xs text-gray-400 text-center mt-2">
-            Ohne Unterschrift → Status: Entwurf
+            {t('ueberfuehrung.no_sig_hint')}
           </p>
         )}
       </div>

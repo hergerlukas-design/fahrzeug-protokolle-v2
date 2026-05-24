@@ -2,6 +2,143 @@ import { PDFDocument, rgb, StandardFonts, degrees, type PDFPage, type PDFFont, t
 import type { Checkliste, DamageItem } from './protocols'
 
 // ─────────────────────────────────────────────────────────────────────────────
+// PDF label strings (DE / EN)
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface PdfLabels {
+  title_annahme: string; title_transfer: string; watermark: string
+  section1: string; section2: string; section3: string; section4: string
+  section5: string; section6: string
+  plate: string; brand_model: string; vin: string; creator: string
+  odometer: string; location: string; receiver: string; from: string; to: string
+  transfer_type_label: string; conditions: string; fuel: string; battery: string
+  condition_header: string; equipment_header: string
+  clean: string; dirty: string; yes: string; no: string
+  carrier_sig: string; creator_sig_label: string; sig_creator: string; sig_receiver: string
+  no_photo: string; damage_label: string
+  photo: { vorne: string; hinten: string; links: string; rechts: string; schein: string }
+  checklist: { floor: string; seats: string; entry: string; instruments: string; trunk: string; engine: string
+               aid_kit: string; triangle: string; vest: string; cable: string; registration: string; card: string }
+  damage_pos: string; damage_type: string; damage_intensity: string
+}
+
+const PDF_LABELS: Record<'de' | 'en', PdfLabels> = {
+  de: {
+    title_annahme: 'Fahrzeug-Annahmeprotokoll', title_transfer: 'Fahrzeug-Ueberfuehrungsprotokoll',
+    watermark: 'VORLAEUFIGER ENTWURF',
+    section1: '1. Basisdaten', section2: '2. Technik & Betriebsstoffe',
+    section3: '3. Checkliste', section4: '4. Bemerkungen',
+    section5: '5. Fotodokumentation', section6: '6. Erfasste Schaeden',
+    plate: 'Kennzeichen', brand_model: 'Marke / Modell', vin: 'VIN',
+    creator: 'Ersteller', odometer: 'KM-Stand', location: 'Standort',
+    receiver: 'Empfaenger', from: 'Von', to: 'Nach',
+    transfer_type_label: 'Art der Ueberfuehrung', conditions: 'Bedingungen',
+    fuel: 'Kraftstoff', battery: 'Batterie',
+    condition_header: 'Zustand', equipment_header: 'Zubehoer',
+    clean: 'Sauber', dirty: 'Schmutzig', yes: 'Ja', no: 'Nein',
+    carrier_sig: 'Uebergabe durch Spediteur', creator_sig_label: 'Annahme durch (Ersteller)',
+    sig_creator: 'Ersteller', sig_receiver: 'Empfaenger',
+    no_photo: 'Kein Foto', damage_label: 'Schaden',
+    photo: { vorne: 'Vorne', hinten: 'Hinten', links: 'Links', rechts: 'Rechts', schein: 'Schein' },
+    checklist: { floor: 'Boden', seats: 'Sitze', entry: 'Einstiege', instruments: 'Armaturen',
+                 trunk: 'Kofferraum', engine: 'Motorraum', aid_kit: 'Verbandskasten',
+                 triangle: 'Warndreieck', vest: 'Warnweste', cable: 'Ladekabel',
+                 registration: 'Fahrzeugschein', card: 'Ladekarte' },
+    damage_pos: 'Position', damage_type: 'Art', damage_intensity: 'Intensitaet',
+  },
+  en: {
+    title_annahme: 'Vehicle Intake Protocol', title_transfer: 'Vehicle Transfer Protocol',
+    watermark: 'PRELIMINARY DRAFT',
+    section1: '1. Basic Data', section2: '2. Technical & Fluids',
+    section3: '3. Checklist', section4: '4. Remarks',
+    section5: '5. Photo Documentation', section6: '6. Recorded Damages',
+    plate: 'License Plate', brand_model: 'Make / Model', vin: 'VIN',
+    creator: 'Inspector', odometer: 'Mileage', location: 'Location',
+    receiver: 'Receiver', from: 'From', to: 'To',
+    transfer_type_label: 'Transfer Type', conditions: 'Conditions',
+    fuel: 'Fuel', battery: 'Battery',
+    condition_header: 'Condition', equipment_header: 'Equipment',
+    clean: 'Clean', dirty: 'Dirty', yes: 'Yes', no: 'No',
+    carrier_sig: 'Carrier Handover', creator_sig_label: 'Accepted by (Inspector)',
+    sig_creator: 'Inspector', sig_receiver: 'Receiver',
+    no_photo: 'No Photo', damage_label: 'Damage',
+    photo: { vorne: 'Front', hinten: 'Rear', links: 'Left', rechts: 'Right', schein: 'Reg. Doc.' },
+    checklist: { floor: 'Floor', seats: 'Seats', entry: 'Entry', instruments: 'Dashboard',
+                 trunk: 'Trunk', engine: 'Engine Bay', aid_kit: 'First Aid Kit',
+                 triangle: 'Warning Triangle', vest: 'Vest', cable: 'Charging Cable',
+                 registration: 'Registration', card: 'Charging Card' },
+    damage_pos: 'Position', damage_type: 'Type', damage_intensity: 'Intensity',
+  },
+}
+
+// Module-level label context — set at start of generatePdf (safe: browser is single-threaded)
+let _L: PdfLabels = PDF_LABELS.de
+
+// Damage category translations (DE keys → EN display)
+const DAMAGE_POSITIONS_EN: Record<string, string> = {
+  // Top
+  'Motorhaube': 'Bonnet',
+  'Dach': 'Roof',
+  'Spiegel links': 'Left mirror',
+  'Spiegel rechts': 'Right mirror',
+  // Front
+  'Frontscheibe': 'Windscreen',
+  'Scheinwerfer links': 'Left headlight',
+  'Scheinwerfer rechts': 'Right headlight',
+  'Stoßfänger vorne': 'Front bumper',
+  'Kennzeichen vorne': 'Front licence plate',
+  // Rear
+  'Heckscheibe': 'Rear window',
+  'Rückleuchte links': 'Left tail light',
+  'Rückleuchte rechts': 'Right tail light',
+  'Stoßfänger hinten': 'Rear bumper',
+  'Kennzeichen hinten': 'Rear licence plate',
+  // Left side
+  'Kotflügel vorne links': 'Front left fender',
+  'Tür vorne links': 'Front left door',
+  'Tür hinten links': 'Rear left door',
+  'Kotflügel hinten links': 'Rear left fender',
+  'Seitenscheibe vorne links': 'Front left window',
+  'Seitenscheibe hinten links': 'Rear left window',
+  'Reifen vorne links': 'Front left tyre',
+  'Felge vorne links': 'Front left rim',
+  'Reifen hinten links': 'Rear left tyre',
+  'Felge hinten links': 'Rear left rim',
+  // Right side
+  'Kotflügel vorne rechts': 'Front right fender',
+  'Tür vorne rechts': 'Front right door',
+  'Tür hinten rechts': 'Rear right door',
+  'Kotflügel hinten rechts': 'Rear right fender',
+  'Seitenscheibe vorne rechts': 'Front right window',
+  'Seitenscheibe hinten rechts': 'Rear right window',
+  'Reifen vorne rechts': 'Front right tyre',
+  'Felge vorne rechts': 'Front right rim',
+  'Reifen hinten rechts': 'Rear right tyre',
+  'Felge hinten rechts': 'Rear right rim',
+  // Legacy (kept for existing records)
+  'Felge / Reifen vorne links': 'Front left wheel / tyre',
+  'Felge / Reifen hinten links': 'Rear left wheel / tyre',
+  'Felge / Reifen vorne rechts': 'Front right wheel / tyre',
+  'Felge / Reifen hinten rechts': 'Rear right wheel / tyre',
+}
+
+const DAMAGE_TYPES_EN: Record<string, string> = {
+  'Kratzer': 'Scratch',
+  'Delle': 'Dent',
+  'Riss': 'Crack',
+  'Bruch': 'Break',
+  'Abplatzer': 'Chip',
+  'Steinschlag': 'Stone chip',
+  'Fehlend': 'Missing',
+}
+
+const DAMAGE_INTENSITIES_EN: Record<string, string> = {
+  'Oberflächlich': 'Surface',
+  'Mittel': 'Medium',
+  'Tief': 'Deep',
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Units & coordinate helpers
 // ─────────────────────────────────────────────────────────────────────────────
 //  pdf-lib: origin bottom-left, y increases upward
@@ -230,9 +367,7 @@ async function drawPageHeader(
   // ── Page title (first page only) ─────────────────────────────────────────
   if (isFirstPage) {
     const title =
-      data.protocol_type === 'annahme'
-        ? 'Fahrzeug-Annahmeprotokoll'
-        : 'Fahrzeug-Überführungsprotokoll'
+      data.protocol_type === 'annahme' ? _L.title_annahme : _L.title_transfer
     page.drawText(safe(title), {
       x: mm(35),
       y: top(12, 6),    // 6mm ≈ 17pt font height
@@ -248,7 +383,7 @@ async function drawPageHeader(
 // ─────────────────────────────────────────────────────────────────────────────
 
 function drawWatermark(page: PDFPage, bold: PDFFont) {
-  const text = 'VORLAEUFIGER ENTWURF'   // no umlaut to avoid encoding edge cases
+  const text = _L.watermark
   const size = 52
   const textWidth = bold.widthOfTextAtSize(text, size)
   const angle = Math.PI / 4
@@ -275,7 +410,7 @@ function drawSection1Basisdaten(
   cursorY: number,
   data: PdfData
 ): number {
-  cursorY = drawHeading(page, fonts.bold, cursorY, '1. Basisdaten')
+  cursorY = drawHeading(page, fonts.bold, cursorY, _L.section1)
 
   const [von, nach] = data.location.includes(' → ')
     ? data.location.split(' → ')
@@ -284,9 +419,9 @@ function drawSection1Basisdaten(
   if (data.protocol_type === 'annahme') {
     // 2×3 grid
     const rows: [string, string, string, string][] = [
-      ['Kennzeichen', data.license_plate,  'Marke / Modell', data.brand_model],
-      ['VIN',         data.vin,            'Ersteller',      data.inspector_name],
-      ['KM-Stand',    `${data.odometer} km`, 'Standort',     data.location],
+      [_L.plate, data.license_plate,  _L.brand_model, data.brand_model],
+      [_L.vin,   data.vin,            _L.creator,     data.inspector_name],
+      [_L.odometer, `${data.odometer} km`, _L.location, data.location],
     ]
     for (const [l1, v1, l2, v2] of rows) {
       drawCell(page, fonts, ML,        cursorY, C2, ROW8, l1, v1)
@@ -296,10 +431,10 @@ function drawSection1Basisdaten(
   } else {
     // 2×2 + extra rows
     const rows: [string, string, string, string][] = [
-      ['Kennzeichen',  data.license_plate,    'VIN',       data.vin],
-      ['Marke / Modell', data.brand_model,    'KM-Stand',  `${data.odometer} km`],
-      ['Ersteller',    data.inspector_name,   'Empfänger', data.receiver_name ?? ''],
-      ['Von',          von,                   'Nach',      nach],
+      [_L.plate,       data.license_plate,    _L.vin,      data.vin],
+      [_L.brand_model, data.brand_model,      _L.odometer, `${data.odometer} km`],
+      [_L.creator,     data.inspector_name,   _L.receiver, data.receiver_name ?? ''],
+      [_L.from,        von,                   _L.to,       nach],
     ]
     for (const [l1, v1, l2, v2] of rows) {
       drawCell(page, fonts, ML,        cursorY, C2, ROW8, l1, v1)
@@ -307,11 +442,10 @@ function drawSection1Basisdaten(
       cursorY -= ROW8
     }
     if (data.transfer_type) {
-      drawCell(page, fonts, ML, cursorY, CW, ROW8, 'Art der Überführung', data.transfer_type)
+      drawCell(page, fonts, ML, cursorY, CW, ROW8, _L.transfer_type_label, data.transfer_type)
       cursorY -= ROW8
     }
-    // Full-width Bedingungen
-    drawCell(page, fonts, ML, cursorY, CW, ROW8, 'Bedingungen', data.conditions.join(', '))
+    drawCell(page, fonts, ML, cursorY, CW, ROW8, _L.conditions, data.conditions.join(', '))
     cursorY -= ROW8
   }
 
@@ -325,16 +459,16 @@ function drawSection2Technik(
   data: PdfData
 ): number {
   cursorY -= mm(4)  // ln(4) gap
-  cursorY = drawHeading(page, fonts.bold, cursorY, '2. Technik & Betriebsstoffe')
+  cursorY = drawHeading(page, fonts.bold, cursorY, _L.section2)
 
   if (data.protocol_type === 'annahme') {
-    drawCell(page, fonts, ML,        cursorY, C2, ROW8, 'Kraftstoff', `${data.fuel_level} %`)
-    drawCell(page, fonts, ML + C2,   cursorY, C2, ROW8, 'Batterie',   `${data.battery} %`)
+    drawCell(page, fonts, ML,        cursorY, C2, ROW8, _L.fuel,    `${data.fuel_level} %`)
+    drawCell(page, fonts, ML + C2,   cursorY, C2, ROW8, _L.battery, `${data.battery} %`)
     cursorY -= ROW8
   } else {
-    drawCell(page, fonts, ML,              cursorY, C3A, ROW8, 'Kraftstoff', `${data.fuel_level} %`)
-    drawCell(page, fonts, ML + C3A,        cursorY, C3B, ROW8, 'Batterie',   `${data.battery} %`)
-    drawCell(page, fonts, ML + C3A + C3B,  cursorY, C3C, ROW8, 'Bedingungen', data.conditions.join(', '))
+    drawCell(page, fonts, ML,              cursorY, C3A, ROW8, _L.fuel,       `${data.fuel_level} %`)
+    drawCell(page, fonts, ML + C3A,        cursorY, C3B, ROW8, _L.battery,    `${data.battery} %`)
+    drawCell(page, fonts, ML + C3A + C3B,  cursorY, C3C, ROW8, _L.conditions, data.conditions.join(', '))
     cursorY -= ROW8
   }
 
@@ -348,7 +482,7 @@ function drawSection3Checkliste(
   data: PdfData
 ): number {
   cursorY -= mm(4)
-  cursorY = drawHeading(page, fonts.bold, cursorY, '3. Checkliste')
+  cursorY = drawHeading(page, fonts.bold, cursorY, _L.section3)
 
   const cl = data.checkliste
   const accentColor = data.protocol_type === 'annahme' ? C_LBLUE : C_LGREEN
@@ -357,28 +491,28 @@ function drawSection3Checkliste(
   const headerH = mm(5.5)
   page.drawRectangle({ x: ML, y: cursorY - headerH, width: C2, height: headerH, color: C_CELL_BG, borderWidth: 0 })
   page.drawRectangle({ x: ML, y: cursorY - headerH, width: C2, height: headerH, borderColor: C_BLACK, borderWidth: 0.5 })
-  page.drawText('Zustand', { x: ML + mm(1), y: cursorY - mm(4), size: 8, font: fonts.bold, color: C_BLACK })
+  page.drawText(_L.condition_header, { x: ML + mm(1), y: cursorY - mm(4), size: 8, font: fonts.bold, color: C_BLACK })
 
   page.drawRectangle({ x: ML + C2, y: cursorY - headerH, width: C2, height: headerH, color: C_CELL_BG, borderWidth: 0 })
   page.drawRectangle({ x: ML + C2, y: cursorY - headerH, width: C2, height: headerH, borderColor: C_BLACK, borderWidth: 0.5 })
-  page.drawText('Zubehör', { x: ML + C2 + mm(1), y: cursorY - mm(4), size: 8, font: fonts.bold, color: C_BLACK })
+  page.drawText(_L.equipment_header, { x: ML + C2 + mm(1), y: cursorY - mm(4), size: 8, font: fonts.bold, color: C_BLACK })
   cursorY -= headerH
 
   // 6 rows
   type CheckRow = [string, boolean, string, boolean]
   const rows: CheckRow[] = [
-    ['Boden',        cl.floor,        'Verbandskasten', cl.aid_kit],
-    ['Sitze',        cl.seats,        'Warndreieck',    cl.triangle],
-    ['Einstiege',    cl.entry,        'Warnweste',      cl.vest],
-    ['Armaturen',    cl.instruments,  'Ladekabel',      cl.cable],
-    ['Kofferraum',   cl.trunk,        'Fahrzeugschein', cl.registration],
-    ['Motorraum',    cl.engine,       'Ladekarte',      cl.card],
+    [_L.checklist.floor,       cl.floor,       _L.checklist.aid_kit,      cl.aid_kit],
+    [_L.checklist.seats,       cl.seats,       _L.checklist.triangle,     cl.triangle],
+    [_L.checklist.entry,       cl.entry,       _L.checklist.vest,         cl.vest],
+    [_L.checklist.instruments, cl.instruments, _L.checklist.cable,        cl.cable],
+    [_L.checklist.trunk,       cl.trunk,       _L.checklist.registration, cl.registration],
+    [_L.checklist.engine,      cl.engine,      _L.checklist.card,         cl.card],
   ]
 
   for (const [leftLabel, leftVal, rightLabel, rightVal] of rows) {
-    // Left cell (Sauber/Schmutzig)
+    // Left cell (Clean/Dirty)
     drawCell(page, fonts, ML, cursorY, C2, ROW7, leftLabel, '')
-    const leftText = leftVal ? 'Sauber' : 'Schmutzig'
+    const leftText = leftVal ? _L.clean : _L.dirty
     const leftBadgeW = mm(18)
     page.drawRectangle({
       x: ML + C2 - leftBadgeW - mm(1),
@@ -396,9 +530,9 @@ function drawSection3Checkliste(
       color: leftVal ? rgb(0.1, 0.5, 0.2) : rgb(0.7, 0.25, 0.1),
     })
 
-    // Right cell (Ja/Nein)
+    // Right cell (Yes/No)
     drawCell(page, fonts, ML + C2, cursorY, C2, ROW7, rightLabel, '')
-    const rightText = rightVal ? 'Ja' : 'Nein'
+    const rightText = rightVal ? _L.yes : _L.no
     const rightBadgeW = mm(12)
     page.drawRectangle({
       x: ML + C2 + C2 - rightBadgeW - mm(1),
@@ -432,7 +566,7 @@ function drawSection4Bemerkungen(
   if (!data.remarks.trim()) return cursorY
 
   cursorY -= mm(4)
-  cursorY = drawHeading(page, fonts.bold, cursorY, '4. Bemerkungen')
+  cursorY = drawHeading(page, fonts.bold, cursorY, _L.section4)
 
   // multi_cell equivalent: wrap text manually
   const cellH = mm(8)
@@ -471,8 +605,9 @@ async function drawSignatures(
   sigImgReceiver: PDFImage | null = null,
   sigImgCarrier: PDFImage | null = null
 ) {
+  const dateLang = _L === PDF_LABELS.en ? 'en-GB' : 'de-DE'
   const dateStr = data.inspection_date
-    ? new Date(data.inspection_date).toLocaleDateString('de-DE')
+    ? new Date(data.inspection_date).toLocaleDateString(dateLang)
     : ''
 
   if (data.protocol_type === 'annahme') {
@@ -501,12 +636,10 @@ async function drawSignatures(
     }
 
     if (sigImgCarrier) {
-      // Two boxes side by side when carrier signature is present
-      drawSigBox(mm(85), mm(55), 'Übergabe durch Spediteur', '', sigImgCarrier)
-      drawSigBox(mm(145), mm(55), 'Annahme durch (Ersteller)', data.inspector_name, sigImg)
+      drawSigBox(mm(85), mm(55), _L.carrier_sig, '', sigImgCarrier)
+      drawSigBox(mm(145), mm(55), _L.creator_sig_label, data.inspector_name, sigImg)
     } else {
-      // Single box bottom-right
-      drawSigBox(mm(145), mm(55), 'Annahme durch (Ersteller)', data.inspector_name, sigImg)
+      drawSigBox(mm(145), mm(55), _L.creator_sig_label, data.inspector_name, sigImg)
     }
   } else {
     // Überführung: 2 columns, absolute y=250 from top, each 87mm wide
@@ -515,8 +648,8 @@ async function drawSignatures(
     const sigY = top(sigYTop, 30)
 
     const cols = [
-      { x: mm(10),  label: 'Ersteller', name: data.inspector_name, img: sigImg },
-      { x: mm(108), label: 'Empfänger', name: data.receiver_name ?? '', img: sigImgReceiver },
+      { x: mm(10),  label: _L.sig_creator, name: data.inspector_name, img: sigImg },
+      { x: mm(108), label: _L.sig_receiver, name: data.receiver_name ?? '', img: sigImgReceiver },
     ]
 
     for (const col of cols) {
@@ -570,18 +703,18 @@ async function buildPhotoPage(
   await drawPageHeader(page, pdfDoc, fonts, logoImg, data, false)
 
   let cursorY = top(CONTENT_TOP)
-  cursorY = drawHeading(page, fonts.bold, cursorY, '5. Fotodokumentation')
+  cursorY = drawHeading(page, fonts.bold, cursorY, _L.section5)
 
   // 5 photos: 2-column layout
   // col x positions: 10mm and 108mm; each 87mm wide
   // Portrait: max h=95mm; Landscape: max h=58mm
-  type PhotoSlot = { key: string; col: 0 | 1; maxHMm: number; label: string }
+  type PhotoSlot = { key: keyof typeof _L.photo; col: 0 | 1; maxHMm: number }
   const slots: PhotoSlot[] = [
-    { key: 'vorne',  col: 0, maxHMm: 95, label: 'Vorne' },
-    { key: 'hinten', col: 1, maxHMm: 95, label: 'Hinten' },
-    { key: 'links',  col: 0, maxHMm: 58, label: 'Links' },
-    { key: 'rechts', col: 1, maxHMm: 58, label: 'Rechts' },
-    { key: 'schein', col: 1, maxHMm: 58, label: 'Schein' },
+    { key: 'vorne',  col: 0, maxHMm: 95 },
+    { key: 'hinten', col: 1, maxHMm: 95 },
+    { key: 'links',  col: 0, maxHMm: 58 },
+    { key: 'rechts', col: 1, maxHMm: 58 },
+    { key: 'schein', col: 1, maxHMm: 58 },
   ]
 
   const colX = [mm(10), mm(108)]
@@ -621,14 +754,14 @@ async function buildPhotoPage(
     } else {
       // Placeholder box
       page.drawRectangle({ x, y: y + labelH, width: colW, height: maxH, borderColor: C_CELL_BG, borderWidth: 0.5 })
-      page.drawText('Kein Foto', {
+      page.drawText(_L.no_photo, {
         x: x + colW / 2 - mm(8), y: y + labelH + maxH / 2 - mm(2),
         size: 8, font: fonts.regular, color: C_CELL_BG,
       })
     }
 
     // Label below image
-    page.drawText(slot.label, {
+    page.drawText(_L.photo[slot.key], {
       x: x + mm(1), y: y + mm(1.5),
       size: 7.5, font: fonts.oblique, color: C_LABEL,
     })
@@ -655,11 +788,11 @@ async function buildDamagePages(
   await drawPageHeader(page, pdfDoc, fonts, logoImg, data, false)
 
   let cursorY = top(CONTENT_TOP)
-  cursorY = drawHeading(page, fonts.bold, cursorY, '6. Erfasste Schäden')
+  cursorY = drawHeading(page, fonts.bold, cursorY, _L.section6)
 
   // Table header
   const cols = [mm(12), mm(58), mm(55), mm(65)]
-  const headers = ['#', 'Position', 'Art', 'Intensität']
+  const headers = ['#', _L.damage_pos, _L.damage_type, _L.damage_intensity]
   let xOff = ML
   for (let i = 0; i < cols.length; i++) {
     page.drawRectangle({ x: xOff, y: cursorY - ROW7, width: cols[i], height: ROW7, color: C_CELL_BG, borderWidth: 0 })
@@ -672,7 +805,11 @@ async function buildDamagePages(
   // Table rows
   for (let idx = 0; idx < data.damage_records.length; idx++) {
     const d = data.damage_records[idx]
-    const values = [`${idx + 1}`, d.pos, d.type, d.int]
+    const isEn = _L === PDF_LABELS.en
+    const pos = isEn ? (DAMAGE_POSITIONS_EN[d.pos] ?? d.pos) : d.pos
+    const type = isEn ? (DAMAGE_TYPES_EN[d.type] ?? d.type) : d.type
+    const int = isEn ? (DAMAGE_INTENSITIES_EN[d.int] ?? d.int) : d.int
+    const values = [`${idx + 1}`, pos, type, int]
     xOff = ML
     for (let i = 0; i < cols.length; i++) {
       page.drawRectangle({ x: xOff, y: cursorY - ROW7, width: cols[i], height: ROW7, borderColor: C_BLACK, borderWidth: 0.5 })
@@ -744,11 +881,11 @@ async function buildDamagePages(
         height: imgH,
       })
 
-      // Label: "Schaden #N" or damage position
+      // Label: "Damage #N" or damage position
       const dmgIdx = data.damage_records[di]
       const labelText = dmgIdx
-        ? `Schaden ${di + 1}: ${safe(dmgIdx.pos)}`
-        : `Schaden ${di + 1}`
+        ? `${_L.damage_label} ${di + 1}: ${safe(dmgIdx.pos)}`
+        : `${_L.damage_label} ${di + 1}`
       currentPage.drawText(labelText, {
         x: x + mm(1), y: y + mm(1.5),
         size: 7.5, font: fonts.oblique, color: C_LABEL,
@@ -767,7 +904,8 @@ async function buildDamagePages(
 // Main export
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function generatePdf(data: PdfData): Promise<Uint8Array> {
+export async function generatePdf(data: PdfData, lang: 'de' | 'en' = 'de'): Promise<Uint8Array> {
+  _L = PDF_LABELS[lang]
   const pdfDoc = await PDFDocument.create()
   const regular = await pdfDoc.embedFont(StandardFonts.Helvetica)
   const bold    = await pdfDoc.embedFont(StandardFonts.HelveticaBold)

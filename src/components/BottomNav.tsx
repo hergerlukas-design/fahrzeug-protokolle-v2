@@ -1,7 +1,10 @@
 import { NavLink } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { CREATE_EVENT } from './CreateWizard'
 
 export default function BottomNav() {
+  const { t } = useTranslation()
+
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex z-50"
@@ -16,7 +19,7 @@ export default function BottomNav() {
         }
       >
         <span className="text-xl leading-none">📁</span>
-        <span className="text-xs leading-tight">Projekte</span>
+        <span className="text-xs leading-tight">{t('nav.projects')}</span>
       </NavLink>
 
       <button
@@ -26,7 +29,7 @@ export default function BottomNav() {
         <span className="w-11 h-11 bg-brand-600 rounded-full flex items-center justify-center text-white text-2xl font-light -mt-4 shadow-lg">
           +
         </span>
-        <span className="text-xs leading-tight">Erstellen</span>
+        <span className="text-xs leading-tight">{t('nav.create')}</span>
       </button>
 
       <NavLink
@@ -38,7 +41,7 @@ export default function BottomNav() {
         }
       >
         <span className="text-xl leading-none">⚙️</span>
-        <span className="text-xs leading-tight">Einstellungen</span>
+        <span className="text-xs leading-tight">{t('nav.settings')}</span>
       </NavLink>
     </nav>
   )

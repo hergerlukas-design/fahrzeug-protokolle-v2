@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>
@@ -6,6 +7,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export default function InstallBanner() {
+  const { t } = useTranslation()
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showIosTip, setShowIosTip] = useState(false)
   const [dismissed, setDismissed] = useState(() => sessionStorage.getItem('vpp_install_dismissed') === '1')
@@ -46,14 +48,14 @@ export default function InstallBanner() {
       <div className="bg-brand-600 text-white px-4 py-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-sm font-medium">
           <span>📲</span>
-          <span>App zum Homescreen hinzufügen</span>
+          <span>{t('install_banner.add_to_homescreen')}</span>
         </div>
         <div className="flex gap-2 flex-shrink-0">
           <button
             onClick={handleInstall}
             className="bg-white text-brand-600 font-semibold text-xs px-3 py-1.5 rounded-lg active:scale-95 transition-all"
           >
-            Installieren
+            {t('install_banner.install')}
           </button>
           <button onClick={dismiss} className="text-brand-200 text-xs px-2 py-1.5">✕</button>
         </div>
@@ -66,10 +68,8 @@ export default function InstallBanner() {
       <div className="bg-brand-600 text-white px-4 py-3">
         <div className="flex items-start justify-between gap-2">
           <div className="text-sm">
-            <p className="font-semibold mb-0.5">📲 Zum Homescreen hinzufügen</p>
-            <p className="text-brand-100 text-xs">
-              Tippe auf <span className="font-bold">Teilen</span> (□↑) → <span className="font-bold">„Zum Home-Bildschirm"</span>
-            </p>
+            <p className="font-semibold mb-0.5">📲 {t('install_banner.ios_tip_title')}</p>
+            <p className="text-brand-100 text-xs">{t('install_banner.ios_tip_body')}</p>
           </div>
           <button onClick={dismiss} className="text-brand-200 text-xs px-2 py-1 flex-shrink-0">✕</button>
         </div>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import PdfButton from '../components/PdfButton'
 import type { PdfData } from '../lib/generatePdf'
@@ -42,10 +43,10 @@ interface ProtocolRow {
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: string, lang = 'de-DE'): string {
   if (!dateStr) return '—'
   const d = new Date(dateStr)
-  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  return d.toLocaleDateString(lang, { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 function toPdfData(p: ProtocolRow): PdfData {
@@ -77,6 +78,7 @@ function toPdfData(p: ProtocolRow): PdfData {
 export default function Archiv() {
   const navigate = useNavigate()
   const loc = useLocation()
+  const { t, i18n } = useTranslation()
   const preselectedId = (loc.state as { protocol_id?: number } | null)?.protocol_id ?? null
   const [tab, setTab] = useState<'protokolle' | 'projekte'>('protokolle')
   const [protocols, setProtocols] = useState<ProtocolRow[]>([])
@@ -113,7 +115,7 @@ export default function Archiv() {
         if (match) setSelected(match)
       }
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Fehler beim Laden')
+      setError(e instanceof Error ? e.message : t('common.error'))
     } finally {
       setLoading(false)
     }
@@ -128,7 +130,7 @@ export default function Archiv() {
       const data = await fetchArchivedProjectsWithCounts()
       setArchivedProjects(data)
     } catch (e) {
-      setProjectMsg({ ok: false, text: e instanceof Error ? e.message : 'Fehler beim Laden.' })
+      setProjectMsg({ ok: false, text: e instanceof Error ? e.message : t('common.error') })
     } finally {
       setProjectsLoading(false)
     }
@@ -144,9 +146,9 @@ export default function Archiv() {
     try {
       await unarchiveProject(id)
       setArchivedProjects((prev) => prev.filter((p) => p.id !== id))
-      setProjectMsg({ ok: true, text: 'Projekt reaktiviert.' })
+      setProjectMsg({ ok: true, text: t('archiv.project_reactivated') })
     } catch (e) {
-      setProjectMsg({ ok: false, text: e instanceof Error ? e.message : 'Fehler.' })
+      setProjectMsg({ ok: false, text: e instanceof Error ? e.message : t('archiv.project_error') })
     } finally {
       setProjectActionId(null)
     }
@@ -154,17 +156,23 @@ export default function Archiv() {
 
   async function handleProjectDelete(id: string, name: string) {
     const stats = await getProjectStats(id).catch(() => ({ vehicleCount: 0, protocolCount: 0 }))
+    const vehicleStr = t('archiv.project_vehicle_count', { count: stats.vehicleCount })
+    const protocolStr = t('archiv.count', { count: stats.protocolCount })
     const confirmed = window.confirm(
-      `Projekt „${name}" löschen?\n\nEs enthält ${stats.vehicleCount} Fahrzeug${stats.vehicleCount !== 1 ? 'e' : ''} und ${stats.protocolCount} Protokoll${stats.protocolCount !== 1 ? 'e' : ''}.\n\nDie Fahrzeuge werden NICHT gelöscht und landen in „Ohne Projekt".`
+      [
+        t('projects.delete_confirm_body', { name }),
+        `${vehicleStr} · ${protocolStr}`,
+        t('projects.delete_note'),
+      ].join('\n\n')
     )
     if (!confirmed) return
     setProjectActionId(id)
     try {
       await deleteProject(id)
       setArchivedProjects((prev) => prev.filter((p) => p.id !== id))
-      setProjectMsg({ ok: true, text: 'Projekt gelöscht.' })
+      setProjectMsg({ ok: true, text: t('archiv.project_deleted') })
     } catch (e) {
-      setProjectMsg({ ok: false, text: e instanceof Error ? e.message : 'Fehler.' })
+      setProjectMsg({ ok: false, text: e instanceof Error ? e.message : t('archiv.project_error') })
     } finally {
       setProjectActionId(null)
     }
@@ -182,7 +190,7 @@ export default function Archiv() {
       setDeleteId(null)
     } catch (e: unknown) {
       console.error('handleDelete:', e)
-      setDeleteError(e instanceof Error ? e.message : 'Fehler beim Löschen')
+      setDeleteError(e instanceof Error ? e.message : t('common.error'))
       setDeleteId(null)
     } finally {
       setDeleting(false)
@@ -198,7 +206,7 @@ export default function Archiv() {
     if (q) {
       const plate = (p.vehicles?.license_plate ?? '').toLowerCase()
       const name = p.inspector_name.toLowerCase()
-      const date = formatDate(p.inspection_date)
+      const date = formatDate(p.inspection_date, i18n.language)
       if (!plate.includes(q) && !name.includes(q) && !date.includes(q)) return false
     }
     return true
@@ -218,7 +226,7 @@ export default function Archiv() {
 
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10">
-        <h1 className="text-lg font-bold text-gray-800 mb-3">Archiv & Verwaltung</h1>
+        <h1 className="text-lg font-bold text-gray-800 mb-3">{t('archiv.title')}</h1>
 
         {/* Tab switcher */}
         <div className="flex gap-1 mb-3 bg-gray-100 p-1 rounded-xl">
@@ -228,7 +236,7 @@ export default function Archiv() {
               tab === 'protokolle' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
             }`}
           >
-            📄 Protokolle
+            {t('archiv.tab_protocols')}
           </button>
           <button
             onClick={() => setTab('projekte')}
@@ -236,7 +244,7 @@ export default function Archiv() {
               tab === 'projekte' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
             }`}
           >
-            📦 Projekte
+            {t('archiv.tab_projects')}
           </button>
         </div>
 
@@ -245,7 +253,7 @@ export default function Archiv() {
             {/* Search */}
             <input
               type="text"
-              placeholder="Kennzeichen, Name, Datum…"
+              placeholder={t('archiv.search_placeholder')}
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500 mb-2"
@@ -253,21 +261,21 @@ export default function Archiv() {
 
             {/* Type filter pills */}
             <div className="flex gap-2 mb-2">
-              {(['all', 'annahme', 'transfer'] as const).map(t => (
+              {(['all', 'annahme', 'transfer'] as const).map(ft => (
                 <button
-                  key={t}
-                  onClick={() => setFilterType(t)}
+                  key={ft}
+                  onClick={() => setFilterType(ft)}
                   className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                    filterType === t
-                      ? t === 'annahme'
+                    filterType === ft
+                      ? ft === 'annahme'
                         ? 'bg-brand-600 text-white border-brand-600'
-                        : t === 'transfer'
+                        : ft === 'transfer'
                         ? 'bg-green-600 text-white border-green-600'
                         : 'bg-gray-700 text-white border-gray-700'
                       : 'bg-white text-gray-600 border-gray-300'
                   }`}
                 >
-                  {t === 'all' ? 'Alle' : t === 'annahme' ? 'Annahme' : 'Überführung'}
+                  {ft === 'all' ? t('archiv.filter_all') : ft === 'annahme' ? t('archiv.filter_intake') : t('archiv.filter_transfer')}
                 </button>
               ))}
             </div>
@@ -275,7 +283,7 @@ export default function Archiv() {
             {/* Date range */}
             <div className="flex gap-2">
               <div className="flex-1">
-                <label className="text-[10px] text-gray-400 mb-0.5 block">Von</label>
+                <label className="text-[10px] text-gray-400 mb-0.5 block">{t('archiv.date_from')}</label>
                 <input
                   type="date"
                   value={filterFrom}
@@ -284,7 +292,7 @@ export default function Archiv() {
                 />
               </div>
               <div className="flex-1">
-                <label className="text-[10px] text-gray-400 mb-0.5 block">Bis</label>
+                <label className="text-[10px] text-gray-400 mb-0.5 block">{t('archiv.date_to')}</label>
                 <input
                   type="date"
                   value={filterTo}
@@ -318,8 +326,8 @@ export default function Archiv() {
           ) : archivedProjects.length === 0 ? (
             <div className="text-center py-16">
               <p className="text-4xl mb-3">📦</p>
-              <p className="text-gray-500 font-medium">Keine archivierten Projekte</p>
-              <p className="text-gray-400 text-sm mt-1">Archivierte Projekte erscheinen hier.</p>
+              <p className="text-gray-500 font-medium">{t('archiv.no_archived_projects')}</p>
+              <p className="text-gray-400 text-sm mt-1">{t('archiv.no_archived_projects_hint')}</p>
             </div>
           ) : (
             archivedProjects.map((p) => (
@@ -336,8 +344,10 @@ export default function Archiv() {
                     <p className="font-semibold text-gray-700 truncate">{p.name}</p>
                     {p.description && <p className="text-xs text-gray-400 truncate">{p.description}</p>}
                     <p className="text-xs text-gray-400 mt-0.5">
-                      {p.vehicle_count} Fahrzeug{p.vehicle_count !== 1 ? 'e' : ''} ·{' '}
-                      archiviert {p.archived_at ? new Date(p.archived_at).toLocaleDateString('de-DE') : ''}
+                      {t('archiv.project_vehicle_count', { count: p.vehicle_count })} ·{' '}
+                      {p.archived_at
+                        ? t('archiv.archived_at', { date: new Date(p.archived_at).toLocaleDateString(i18n.language) })
+                        : ''}
                     </p>
                   </div>
                 </div>
@@ -347,14 +357,14 @@ export default function Archiv() {
                     disabled={projectActionId === p.id}
                     className="flex-1 py-2 rounded-lg bg-brand-50 text-brand-700 text-sm font-medium border border-brand-200 active:bg-brand-100 disabled:opacity-50"
                   >
-                    {projectActionId === p.id ? '…' : '♻️ Reaktivieren'}
+                    {projectActionId === p.id ? '…' : t('archiv.reactivate')}
                   </button>
                   <button
                     onClick={() => handleProjectDelete(p.id, p.name)}
                     disabled={projectActionId === p.id}
                     className="flex-1 py-2 rounded-lg bg-red-50 text-red-600 text-sm font-medium border border-red-200 active:bg-red-100 disabled:opacity-50"
                   >
-                    🗑️ Löschen
+                    {t('archiv.project_delete')}
                   </button>
                 </div>
               </div>
@@ -370,7 +380,7 @@ export default function Archiv() {
       {!loading && !error && (
         <div className="px-4 pt-2 pb-0">
           <p className="text-xs text-gray-400">
-            {filtered.length} {filtered.length === 1 ? 'Protokoll' : 'Protokolle'}
+            {t('archiv.count', { count: filtered.length })}
           </p>
         </div>
       )}
@@ -385,12 +395,12 @@ export default function Archiv() {
               onClick={load}
               className="text-sm text-brand-600 underline"
             >
-              Erneut versuchen
+              {t('archiv.retry')}
             </button>
           </div>
         )}
         {!loading && !error && filtered.length === 0 && (
-          <p className="text-sm text-gray-400 text-center py-12">Keine Protokolle gefunden</p>
+          <p className="text-sm text-gray-400 text-center py-12">{t('archiv.empty')}</p>
         )}
         {filtered.map(p => (
           <button
@@ -412,14 +422,14 @@ export default function Archiv() {
                     ? 'bg-brand-100 text-brand-700'
                     : 'bg-green-100 text-green-700'
                 }`}>
-                  {p.protocol_type === 'annahme' ? 'Annahme' : 'Überführung'}
+                  {p.protocol_type === 'annahme' ? t('archiv.intake') : t('archiv.transfer')}
                 </span>
                 {p.status === 'draft' && (
                   <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
-                    Entwurf
+                    {t('archiv.draft')}
                   </span>
                 )}
-                <p className="text-xs text-gray-400">{formatDate(p.inspection_date)}</p>
+                <p className="text-xs text-gray-400">{formatDate(p.inspection_date, i18n.language)}</p>
               </div>
             </div>
           </button>
@@ -436,7 +446,7 @@ export default function Archiv() {
             <button
               onClick={() => setSelected(null)}
               className="p-1 rounded-lg text-gray-500 active:bg-gray-100"
-              aria-label="Zurück"
+              aria-label={t('common.back')}
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -446,12 +456,12 @@ export default function Archiv() {
               <p className="font-bold text-gray-800 truncate">
                 {selected.vehicles?.license_plate ?? '—'}
               </p>
-              <p className="text-xs text-gray-500">{formatDate(selected.inspection_date)}</p>
+              <p className="text-xs text-gray-500">{formatDate(selected.inspection_date, i18n.language)}</p>
             </div>
             <button
               onClick={() => setDeleteId(selected.id)}
               className="p-1 rounded-lg text-red-500 active:bg-red-50"
-              aria-label="Protokoll löschen"
+              aria-label={t('archiv.delete_title')}
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -461,7 +471,7 @@ export default function Archiv() {
           </div>
 
           {/* Modal Body */}
-          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+          <div className="flex-1 overflow-y-auto px-4 pt-4 pb-[calc(1.5rem+4rem+env(safe-area-inset-bottom))] space-y-4">
             {/* Type + Status badges */}
             <div className="flex gap-2 flex-wrap">
               <span className={`text-sm font-medium px-3 py-1 rounded-full ${
@@ -469,48 +479,48 @@ export default function Archiv() {
                   ? 'bg-brand-100 text-brand-700'
                   : 'bg-green-100 text-green-700'
               }`}>
-                {selected.protocol_type === 'annahme' ? 'Annahme' : 'Überführung'}
+                {selected.protocol_type === 'annahme' ? t('archiv.intake') : t('archiv.transfer')}
               </span>
               <span className={`text-sm font-medium px-3 py-1 rounded-full ${
                 selected.status === 'final'
                   ? 'bg-gray-100 text-gray-700'
                   : 'bg-amber-100 text-amber-700'
               }`}>
-                {selected.status === 'final' ? 'Abgeschlossen' : 'Entwurf'}
+                {selected.status === 'final' ? t('archiv.final') : t('archiv.draft')}
               </span>
             </div>
 
             {/* Basisdaten */}
-            <Section title="Basisdaten">
-              <Field label="Kennzeichen" value={selected.vehicles?.license_plate ?? '—'} />
-              <Field label="Marke / Modell" value={selected.vehicles?.brand_model ?? '—'} />
-              <Field label="VIN" value={selected.vehicles?.vin ?? '—'} />
-              <Field label="Ersteller" value={selected.inspector_name} />
-              <Field label="Standort / Route" value={selected.location} />
-              <Field label="KM-Stand" value={`${selected.odometer.toLocaleString('de-DE')} km`} />
-              <Field label="Datum" value={formatDate(selected.inspection_date)} />
+            <Section title={t('archiv.section_base')}>
+              <Field label={t('archiv.field_plate')} value={selected.vehicles?.license_plate ?? '—'} />
+              <Field label={t('archiv.field_brand')} value={selected.vehicles?.brand_model ?? '—'} />
+              <Field label={t('archiv.field_vin')} value={selected.vehicles?.vin ?? '—'} />
+              <Field label={t('archiv.field_creator')} value={selected.inspector_name} />
+              <Field label={t('archiv.field_location')} value={selected.location} />
+              <Field label={t('archiv.field_km')} value={`${selected.odometer.toLocaleString(i18n.language)} km`} />
+              <Field label={t('archiv.field_date')} value={formatDate(selected.inspection_date, i18n.language)} />
             </Section>
 
             {/* Technik */}
-            <Section title="Technik & Betriebsstoffe">
-              <Field label="Kraftstoff" value={`${selected.fuel_level}%`} />
-              <Field label="Batterie" value={`${selected.condition_data?.battery ?? '—'}%`} />
+            <Section title={t('archiv.section_tech')}>
+              <Field label={t('archiv.field_fuel')} value={`${selected.fuel_level}%`} />
+              <Field label={t('archiv.field_battery')} value={`${selected.condition_data?.battery ?? '—'}%`} />
             </Section>
 
             {/* Bemerkungen */}
             {selected.remarks && (
-              <Section title="Bemerkungen">
+              <Section title={t('archiv.section_remarks')}>
                 <p className="text-sm text-gray-700 whitespace-pre-wrap">{selected.remarks}</p>
               </Section>
             )}
 
             {/* Schäden */}
             {(selected.condition_data?.damage_records?.length ?? 0) > 0 && (
-              <Section title={`Schäden (${selected.condition_data.damage_records.length})`}>
+              <Section title={t('archiv.section_damages', { count: selected.condition_data.damage_records.length })}>
                 {selected.condition_data.damage_records.map((d, i) => (
                   <div key={i} className="text-sm text-gray-700 py-1.5 border-b border-gray-200 last:border-0">
-                    <span className="font-medium">{d.pos}</span>
-                    <span className="text-gray-500"> — {d.type}, {d.int}</span>
+                    <span className="font-medium">{t(`damage.positions.${d.pos}`, { defaultValue: d.pos })}</span>
+                    <span className="text-gray-500"> — {t(`damage.types.${d.type}`, { defaultValue: d.type })}, {t(`damage.intensities.${d.int}`, { defaultValue: d.int })}</span>
                   </div>
                 ))}
               </Section>
@@ -518,7 +528,7 @@ export default function Archiv() {
 
             {/* Fotos */}
             {Object.keys(selected.condition_data?.photos ?? {}).filter(k => k !== 'signature').length > 0 && (
-              <Section title="Fotos">
+              <Section title={t('archiv.section_photos')}>
                 <div className="grid grid-cols-2 gap-2">
                   {Object.entries(selected.condition_data.photos)
                     .filter(([key]) => key !== 'signature')
@@ -577,11 +587,11 @@ export default function Archiv() {
               }}
               className="w-full py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-medium active:bg-gray-200"
             >
-              ✏️ Protokoll bearbeiten
+              {t('archiv.edit_protocol')}
             </button>
 
             {/* Quick-links: neues Protokoll für dieses Fahrzeug */}
-            <div className="flex gap-2 pb-6">
+            <div className="flex gap-2 pt-2">
               <button
                 onClick={() => navigate('/annahme', {
                   state: {
@@ -593,7 +603,7 @@ export default function Archiv() {
                 })}
                 className="flex-1 py-2.5 rounded-xl border border-brand-500 text-brand-600 text-sm font-medium active:bg-brand-50"
               >
-                + Annahme
+                {t('archiv.new_intake')}
               </button>
               <button
                 onClick={() => navigate('/ueberfuehrung', {
@@ -607,7 +617,7 @@ export default function Archiv() {
                 })}
                 className="flex-1 py-2.5 rounded-xl border border-green-500 text-green-600 text-sm font-medium active:bg-green-50"
               >
-                + Überführung
+                {t('archiv.new_transfer')}
               </button>
             </div>
           </div>
@@ -618,9 +628,9 @@ export default function Archiv() {
       {deleteId != null && (
         <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40">
           <div className="w-full max-w-sm bg-white rounded-t-2xl pt-6 px-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl">
-            <p className="text-base font-semibold text-gray-800 mb-1">Protokoll löschen?</p>
+            <p className="text-base font-semibold text-gray-800 mb-1">{t('archiv.delete_title')}</p>
             <p className="text-sm text-gray-500 mb-5">
-              Diese Aktion kann nicht rückgängig gemacht werden.
+              {t('archiv.delete_body')}
             </p>
             <div className="flex gap-3">
               <button
@@ -628,14 +638,14 @@ export default function Archiv() {
                 disabled={deleting}
                 className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-700 text-sm font-medium active:bg-gray-50 disabled:opacity-50"
               >
-                Abbrechen
+                {t('common.cancel')}
               </button>
               <button
                 onClick={handleDelete}
                 disabled={deleting}
                 className="flex-1 py-3 rounded-xl bg-red-600 text-white text-sm font-medium active:bg-red-700 disabled:opacity-50"
               >
-                {deleting ? 'Lösche…' : 'Löschen'}
+                {deleting ? t('archiv.deleting') : t('archiv.delete_confirm')}
               </button>
             </div>
           </div>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   createProject,
   checkProjectNameSimilar,
@@ -45,10 +46,11 @@ function RootStep({
   onProjekt: () => void
   onClose: () => void
 }) {
+  const { t } = useTranslation()
   return (
     <div className="px-4 pb-[calc(4rem+env(safe-area-inset-bottom))]">
       <div className="flex items-center justify-between mb-5">
-        <h2 className="text-xl font-bold text-gray-900">Erstellen</h2>
+        <h2 className="text-xl font-bold text-gray-900">{t('create_wizard.title')}</h2>
         <button onClick={onClose} className="text-gray-400 text-2xl leading-none px-1">×</button>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -58,8 +60,8 @@ function RootStep({
         >
           <span className="text-4xl">📋</span>
           <div className="text-center">
-            <p className="font-bold text-brand-800 text-base">Protokoll</p>
-            <p className="text-xs text-brand-600 mt-0.5 leading-tight">Für bestehendes oder neues Fahrzeug</p>
+            <p className="font-bold text-brand-800 text-base">{t('create_wizard.protocol')}</p>
+            <p className="text-xs text-brand-600 mt-0.5 leading-tight">{t('create_wizard.protocol_desc')}</p>
           </div>
         </button>
         <button
@@ -68,8 +70,8 @@ function RootStep({
         >
           <span className="text-4xl">📁</span>
           <div className="text-center">
-            <p className="font-bold text-green-800 text-base">Projekt</p>
-            <p className="text-xs text-green-600 mt-0.5 leading-tight">Neuen Projektordner anlegen</p>
+            <p className="font-bold text-green-800 text-base">{t('create_wizard.project')}</p>
+            <p className="text-xs text-green-600 mt-0.5 leading-tight">{t('create_wizard.project_desc')}</p>
           </div>
         </button>
       </div>
@@ -86,11 +88,12 @@ function ProtokollStep({
   onExisting: () => void
   onBack: () => void
 }) {
+  const { t } = useTranslation()
   return (
     <div className="px-4 pb-[calc(4rem+env(safe-area-inset-bottom))]">
       <div className="flex items-center gap-2 mb-5">
-        <button onClick={onBack} className="text-brand-600 text-sm font-medium">← Zurück</button>
-        <h2 className="text-lg font-bold text-gray-900 flex-1">Protokoll erstellen</h2>
+        <button onClick={onBack} className="text-brand-600 text-sm font-medium">← {t('common.back')}</button>
+        <h2 className="text-lg font-bold text-gray-900 flex-1">{t('create_wizard.create_protocol_title')}</h2>
       </div>
       <div className="space-y-3">
         <button
@@ -99,8 +102,8 @@ function ProtokollStep({
         >
           <span className="text-3xl">🔍</span>
           <div>
-            <p className="font-bold text-brand-800">Bestehendes Fahrzeug</p>
-            <p className="text-sm text-brand-600 mt-0.5">Kennzeichen suchen &amp; Überführung starten</p>
+            <p className="font-bold text-brand-800">{t('create_wizard.existing_vehicle')}</p>
+            <p className="text-sm text-brand-600 mt-0.5">{t('create_wizard.existing_vehicle_desc')}</p>
           </div>
         </button>
         <button
@@ -109,8 +112,8 @@ function ProtokollStep({
         >
           <span className="text-3xl">🚗</span>
           <div>
-            <p className="font-bold text-gray-800">Neues Fahrzeug</p>
-            <p className="text-sm text-gray-500 mt-0.5">Fahrzeug anlegen &amp; Annahmeprotokoll starten</p>
+            <p className="font-bold text-gray-800">{t('create_wizard.new_vehicle')}</p>
+            <p className="text-sm text-gray-500 mt-0.5">{t('create_wizard.new_vehicle_desc')}</p>
           </div>
         </button>
       </div>
@@ -120,6 +123,7 @@ function ProtokollStep({
 
 function NewVehicleStep({ onBack, onClose }: { onBack: () => void; onClose: () => void }) {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [plate, setPlate] = useState('')
   const [brandModel, setBrandModel] = useState('')
   const [saving, setSaving] = useState(false)
@@ -127,7 +131,7 @@ function NewVehicleStep({ onBack, onClose }: { onBack: () => void; onClose: () =
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!plate.trim()) { setError('Kennzeichen ist Pflichtfeld.'); return }
+    if (!plate.trim()) { setError(t('create_wizard.plate_required')); return }
     setSaving(true)
     setError(null)
     try {
@@ -143,7 +147,7 @@ function NewVehicleStep({ onBack, onClose }: { onBack: () => void; onClose: () =
         },
       })
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Fehler beim Anlegen.')
+      setError(err instanceof Error ? err.message : t('create_wizard.create_error'))
       setSaving(false)
     }
   }
@@ -151,8 +155,8 @@ function NewVehicleStep({ onBack, onClose }: { onBack: () => void; onClose: () =
   return (
     <div className="px-4 pb-[calc(4rem+env(safe-area-inset-bottom))]">
       <div className="flex items-center gap-2 mb-5">
-        <button onClick={onBack} className="text-brand-600 text-sm font-medium">← Zurück</button>
-        <h2 className="text-lg font-bold text-gray-900 flex-1">Neues Fahrzeug</h2>
+        <button onClick={onBack} className="text-brand-600 text-sm font-medium">← {t('common.back')}</button>
+        <h2 className="text-lg font-bold text-gray-900 flex-1">{t('create_wizard.new_vehicle_title')}</h2>
       </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
@@ -160,13 +164,13 @@ function NewVehicleStep({ onBack, onClose }: { onBack: () => void; onClose: () =
         )}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Kennzeichen <span className="text-red-500">*</span>
+            {t('create_wizard.plate_label')} <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
             value={plate}
             onChange={(e) => setPlate(e.target.value)}
-            placeholder="M-AB 1234"
+            placeholder={t('create_wizard.plate_placeholder')}
             autoCapitalize="characters"
             autoFocus
             className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 uppercase"
@@ -175,7 +179,7 @@ function NewVehicleStep({ onBack, onClose }: { onBack: () => void; onClose: () =
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Marke / Modell <span className="text-gray-400 font-normal">(optional)</span>
+            {t('create_wizard.brand_model_label')} <span className="text-gray-400 font-normal">{t('create_wizard.brand_model_optional')}</span>
           </label>
           <input
             type="text"
@@ -191,14 +195,14 @@ function NewVehicleStep({ onBack, onClose }: { onBack: () => void; onClose: () =
             onClick={onBack}
             className="py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm"
           >
-            Zurück
+            {t('common.back')}
           </button>
           <button
             type="submit"
             disabled={saving}
             className="py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm disabled:opacity-60"
           >
-            {saving ? 'Legt an …' : 'Anlegen & Protokoll →'}
+            {saving ? t('create_wizard.creating') : t('create_wizard.create_and_protocol') + ' →'}
           </button>
         </div>
       </form>
@@ -208,6 +212,7 @@ function NewVehicleStep({ onBack, onClose }: { onBack: () => void; onClose: () =
 
 function ExistingVehicleStep({ onBack, onClose }: { onBack: () => void; onClose: () => void }) {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -246,14 +251,14 @@ function ExistingVehicleStep({ onBack, onClose }: { onBack: () => void; onClose:
     <>
       <div className="flex-shrink-0 px-4 pb-3">
         <div className="flex items-center gap-2 mb-3">
-          <button onClick={onBack} className="text-brand-600 text-sm font-medium">← Zurück</button>
-          <h2 className="text-lg font-bold text-gray-900 flex-1">Fahrzeug suchen</h2>
+          <button onClick={onBack} className="text-brand-600 text-sm font-medium">← {t('common.back')}</button>
+          <h2 className="text-lg font-bold text-gray-900 flex-1">{t('create_wizard.search_vehicle_title')}</h2>
         </div>
         <input
           type="search"
           value={search}
           onChange={(e) => { setSearch(e.target.value); setSelected(null) }}
-          placeholder="🔍 Kennzeichen, Marke …"
+          placeholder={'🔍 ' + t('create_wizard.search_placeholder')}
           autoFocus
           className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-400"
         />
@@ -261,9 +266,9 @@ function ExistingVehicleStep({ onBack, onClose }: { onBack: () => void; onClose:
 
       <div className="flex-1 overflow-y-auto min-h-0">
         {loading ? (
-          <p className="text-center text-gray-400 text-sm mt-6 pb-4">Lädt …</p>
+          <p className="text-center text-gray-400 text-sm mt-6 pb-4">{t('common.loading')}</p>
         ) : filtered.length === 0 ? (
-          <p className="text-center text-gray-400 text-sm mt-6 pb-4">Keine Treffer.</p>
+          <p className="text-center text-gray-400 text-sm mt-6 pb-4">{t('common.no_results')}</p>
         ) : (
           <ul className="divide-y divide-gray-100">
             {filtered.map((v) => (
@@ -293,7 +298,7 @@ function ExistingVehicleStep({ onBack, onClose }: { onBack: () => void; onClose:
             onClick={() => handleGo(selected)}
             className="w-full py-3 rounded-xl bg-green-600 text-white font-semibold text-sm"
           >
-            🚙 Überführung für {selected.license_plate} starten →
+            🚙 {t('create_wizard.start_transfer', { plate: selected.license_plate })} →
           </button>
         </div>
       )}
@@ -303,7 +308,7 @@ function ExistingVehicleStep({ onBack, onClose }: { onBack: () => void; onClose:
           onClick={onBack}
           className="w-full py-2.5 rounded-xl border border-gray-300 text-gray-700 text-sm"
         >
-          Zurück
+          {t('common.back')}
         </button>
       </div>
     </>
@@ -312,6 +317,7 @@ function ExistingVehicleStep({ onBack, onClose }: { onBack: () => void; onClose:
 
 function ProjektStep({ onBack, onClose }: { onBack: () => void; onClose: () => void }) {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [color, setColor] = useState('')
@@ -333,8 +339,8 @@ function ProjektStep({ onBack, onClose }: { onBack: () => void; onClose: () => v
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!name.trim()) { setError('Name ist Pflichtfeld.'); return }
-    if (exactDuplicate) { setError('Ein Projekt mit diesem Namen existiert bereits.'); return }
+    if (!name.trim()) { setError(t('create_wizard.name_required')); return }
+    if (exactDuplicate) { setError(t('create_wizard.name_duplicate')); return }
     setSaving(true)
     setError(null)
     try {
@@ -342,7 +348,7 @@ function ProjektStep({ onBack, onClose }: { onBack: () => void; onClose: () => v
       onClose()
       navigate('/fahrzeuge')
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Speichern fehlgeschlagen.')
+      setError(err instanceof Error ? err.message : t('create_wizard.save_failed'))
       setSaving(false)
     }
   }
@@ -350,8 +356,8 @@ function ProjektStep({ onBack, onClose }: { onBack: () => void; onClose: () => v
   return (
     <div className="px-4 pb-[calc(4rem+env(safe-area-inset-bottom))]">
       <div className="flex items-center gap-2 mb-5">
-        <button onClick={onBack} className="text-brand-600 text-sm font-medium">← Zurück</button>
-        <h2 className="text-lg font-bold text-gray-900 flex-1">Neues Projekt</h2>
+        <button onClick={onBack} className="text-brand-600 text-sm font-medium">← {t('common.back')}</button>
+        <h2 className="text-lg font-bold text-gray-900 flex-1">{t('create_wizard.new_project_title')}</h2>
       </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
@@ -359,13 +365,13 @@ function ProjektStep({ onBack, onClose }: { onBack: () => void; onClose: () => v
         )}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Name <span className="text-red-500">*</span>
+            {t('create_wizard.project_name_label')} <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
             value={name}
             onChange={(e) => handleNameChange(e.target.value)}
-            placeholder="z.B. Audi, IAA, LYNK …"
+            placeholder={t('create_wizard.project_name_placeholder')}
             autoFocus
             className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 ${
               exactDuplicate ? 'border-red-400 bg-red-50' : 'border-gray-300'
@@ -373,25 +379,25 @@ function ProjektStep({ onBack, onClose }: { onBack: () => void; onClose: () => v
           />
           {similar.length > 0 && (
             <p className="text-xs text-amber-600 mt-1">
-              ⚠️ Ähnliche Projekte: {similar.map((p) => p.name).join(', ')}
+              ⚠️ {t('create_wizard.similar_projects', { names: similar.map((p) => p.name).join(', ') })}
             </p>
           )}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Beschreibung <span className="text-gray-400 font-normal">(optional)</span>
+            {t('create_wizard.project_desc_label')} <span className="text-gray-400 font-normal">{t('create_wizard.brand_model_optional')}</span>
           </label>
           <input
             type="text"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Kurzbeschreibung …"
+            placeholder={t('create_wizard.project_desc_placeholder')}
             className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Farbe <span className="text-gray-400 font-normal">(optional)</span>
+            {t('create_wizard.project_color_label')} <span className="text-gray-400 font-normal">{t('create_wizard.brand_model_optional')}</span>
           </label>
           <div className="flex flex-wrap gap-2">
             <button
@@ -418,14 +424,14 @@ function ProjektStep({ onBack, onClose }: { onBack: () => void; onClose: () => v
             onClick={onBack}
             className="py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm"
           >
-            Zurück
+            {t('common.back')}
           </button>
           <button
             type="submit"
             disabled={saving || exactDuplicate}
             className="py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm disabled:opacity-60"
           >
-            {saving ? 'Speichert …' : 'Erstellen'}
+            {saving ? t('create_wizard.saving') : t('create_wizard.create_project')}
           </button>
         </div>
       </form>

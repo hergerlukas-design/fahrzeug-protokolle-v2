@@ -1,39 +1,19 @@
 import { useState, useEffect } from 'react'
-
-const SLIDES = [
-  {
-    icon: '🚗',
-    title: 'Willkommen bei\nVehicle Protocol Pro',
-    text: 'Dein digitales Übergabeprotokoll für Fahrzeuge — schnell, übersichtlich und auch offline nutzbar.',
-  },
-  {
-    icon: '📁',
-    title: 'Fahrzeuge & Projekte',
-    text: 'Organisiere Fahrzeuge in Projektordnern. Tippe auf ein Projekt, um alle zugehörigen Fahrzeuge zu sehen.',
-  },
-  {
-    icon: '📋',
-    title: 'Protokoll erstellen',
-    text: 'Erstelle Annahme- oder Überführungsprotokolle direkt am Fahrzeug — mit Fotos, Schadensdokumentation und Unterschrift.',
-  },
-  {
-    icon: '📄',
-    title: 'PDF exportieren',
-    text: 'Fertige Protokolle lassen sich als PDF speichern oder teilen. Fotos und Unterschriften werden direkt eingebettet.',
-  },
-  {
-    icon: '📶',
-    title: 'Auch offline',
-    text: 'Die App funktioniert auch ohne Internet. Protokolle werden automatisch synchronisiert, sobald du wieder online bist.',
-  },
-]
+import { useTranslation } from 'react-i18next'
 
 const STORAGE_KEY = 'vp_onboarding_done'
 export const TUTORIAL_EVENT = 'vp-open-tutorial'
 
 export default function OnboardingOverlay() {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(() => !localStorage.getItem(STORAGE_KEY))
   const [step, setStep] = useState(0)
+
+  const slides = t('onboarding.slides', { returnObjects: true }) as Array<{
+    icon: string
+    title: string
+    text: string
+  }>
 
   useEffect(() => {
     function handleReopen() {
@@ -46,8 +26,8 @@ export default function OnboardingOverlay() {
 
   if (!open) return null
 
-  const slide = SLIDES[step]
-  const isLast = step === SLIDES.length - 1
+  const slide = slides[step]
+  const isLast = step === slides.length - 1
 
   function dismiss() {
     localStorage.setItem(STORAGE_KEY, '1')
@@ -62,7 +42,7 @@ export default function OnboardingOverlay() {
           onClick={dismiss}
           className="text-sm text-gray-400 hover:text-gray-600 px-2 py-1"
         >
-          Überspringen
+          {t('onboarding.skip')}
         </button>
       </div>
 
@@ -78,7 +58,7 @@ export default function OnboardingOverlay() {
 
       <div className="px-6 pb-10 flex flex-col items-center gap-6">
         <div className="flex gap-2 items-center">
-          {SLIDES.map((_, i) => (
+          {slides.map((_, i) => (
             <span
               key={i}
               className={`inline-block rounded-full transition-all duration-300 ${
@@ -93,7 +73,7 @@ export default function OnboardingOverlay() {
           onClick={() => (isLast ? dismiss() : setStep((s) => s + 1))}
           className="w-full max-w-xs py-4 rounded-2xl bg-brand-600 text-white font-semibold text-lg active:scale-95 transition-transform"
         >
-          {isLast ? "Los geht's" : 'Weiter'}
+          {isLast ? t('onboarding.start') : t('onboarding.next')}
         </button>
       </div>
     </div>

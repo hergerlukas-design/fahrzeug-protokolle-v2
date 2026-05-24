@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   DEFAULT_CHECKLISTE,
   DAMAGE_INTENSITIES,
-  DAMAGE_POSITIONS,
   DAMAGE_TYPES,
   INSPECTION_CONDITIONS,
   saveOffline,
@@ -17,6 +17,7 @@ import {
 } from '../lib/protocols'
 import { OFFLINE_SAVED_EVENT } from '../components/OfflineIndicator'
 import PdfButton from '../components/PdfButton'
+import CarDamageSelector from '../components/CarDamageSelector'
 import type { PdfData } from '../lib/generatePdf'
 import { updateVehicle, updateVehicleKnownDamages } from '../lib/vehicles'
 
@@ -81,6 +82,7 @@ function SignatureCanvas({
   canvasRef: React.RefObject<HTMLCanvasElement | null>
   onHasStroke: (v: boolean) => void
 }) {
+  const { t } = useTranslation()
   const isDrawing = useRef(false)
   const lastPos = useRef<{ x: number; y: number } | null>(null)
   const initialized = useRef(false)
@@ -180,7 +182,7 @@ function SignatureCanvas({
         onClick={clearCanvas}
         className="mt-2 text-sm text-red-500 active:text-red-700"
       >
-        ✕ Unterschrift löschen
+        ✕ {t('annahme.sig_clear')}
       </button>
     </div>
   )
@@ -288,6 +290,7 @@ function DamageRow({
   onUpdate: (key: string, fields: Partial<DamageFormItem>) => void
   onRemove: (key: string) => void
 }) {
+  const { t } = useTranslation()
   const galleryRef = useRef<HTMLInputElement>(null)
   const cameraRef = useRef<HTMLInputElement>(null)
 
@@ -302,34 +305,28 @@ function DamageRow({
   return (
     <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-gray-500">Schaden {index + 1}</span>
+        <span className="text-xs font-semibold text-gray-500">{t('annahme.damage_label', { count: index + 1 })}</span>
         <button
           type="button"
           onClick={() => onRemove(item.key)}
           className="text-red-400 text-sm active:text-red-600"
         >
-          ✕ Entfernen
+          ✕ {t('annahme.damage_remove')}
         </button>
       </div>
-      <select
-        value={item.pos}
-        onChange={(e) => onUpdate(item.key, { pos: e.target.value })}
-        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
-      >
-        <option value="">Position wählen …</option>
-        {DAMAGE_POSITIONS.map((p) => (
-          <option key={p} value={p}>{p}</option>
-        ))}
-      </select>
+      <CarDamageSelector
+        value={item.pos || null}
+        onChange={(pos) => onUpdate(item.key, { pos })}
+      />
       <div className="grid grid-cols-2 gap-2">
         <select
           value={item.type}
           onChange={(e) => onUpdate(item.key, { type: e.target.value })}
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
         >
-          <option value="">Art …</option>
-          {DAMAGE_TYPES.map((t) => (
-            <option key={t} value={t}>{t}</option>
+          <option value="">{t('annahme.damage_type_placeholder')}</option>
+          {DAMAGE_TYPES.map((dt) => (
+            <option key={dt} value={dt}>{t(`damage.types.${dt}`, { defaultValue: dt })}</option>
           ))}
         </select>
         <select
@@ -337,9 +334,9 @@ function DamageRow({
           onChange={(e) => onUpdate(item.key, { int: e.target.value })}
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
         >
-          <option value="">Intensität …</option>
-          {DAMAGE_INTENSITIES.map((i) => (
-            <option key={i} value={i}>{i}</option>
+          <option value="">{t('annahme.damage_intensity_placeholder')}</option>
+          {DAMAGE_INTENSITIES.map((di) => (
+            <option key={di} value={di}>{t(`damage.intensities.${di}`, { defaultValue: di })}</option>
           ))}
         </select>
       </div>
@@ -348,7 +345,7 @@ function DamageRow({
           <div className="relative">
             <img
               src={item.previewUrl}
-              alt="Schaden"
+              alt={t('annahme.damage_label', { count: index + 1 })}
               className="w-16 h-16 object-cover rounded-lg border border-gray-200"
             />
             <button
@@ -366,14 +363,14 @@ function DamageRow({
               onClick={() => cameraRef.current?.click()}
               className="flex items-center gap-1.5 text-sm text-brand-600 border border-brand-200 rounded-lg px-3 py-2 bg-brand-50 active:bg-brand-100"
             >
-              📷 <span>Kamera</span>
+              📷 <span>{t('damage.camera')}</span>
             </button>
             <button
               type="button"
               onClick={() => galleryRef.current?.click()}
               className="flex items-center gap-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 active:bg-gray-100"
             >
-              🖼 <span>Galerie</span>
+              🖼 <span>{t('damage.gallery')}</span>
             </button>
           </div>
         )}
@@ -391,6 +388,7 @@ function DamageRow({
 export default function Annahme() {
   const loc = useLocation()
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const prefill = (loc.state as PrefillState) ?? null
 
   const sessionKey = useRef(Date.now().toString())
@@ -483,11 +481,11 @@ export default function Annahme() {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     if (!prefill) {
-      setError('Kein Fahrzeug ausgewählt. Bitte von der Fahrzeugliste starten.')
+      setError(t('annahme.no_vehicle_error'))
       return
     }
     if (!inspector.trim()) {
-      setError('Ersteller ist ein Pflichtfeld.')
+      setError(t('annahme.creator_required'))
       return
     }
     setSaving(true)
@@ -633,7 +631,7 @@ export default function Annahme() {
       })
       setSuccess(true)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Speichern fehlgeschlagen.')
+      setError(err instanceof Error ? err.message : t('annahme.save_error'))
     } finally {
       setSaving(false)
     }
@@ -661,11 +659,9 @@ export default function Annahme() {
       <div className="flex flex-col items-center justify-center min-h-full px-6 gap-6 text-center">
         <div className="text-6xl">✅</div>
         <div>
-          <h1 className="text-xl font-bold text-gray-900 mb-1">Protokoll gespeichert</h1>
+          <h1 className="text-xl font-bold text-gray-900 mb-1">{t('annahme.success_title')}</h1>
           <p className="text-sm text-gray-500">
-            {navigator.onLine
-              ? 'Das Annahmeprotokoll wurde erfolgreich gespeichert.'
-              : 'Offline gespeichert — wird synchronisiert, sobald Internet verfügbar ist.'}
+            {navigator.onLine ? t('annahme.success_online') : t('annahme.success_offline')}
           </p>
         </div>
         {savedPdfData && <PdfButton data={savedPdfData} accent="brand" />}
@@ -674,13 +670,13 @@ export default function Annahme() {
             onClick={resetForm}
             className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm"
           >
-            Weiteres Protokoll
+            {t('annahme.another_protocol')}
           </button>
           <button
             onClick={() => navigate('/fahrzeuge')}
             className="flex-1 py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm"
           >
-            Zur Übersicht
+            {t('annahme.to_overview')}
           </button>
         </div>
       </div>
@@ -693,17 +689,13 @@ export default function Annahme() {
       <div className="flex flex-col items-center justify-center min-h-full px-6 gap-4 text-center">
         <div className="text-5xl">📋</div>
         <div>
-          <h1 className="text-lg font-bold text-gray-900 mb-1">Fahrzeug wählen</h1>
-          <p className="text-sm text-gray-500">
-            Öffne ein Fahrzeug in der Kartei und tippe auf{' '}
-            <strong>Neues Annahmeprotokoll</strong>.
-          </p>
+          <h1 className="text-lg font-bold text-gray-900 mb-1">{t('annahme.no_vehicle_error')}</h1>
         </div>
         <button
           onClick={() => navigate('/fahrzeuge')}
           className="py-3 px-6 rounded-xl bg-brand-600 text-white font-semibold text-sm"
         >
-          Zur Fahrzeugkartei
+          {t('annahme.to_overview')}
         </button>
       </div>
     )
@@ -711,7 +703,7 @@ export default function Annahme() {
 
   // ── Main form ──────────────────────────────────────────────────────────────
   return (
-    <form onSubmit={handleSave} className="flex flex-col min-h-full bg-gray-50 pb-8">
+    <form onSubmit={handleSave} className="block min-h-full bg-gray-50 pb-8">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10">
         <button
@@ -719,9 +711,9 @@ export default function Annahme() {
           onClick={() => navigate(-1)}
           className="text-brand-600 text-sm font-medium mb-1 block"
         >
-          ← Zurück
+          ← {t('common.back')}
         </button>
-        <h1 className="text-xl font-bold text-gray-900">📝 Annahmeprotokoll</h1>
+        <h1 className="text-xl font-bold text-gray-900">📝 {t('annahme.title')}</h1>
         <p className="text-sm text-gray-500 mt-0.5">{prefill.license_plate}</p>
       </div>
 
@@ -737,19 +729,19 @@ export default function Annahme() {
       )}
 
       {/* ── 1. Fahrzeugdaten ── */}
-      <SectionHeader title="1. Fahrzeugdaten" />
+      <SectionHeader title={t('annahme.section_vehicle')} />
       <Card>
         <div className="space-y-1.5">
           <div className="flex justify-between">
-            <span className="text-sm text-gray-500">Kennzeichen</span>
+            <span className="text-sm text-gray-500">{t('annahme.plate_label')}</span>
             <span className="text-sm font-semibold text-gray-900">{prefill.license_plate}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-sm text-gray-500">Marke / Modell</span>
+            <span className="text-sm text-gray-500">{t('annahme.brand_model_label')}</span>
             <span className="text-sm text-gray-700">{prefill.brand_model || '—'}</span>
           </div>
           <div className="flex items-center justify-between gap-3">
-            <span className="text-sm text-gray-500 flex-shrink-0">FIN</span>
+            <span className="text-sm text-gray-500 flex-shrink-0">{t('annahme.fin_label')}</span>
             <input
               type="text"
               value={vin}
@@ -760,7 +752,7 @@ export default function Annahme() {
                   try { await updateVehicle(prefill.vehicle_id, { license_plate: prefill.license_plate, brand_model: prefill.brand_model, vin: v }) } catch { /* silent */ }
                 }
               }}
-              placeholder="17-stellige FIN …"
+              placeholder={t('annahme.fin_placeholder')}
               maxLength={17}
               autoCapitalize="characters"
               className="flex-1 text-right text-sm font-mono text-gray-700 bg-transparent border-b border-gray-300 focus:outline-none focus:border-brand-400 min-w-0"
@@ -770,32 +762,32 @@ export default function Annahme() {
       </Card>
 
       {/* ── 2. Ersteller & Standort ── */}
-      <SectionHeader title="2. Ersteller & Standort" />
+      <SectionHeader title={t('annahme.section_creator')} />
       <Card className="space-y-3">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Ersteller <span className="text-red-500">*</span>
+            {t('annahme.creator_label')} <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
             value={inspector}
             onChange={(e) => setInspector(e.target.value)}
-            placeholder="Name des Erstellers"
+            placeholder={t('annahme.creator_placeholder')}
             className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Standort</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('annahme.location_label')}</label>
           <input
             type="text"
             value={standort}
             onChange={(e) => setStandort(e.target.value)}
-            placeholder="z. B. München, Halle 3"
+            placeholder={t('annahme.location_placeholder')}
             className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Datum</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('annahme.date_label')}</label>
           <input
             type="text"
             value={new Date().toLocaleString('de-DE', {
@@ -812,9 +804,9 @@ export default function Annahme() {
       </Card>
 
       {/* ── 3. Sichtbedingungen ── */}
-      <SectionHeader title="3. Sichtbedingungen" />
+      <SectionHeader title={t('annahme.section_conditions')} />
       <Card>
-        <p className="text-xs text-gray-500 mb-2">Erschwerende Bedingungen (optional):</p>
+        <p className="text-xs text-gray-500 mb-2">{t('annahme.conditions_hint')}</p>
         <div className="flex flex-wrap gap-2">
           {INSPECTION_CONDITIONS.map((c) => (
             <button
@@ -827,14 +819,14 @@ export default function Annahme() {
                   : 'bg-gray-50 text-gray-500 border-gray-200'
               }`}
             >
-              {c}
+              {t(`conditions.${c}`, { defaultValue: c })}
             </button>
           ))}
         </div>
       </Card>
 
       {/* ── 4. Fahrzeugfotos ── */}
-      <SectionHeader title="4. Fahrzeugfotos" />
+      <SectionHeader title={t('annahme.section_photos')} />
       <Card>
         <div className="grid grid-cols-3 gap-2 mb-2">
           {PHOTO_KEYS.slice(0, 3).map((pk) => {
@@ -855,7 +847,7 @@ export default function Annahme() {
                     <span className="text-2xl">📷</span>
                   )}
                 </button>
-                <span className="text-xs text-gray-500">{PHOTO_LABELS[pk]}</span>
+                <span className="text-xs text-gray-500">{t(`photo_labels.${pk}`, { defaultValue: PHOTO_LABELS[pk] })}</span>
                 <input ref={photoFileRefs.current[pk]} type="file" accept="image/*" className="hidden" onChange={(e) => { handleVehiclePhotoChange(pk, e); e.target.value = '' }} />
                 <input ref={cameraPhotoFileRefs.current[pk]} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { handleVehiclePhotoChange(pk, e); e.target.value = '' }} />
               </div>
@@ -881,7 +873,7 @@ export default function Annahme() {
                     <span className="text-2xl">📷</span>
                   )}
                 </button>
-                <span className="text-xs text-gray-500">{PHOTO_LABELS[pk]}</span>
+                <span className="text-xs text-gray-500">{t(`photo_labels.${pk}`, { defaultValue: PHOTO_LABELS[pk] })}</span>
                 <input ref={photoFileRefs.current[pk]} type="file" accept="image/*" className="hidden" onChange={(e) => { handleVehiclePhotoChange(pk, e); e.target.value = '' }} />
                 <input ref={cameraPhotoFileRefs.current[pk]} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { handleVehiclePhotoChange(pk, e); e.target.value = '' }} />
               </div>
@@ -893,21 +885,21 @@ export default function Annahme() {
       {photoPickerKey && (
         <div className="fixed inset-0 z-[60] flex items-end" onClick={() => setPhotoPickerKey(null)}>
           <div className="w-full bg-white rounded-t-2xl p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <p className="text-sm font-medium text-gray-700 text-center mb-3">Foto auswählen — {PHOTO_LABELS[photoPickerKey]}</p>
+            <p className="text-sm font-medium text-gray-700 text-center mb-3">{t('annahme.photo_picker_label', { label: t(`photo_labels.${photoPickerKey}`, { defaultValue: PHOTO_LABELS[photoPickerKey] }) })}</p>
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => { const k = photoPickerKey; setPhotoPickerKey(null); cameraPhotoFileRefs.current[k].current?.click() }}
                 className="py-3 rounded-xl bg-brand-50 border border-brand-200 text-brand-700 font-medium text-sm active:bg-brand-100"
               >
-                📷 Kamera
+                📷 {t('damage.camera')}
               </button>
               <button
                 type="button"
                 onClick={() => { const k = photoPickerKey; setPhotoPickerKey(null); photoFileRefs.current[k].current?.click() }}
                 className="py-3 rounded-xl bg-gray-50 border border-gray-200 text-gray-700 font-medium text-sm active:bg-gray-100"
               >
-                🖼 Galerie
+                🖼 {t('damage.gallery')}
               </button>
             </div>
           </div>
@@ -915,11 +907,11 @@ export default function Annahme() {
       )}
 
       {/* ── 5. Schadenserfassung ── */}
-      <SectionHeader title="5. Schadenserfassung" />
+      <SectionHeader title={t('annahme.section_damages')} />
       <div className="mx-4 space-y-3">
         {damages.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-            <p className="text-sm text-gray-400 text-center italic">Keine Schäden erfasst.</p>
+            <p className="text-sm text-gray-400 text-center italic">{t('annahme.no_damages')}</p>
           </div>
         ) : (
           damages.map((d, i) => (
@@ -931,66 +923,48 @@ export default function Annahme() {
           onClick={addDamage}
           className="w-full py-3 rounded-xl border-2 border-dashed border-gray-300 text-sm text-gray-500 flex items-center justify-center gap-2 active:border-brand-400 active:text-brand-600"
         >
-          + Schaden hinzufügen
+          {t('annahme.add_damage')}
         </button>
       </div>
 
       {/* ── 6. Checkliste ── */}
-      <SectionHeader title="6. Checkliste" />
+      <SectionHeader title={t('annahme.section_checklist')} />
       <Card>
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Sauberkeit</p>
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('annahme.checklist_cleanliness')}</p>
         <div className="space-y-2 mb-4">
-          {(
-            [
-              ['floor', 'Boden'],
-              ['seats', 'Sitze'],
-              ['entry', 'Einstiege'],
-              ['instruments', 'Armaturen'],
-              ['trunk', 'Kofferraum'],
-              ['engine', 'Motorraum'],
-            ] as [keyof Checkliste, string][]
-          ).map(([key, label]) => (
+          {(['floor', 'seats', 'entry', 'instruments', 'trunk', 'engine'] as (keyof Checkliste)[]).map((key) => (
             <Toggle
               key={key}
-              label={label}
+              label={t(`checklist.${key}`)}
               checked={checklist[key]}
               onChange={(v) => setChecklist((prev) => ({ ...prev, [key]: v }))}
-              trueLabel="Sauber"
-              falseLabel="Schmutzig"
+              trueLabel={t('common.clean')}
+              falseLabel={t('common.dirty')}
             />
           ))}
         </div>
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Ausstattung</p>
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('annahme.checklist_equipment')}</p>
         <div className="space-y-2">
-          {(
-            [
-              ['aid_kit', 'Verbandskasten'],
-              ['triangle', 'Warndreieck'],
-              ['vest', 'Warnweste'],
-              ['cable', 'Ladekabel'],
-              ['registration', 'Fahrzeugschein'],
-              ['card', 'Ladekarte'],
-            ] as [keyof Checkliste, string][]
-          ).map(([key, label]) => (
+          {(['aid_kit', 'triangle', 'vest', 'cable', 'registration', 'card'] as (keyof Checkliste)[]).map((key) => (
             <Toggle
               key={key}
-              label={label}
+              label={t(`checklist.${key}`)}
               checked={checklist[key]}
               onChange={(v) => setChecklist((prev) => ({ ...prev, [key]: v }))}
-              trueLabel="Ja"
-              falseLabel="Nein"
+              trueLabel={t('common.yes')}
+              falseLabel={t('common.no')}
             />
           ))}
         </div>
       </Card>
 
       {/* ── 7. Füllstände ── */}
-      <SectionHeader title="7. Füllstände" />
+      <SectionHeader title={t('annahme.section_levels')} />
       <Card className="space-y-5">
-        <LevelSlider label="Kraftstoff" value={fuel} onChange={setFuel} />
-        <LevelSlider label="Batterie / HV" value={battery} onChange={setBattery} />
+        <LevelSlider label={t('annahme.fuel_label')} value={fuel} onChange={setFuel} />
+        <LevelSlider label={t('annahme.battery_label')} value={battery} onChange={setBattery} />
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Kilometerstand</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('annahme.odometer_label')}</label>
           <input
             type="number"
             value={odometer || ''}
@@ -1004,43 +978,40 @@ export default function Annahme() {
       </Card>
 
       {/* ── 8. Bemerkungen ── */}
-      <SectionHeader title="8. Bemerkungen" />
+      <SectionHeader title={t('annahme.section_remarks')} />
       <Card>
         <textarea
           value={remarks}
           onChange={(e) => setRemarks(e.target.value)}
-          placeholder="Zusätzliche Hinweise …"
+          placeholder={t('annahme.remarks_placeholder')}
           rows={3}
           className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
         />
       </Card>
 
       {/* ── 9. Unterschrift ── */}
-      <SectionHeader title="9. Unterschrift" />
+      <SectionHeader title={t('annahme.section_signature')} />
       <Card>
         <p className="text-xs text-gray-500 mb-3">
-          Mit Ihrer Unterschrift bestätigen Sie die Richtigkeit der Angaben.
-          Ihre Daten werden ausschließlich zur Dokumentation dieser Fahrzeugübergabe verwendet.{' '}
+          {t('annahme.sig_disclaimer')}{' '}
           <a href="/datenschutz" className="text-brand-600 underline">
-            Datenschutzerklärung
+            {t('annahme.privacy_link')}
           </a>
         </p>
         <p className="text-xs text-gray-500 mb-2">
-          {hasSig
-            ? '✅ Unterschrift vorhanden — Protokoll wird als final gespeichert.'
-            : 'Ohne Unterschrift wird das Protokoll als Entwurf gespeichert.'}
+          {hasSig ? t('annahme.sig_has') : t('annahme.sig_none')}
         </p>
         <SignatureCanvas canvasRef={canvasRef} onHasStroke={setHasSig} />
       </Card>
 
-      <SectionHeader title="10. Spediteur-Unterschrift (optional)" />
+      <SectionHeader title={t('annahme.section_carrier_sig')} />
       <Card>
         <button
           type="button"
           onClick={() => { setCarrierPresent(v => !v); setHasSigCarrier(false) }}
           className="w-full flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 mb-3"
         >
-          <span className="text-sm font-medium text-gray-700">Fahrzeug von Spedition angenommen</span>
+          <span className="text-sm font-medium text-gray-700">{t('annahme.carrier_toggle')}</span>
           <span className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${carrierPresent ? 'bg-brand-600' : 'bg-gray-300'}`}>
             <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${carrierPresent ? 'translate-x-6' : 'translate-x-1'}`} />
           </span>
@@ -1048,19 +1019,18 @@ export default function Annahme() {
         {carrierPresent ? (
           <>
             <p className="text-xs text-gray-500 mb-3">
-              Mit Ihrer Unterschrift bestätigen Sie die Übergabe des Fahrzeugs.
-              Ihre Daten werden ausschließlich zur Dokumentation dieser Fahrzeugübergabe verwendet.{' '}
+              {t('annahme.carrier_disclaimer')}{' '}
               <a href="/datenschutz" className="text-brand-600 underline">
-                Datenschutzerklärung
+                {t('annahme.privacy_link')}
               </a>
             </p>
             {ed?.photos?.['signature_carrier'] && !hasSigCarrier && (
-              <p className="text-xs text-amber-600 mb-2">⚠️ Vorhandene Spediteur-Unterschrift bleibt erhalten, wenn du hier nichts zeichnest.</p>
+              <p className="text-xs text-amber-600 mb-2">{t('annahme.carrier_existing_sig')}</p>
             )}
             <SignatureCanvas canvasRef={canvasRefCarrier} onHasStroke={setHasSigCarrier} />
           </>
         ) : (
-          <p className="text-xs text-gray-400 italic">Kein Spediteur — Feld erscheint nicht im PDF.</p>
+          <p className="text-xs text-gray-400 italic">{t('annahme.no_carrier')}</p>
         )}
       </Card>
 
@@ -1071,11 +1041,11 @@ export default function Annahme() {
           disabled={saving}
           className="w-full py-4 rounded-2xl bg-brand-600 text-white font-bold text-base shadow-lg disabled:opacity-60 active:bg-brand-700"
         >
-          {saving ? 'Speichert …' : navigator.onLine ? '💾 Protokoll speichern' : '📶 Offline speichern'}
+          {saving ? t('annahme.saving') : navigator.onLine ? `💾 ${t('annahme.save_online')}` : `📶 ${t('annahme.save_offline')}`}
         </button>
         {!navigator.onLine && (
           <p className="text-xs text-center text-amber-600 mt-2">
-            Kein Internet — Daten werden lokal gespeichert und automatisch synchronisiert.
+            {t('annahme.offline_hint')}
           </p>
         )}
       </div>

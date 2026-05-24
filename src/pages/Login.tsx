@@ -1,8 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { login } from '../lib/auth'
+import LanguageToggle from '../components/LanguageToggle'
 
 export default function Login() {
+  const { t } = useTranslation()
   const [pin, setPin] = useState('')
   const [error, setError] = useState(false)
   const navigate = useNavigate()
@@ -31,12 +34,16 @@ export default function Login() {
         <h1 className="text-2xl font-bold text-center text-gray-800 mb-1">
           Vehicle Protocol Pro
         </h1>
-        <p className="text-center text-gray-500 text-sm mb-8">Team-Login</p>
+        <p className="text-center text-gray-500 text-sm mb-4">{t('login.subtitle')}</p>
+
+        <div className="flex justify-center mb-6">
+          <LanguageToggle />
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              PIN eingeben
+              {t('login.pin_label')}
             </label>
             <input
               type="password"
@@ -53,14 +60,14 @@ export default function Login() {
           </div>
 
           {error && (
-            <p className="text-red-600 text-sm text-center">Falscher PIN!</p>
+            <p className="text-red-600 text-sm text-center">{t('login.wrong_pin')}</p>
           )}
 
           <button
             type="submit"
             className="w-full py-3 rounded-xl bg-brand-600 text-white font-semibold text-base hover:bg-brand-700 active:scale-95 transition-all"
           >
-            Anmelden
+            {t('login.submit')}
           </button>
         </form>
       </div>

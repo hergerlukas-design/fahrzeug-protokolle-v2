@@ -4,6 +4,12 @@
 app = 'fahrzeug-protokolle-v2'
 primary_region = 'fra'
 
+[build]
+  [build.args]
+    VITE_SUPABASE_URL = "https://zhsqcrmdqxfnupmuqaya.supabase.co"
+    VITE_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpoc3Fjcm1kcXhmbnVwbXVxYXlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NTk0ODgsImV4cCI6MjA4NzUzNTQ4OH0.Rb0MIX2FTFhDKc6ulL2LkYyDOJ3MgJerHGML9fKkRrc"
+    VITE_APP_PASSWORD = "3114"
+
 
 [http_service]
   internal_port = 8080

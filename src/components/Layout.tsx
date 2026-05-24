@@ -7,7 +7,7 @@ import CreateWizard from './CreateWizard'
 
 export default function Layout() {
   return (
-    <div className="flex flex-col min-h-dvh bg-gray-50">
+    <div className="flex flex-col h-dvh bg-gray-50">
       <OnboardingOverlay />
       <OfflineIndicator />
       <InstallBanner />

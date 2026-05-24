@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { Sparkles, Droplets, Fuel, Zap, CircleCheck, Navigation } from 'lucide-react'
 import { SkeletonList } from '../components/Skeleton'
@@ -138,6 +139,7 @@ function ProjectForm({
   onSave: (p: Project) => void
   onCancel: () => void
 }) {
+  const { t } = useTranslation()
   const [name, setName] = useState(initial?.name ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
   const [color, setColor] = useState(initial?.color ?? '')
@@ -166,8 +168,8 @@ function ProjectForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!name.trim()) { setError('Name ist Pflichtfeld.'); return }
-    if (exactDuplicate) { setError('Ein Projekt mit diesem Namen existiert bereits.'); return }
+    if (!name.trim()) { setError(t('projects.name_required')); return }
+    if (exactDuplicate) { setError(t('projects.duplicate_error')); return }
     setSaving(true)
     setError(null)
     try {
@@ -179,7 +181,7 @@ function ProjectForm({
       }
       onSave(saved)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Speichern fehlgeschlagen.')
+      setError(err instanceof Error ? err.message : t('projects.saving'))
       setSaving(false)
     }
   }
@@ -193,7 +195,7 @@ function ProjectForm({
         </div>
         <form onSubmit={handleSubmit} className="px-4 pb-[calc(4rem+env(safe-area-inset-bottom))] space-y-4">
           <h2 className="text-lg font-bold text-gray-900 mt-1">
-            {initial ? 'Projekt bearbeiten' : 'Neues Projekt'}
+            {initial ? t('projects.form_title_edit') : t('projects.form_title_new')}
           </h2>
           {error && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
@@ -202,13 +204,13 @@ function ProjectForm({
           )}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Name <span className="text-red-500">*</span>
+              {t('projects.name_label')} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => handleNameChange(e.target.value)}
-              placeholder="z.B. Audi, IAA, LYNK …"
+              placeholder={t('projects.name_placeholder')}
               autoFocus
               className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 ${
                 exactDuplicate ? 'border-red-400 bg-red-50' : 'border-gray-300'
@@ -216,14 +218,14 @@ function ProjectForm({
             />
             {similar.length > 0 && (
               <div className="mt-2 space-y-1">
-                <p className="text-xs text-amber-600 font-medium">⚠️ Ähnliche Projekte gefunden:</p>
+                <p className="text-xs text-amber-600 font-medium">⚠️ {t('projects.similar_found_label')}</p>
                 {similar.map((p) => (
                   <div key={p.id} className="flex items-center gap-2 text-xs text-gray-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-1.5">
                     <ProjectColorDot color={p.color} />
                     <span className={p.is_archived ? 'line-through text-gray-400' : ''}>
                       {p.name}
                     </span>
-                    {p.is_archived && <span className="text-gray-400">(archiviert)</span>}
+                    {p.is_archived && <span className="text-gray-400">{t('projects.archived_label')}</span>}
                   </div>
                 ))}
               </div>
@@ -231,19 +233,19 @@ function ProjectForm({
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Beschreibung <span className="text-gray-400 font-normal">(optional)</span>
+              {t('projects.description_label')} <span className="text-gray-400 font-normal">({t('create_wizard.brand_model_optional')})</span>
             </label>
             <input
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Kurzbeschreibung …"
+              placeholder={t('projects.description_placeholder')}
               className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Farbe <span className="text-gray-400 font-normal">(optional)</span>
+              {t('projects.color_label')} <span className="text-gray-400 font-normal">({t('create_wizard.brand_model_optional')})</span>
             </label>
             <div className="flex flex-wrap gap-2">
               <button
@@ -274,14 +276,14 @@ function ProjectForm({
               onClick={onCancel}
               className="py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm"
             >
-              Abbrechen
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
               disabled={saving || exactDuplicate}
               className="py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm disabled:opacity-60"
             >
-              {saving ? 'Speichert …' : 'Speichern'}
+              {saving ? t('projects.saving') : t('common.save')}
             </button>
           </div>
         </form>
@@ -307,6 +309,7 @@ function ProjectContextMenu({
   onDelete: () => void
   onClose: () => void
 }) {
+  const { t } = useTranslation()
   return (
     <>
       <div className="fixed inset-0 bg-black/30 z-30" onClick={onClose} />
@@ -324,21 +327,21 @@ function ProjectContextMenu({
             className="w-full flex items-center gap-3 px-2 py-3.5 text-left text-gray-800 font-medium rounded-xl active:bg-gray-100"
           >
             <span className="text-xl w-8 text-center">✏️</span>
-            Bearbeiten
+            {t('projects.context_edit')}
           </button>
           <button
             onClick={() => { onArchive(); onClose() }}
             className="w-full flex items-center gap-3 px-2 py-3.5 text-left text-amber-700 font-medium rounded-xl active:bg-amber-50"
           >
             <span className="text-xl w-8 text-center">📦</span>
-            Archivieren
+            {t('projects.context_archive')}
           </button>
           <button
             onClick={() => { onDelete(); onClose() }}
             className="w-full flex items-center gap-3 px-2 py-3.5 text-left text-red-600 font-medium rounded-xl active:bg-red-50"
           >
             <span className="text-xl w-8 text-center">🗑️</span>
-            Löschen
+            {t('projects.context_delete')}
           </button>
         </div>
       </div>
@@ -361,6 +364,7 @@ function ProjectArchiveConfirm({
   onCancel: () => void
   loading: boolean
 }) {
+  const { t } = useTranslation()
   const [stats, setStats] = useState<{ vehicleCount: number; protocolCount: number } | null>(null)
 
   useEffect(() => {
@@ -371,18 +375,18 @@ function ProjectArchiveConfirm({
     <>
       <div className="fixed inset-0 bg-black/40 z-30" onClick={onCancel} />
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-white rounded-t-2xl shadow-2xl px-6 pt-6 pb-[calc(1.5rem+4rem+env(safe-area-inset-bottom))]">
-        <h2 className="text-lg font-bold text-gray-900 mb-2">Projekt archivieren?</h2>
+        <h2 className="text-lg font-bold text-gray-900 mb-2">{t('projects.archive_confirm_title')}</h2>
         <p className="text-sm text-gray-600 mb-1">
-          Projekt <strong>„{project.name}"</strong> archivieren?
+          {t('projects.archive_confirm_body', { name: project.name })}
           {stats && (
-            <span> Es enthält {stats.vehicleCount} Fahrzeug{stats.vehicleCount !== 1 ? 'e' : ''} und {stats.protocolCount} Protokoll{stats.protocolCount !== 1 ? 'e' : ''}.</span>
+            <span>{t('projects.archive_contains', { vehicles: stats.vehicleCount, protocols: stats.protocolCount })}</span>
           )}
         </p>
-        <p className="text-xs text-amber-700 mb-6">📦 Das Projekt verschwindet aus der Übersicht und erscheint im Archiv.</p>
+        <p className="text-xs text-amber-700 mb-6">📦 {t('projects.archive_note')}</p>
         <div className="grid grid-cols-2 gap-3">
-          <button onClick={onCancel} className="py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm">Abbrechen</button>
+          <button onClick={onCancel} className="py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm">{t('common.cancel')}</button>
           <button onClick={onConfirm} disabled={loading} className="py-3 rounded-xl bg-amber-600 text-white font-semibold text-sm disabled:opacity-60">
-            {loading ? 'Archiviert …' : 'Archivieren'}
+            {loading ? t('projects.archiving') : t('projects.context_archive')}
           </button>
         </div>
       </div>
@@ -405,6 +409,7 @@ function ProjectDeleteConfirm({
   onCancel: () => void
   loading: boolean
 }) {
+  const { t } = useTranslation()
   const [stats, setStats] = useState<{ vehicleCount: number; protocolCount: number } | null>(null)
 
   useEffect(() => {
@@ -415,20 +420,20 @@ function ProjectDeleteConfirm({
     <>
       <div className="fixed inset-0 bg-black/40 z-30" onClick={onCancel} />
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-white rounded-t-2xl shadow-2xl px-6 pt-6 pb-[calc(1.5rem+4rem+env(safe-area-inset-bottom))]">
-        <h2 className="text-lg font-bold text-gray-900 mb-2">Projekt löschen?</h2>
+        <h2 className="text-lg font-bold text-gray-900 mb-2">{t('projects.delete_confirm_title')}</h2>
         <p className="text-sm text-gray-600 mb-1">
-          Projekt <strong>„{project.name}"</strong> löschen?
+          {t('projects.delete_confirm_body', { name: project.name })}
           {stats && (
-            <span> Es enthält {stats.vehicleCount} Fahrzeug{stats.vehicleCount !== 1 ? 'e' : ''} und {stats.protocolCount} Protokoll{stats.protocolCount !== 1 ? 'e' : ''}.</span>
+            <span> {t('projects.delete_contains', { vehicles: stats.vehicleCount, protocols: stats.protocolCount })}</span>
           )}
         </p>
         <p className="text-xs text-red-600 mb-6">
-          ⚠️ Die Fahrzeuge werden nicht gelöscht – sie landen in „Ohne Projekt".
+          ⚠️ {t('projects.delete_note')}
         </p>
         <div className="grid grid-cols-2 gap-3">
-          <button onClick={onCancel} className="py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm">Abbrechen</button>
+          <button onClick={onCancel} className="py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm">{t('common.cancel')}</button>
           <button onClick={onConfirm} disabled={loading} className="py-3 rounded-xl bg-red-600 text-white font-semibold text-sm disabled:opacity-60">
-            {loading ? 'Löscht …' : 'Löschen'}
+            {loading ? t('projects.deleting') : t('projects.context_delete')}
           </button>
         </div>
       </div>
@@ -463,6 +468,7 @@ function ProjectKartei({
   onDeleteProject: (p: Project) => void
   onSearch: (term: string) => void
 }) {
+  const { t } = useTranslation()
   const [contextMenu, setContextMenu] = useState<Project | null>(null)
   const [search, setSearch] = useState('')
   const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -489,20 +495,20 @@ function ProjectKartei({
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10">
         <div className="flex items-center justify-between mb-3">
-          <h1 className="text-xl font-bold text-gray-900">📁 Projekte</h1>
+          <h1 className="text-xl font-bold text-gray-900">📁 {t('projects.title')}</h1>
           <button
             onClick={onNewProject}
             className="flex items-center gap-1.5 py-2 px-3 rounded-xl bg-brand-600 text-white text-sm font-semibold active:bg-brand-700"
           >
             <span>+</span>
-            <span>Neu</span>
+            <span>{t('projects.new_button')}</span>
           </button>
         </div>
         <input
           type="search"
           value={search}
           onChange={(e) => handleSearchChange(e.target.value)}
-          placeholder="🔍 Fahrzeug suchen (alle Projekte) …"
+          placeholder={`🔍 ${t('projects.search_placeholder')}`}
           className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-400"
         />
       </div>
@@ -519,8 +525,8 @@ function ProjectKartei({
           ) : projects.length === 0 && noneCount === 0 ? (
             <div className="text-center py-16">
               <p className="text-4xl mb-3">📁</p>
-              <p className="text-gray-500 font-medium">Noch keine Projekte</p>
-              <p className="text-gray-400 text-sm mt-1">Erstelle dein erstes Projekt mit dem + Button.</p>
+              <p className="text-gray-500 font-medium">{t('projects.empty_state')}</p>
+              <p className="text-gray-400 text-sm mt-1">{t('projects.empty_state_hint')}</p>
             </div>
           ) : (
             <>
@@ -562,7 +568,7 @@ function ProjectKartei({
                       <p className="text-xs text-gray-400 truncate mt-0.5">{p.description}</p>
                     )}
                     <p className="text-xs text-gray-400 mt-0.5">
-                      {p.vehicle_count} Fahrzeug{p.vehicle_count !== 1 ? 'e' : ''}
+                      {t(p.vehicle_count === 1 ? 'projects.vehicle_count_one' : 'projects.vehicle_count_other', { count: p.vehicle_count })}
                     </p>
                   </div>
                   <span className="text-gray-300 text-lg flex-shrink-0">›</span>
@@ -579,9 +585,9 @@ function ProjectKartei({
                     📂
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-600">Ohne Projekt</p>
+                    <p className="font-semibold text-gray-600">{t('projects.no_project')}</p>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      {noneCount} Fahrzeug{noneCount !== 1 ? 'e' : ''}
+                      {t(noneCount === 1 ? 'projects.vehicle_count_one' : 'projects.vehicle_count_other', { count: noneCount })}
                     </p>
                   </div>
                   <span className="text-gray-300 text-lg flex-shrink-0">›</span>
@@ -621,6 +627,7 @@ function NewVehicleFlow({
   allProjects: Project[]
 }) {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [plate, setPlate] = useState('')
   const [brandModel, setBrandModel] = useState('')
   const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>(
@@ -650,9 +657,9 @@ function NewVehicleFlow({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!plate.trim()) { setError('Kennzeichen ist Pflichtfeld.'); return }
+    if (!plate.trim()) { setError(t('create_wizard.plate_required')); return }
     if (activeProjects.length > 0 && selectedProjectIds.length === 0) {
-      setError('Bitte mindestens ein Projekt auswählen.')
+      setError(t('projects.at_least_one'))
       return
     }
     setSaving(true)
@@ -678,7 +685,7 @@ function NewVehicleFlow({
         },
       })
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Fehler beim Anlegen.')
+      setError(err instanceof Error ? err.message : t('create_wizard.create_error'))
       setSaving(false)
     }
   }
@@ -693,8 +700,8 @@ function NewVehicleFlow({
           <div className="w-10 h-1 bg-gray-200 rounded-full" />
         </div>
         <form onSubmit={handleSubmit} className="px-4 pb-[calc(4rem+env(safe-area-inset-bottom))] space-y-4">
-          <h2 className="text-lg font-bold text-gray-900 mt-1">Neues Fahrzeug & Protokoll</h2>
-          <p className="text-sm text-gray-500">Fahrzeug anlegen und direkt zum Annahmeprotokoll.</p>
+          <h2 className="text-lg font-bold text-gray-900 mt-1">{t('vehicles.new_vehicle_and_protocol')}</h2>
+          <p className="text-sm text-gray-500">{t('vehicles.new_vehicle_and_protocol_hint')}</p>
           {error && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
               ⚠️ {error}
@@ -702,13 +709,13 @@ function NewVehicleFlow({
           )}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Kennzeichen <span className="text-red-500">*</span>
+              {t('create_wizard.plate_label')} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={plate}
               onChange={(e) => setPlate(e.target.value)}
-              placeholder="M-AB 1234"
+              placeholder={t('create_wizard.plate_placeholder')}
               autoCapitalize="characters"
               autoFocus
               className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 uppercase"
@@ -717,7 +724,7 @@ function NewVehicleFlow({
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Marke / Modell <span className="text-gray-400 font-normal">(optional)</span>
+              {t('create_wizard.brand_model_label')} <span className="text-gray-400 font-normal">{t('create_wizard.brand_model_optional')}</span>
             </label>
             <input
               type="text"
@@ -730,7 +737,7 @@ function NewVehicleFlow({
           {activeProjects.length > 0 && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Projekt <span className="text-red-500">*</span>
+                {t('create_wizard.project')} <span className="text-red-500">*</span>
               </label>
               <div className="relative" ref={dropdownRef}>
                 <button
@@ -740,8 +747,8 @@ function NewVehicleFlow({
                 >
                   <span className={selectedProjectIds.length === 0 ? 'text-gray-400' : 'text-gray-900 font-medium'}>
                     {selectedProjectIds.length === 0
-                      ? 'Projekt auswählen …'
-                      : `${selectedProjectIds.length} Projekt${selectedProjectIds.length !== 1 ? 'e' : ''} gewählt`}
+                      ? t('projects.project_select_placeholder')
+                      : t(selectedProjectIds.length === 1 ? 'projects.selected_count_one' : 'projects.selected_count_other', { count: selectedProjectIds.length })}
                   </span>
                   <span className="text-gray-400 text-xs ml-2">{dropdownOpen ? '▲' : '▼'}</span>
                 </button>
@@ -803,14 +810,14 @@ function NewVehicleFlow({
               onClick={onCancel}
               className="py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm"
             >
-              Abbrechen
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
               disabled={saving}
               className="py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm disabled:opacity-60"
             >
-              {saving ? 'Legt an …' : 'Anlegen & Protokoll →'}
+              {saving ? t('create_wizard.creating') : t('create_wizard.create_and_protocol')}
             </button>
           </div>
         </form>
@@ -831,6 +838,7 @@ function ExistingVehicleFlow({
   onCancel: () => void
 }) {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Vehicle | null>(null)
   const [protocolType, setProtocolType] = useState<'transfer' | 'intake'>('transfer')
@@ -865,13 +873,13 @@ function ExistingVehicleFlow({
         </div>
         <div className="px-4 pb-3 flex-shrink-0">
           <h2 className="text-lg font-bold text-gray-900 mt-1 mb-3">
-            Protokoll für bestehendes Fahrzeug
+            {t('vehicles.existing_protocol_title')}
           </h2>
           <input
             type="search"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setSelected(null) }}
-            placeholder="🔍 Kennzeichen, Marke …"
+            placeholder={t('create_wizard.search_placeholder')}
             autoFocus
             className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
@@ -879,7 +887,7 @@ function ExistingVehicleFlow({
 
         <div className="flex-1 overflow-y-auto min-h-0">
           {filtered.length === 0 ? (
-            <p className="text-center text-gray-400 text-sm mt-8">Keine Treffer.</p>
+            <p className="text-center text-gray-400 text-sm mt-8">{t('common.no_results')}</p>
           ) : (
             <ul className="divide-y divide-gray-100">
               {filtered.map((v) => (
@@ -910,7 +918,7 @@ function ExistingVehicleFlow({
         {selected && (
           <div className="flex-shrink-0 border-t border-gray-100 px-4 pt-3 pb-2 bg-white space-y-3">
             <p className="text-sm font-medium text-gray-700">
-              Protokolltyp für <strong>{selected.license_plate}</strong>:
+              {t('vehicles.protocol_type_for', { plate: selected.license_plate })}
             </p>
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -921,7 +929,7 @@ function ExistingVehicleFlow({
                     : 'bg-gray-100 text-gray-600'
                 }`}
               >
-                🚙 Überführung
+                🚙 {t('protocol_type.transfer')}
               </button>
               <button
                 onClick={() => setProtocolType('intake')}
@@ -931,14 +939,14 @@ function ExistingVehicleFlow({
                     : 'bg-gray-100 text-gray-600'
                 }`}
               >
-                📝 Annahme
+                📝 {t('protocol_type.intake')}
               </button>
             </div>
             <button
               onClick={handleGo}
               className="w-full py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm"
             >
-              Weiter zum Protokoll →
+              {t('vehicles.go_to_protocol')}
             </button>
           </div>
         )}
@@ -948,7 +956,7 @@ function ExistingVehicleFlow({
             onClick={onCancel}
             className="w-full py-2.5 rounded-xl border border-gray-300 text-gray-700 text-sm"
           >
-            Abbrechen
+            {t('common.cancel')}
           </button>
         </div>
       </div>
@@ -979,6 +987,7 @@ function VehicleList({
   onBack: () => void
   projectName: string | null
 }) {
+  const { t } = useTranslation()
   const upper = search.toUpperCase()
   const filtered = upper
     ? vehicles.filter(
@@ -990,12 +999,12 @@ function VehicleList({
     : vehicles
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
+    <div className="block min-h-full bg-gray-50">
+      {/* Header – sticky relative to <main> scroll container */}
       <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10">
         <div className="flex items-center gap-2 mb-3">
           <button onClick={onBack} className="text-brand-600 text-sm font-medium pr-1 flex-shrink-0">
-            ← Projekte
+            ← {t('projects.title')}
           </button>
           <h1 className="text-lg font-bold text-gray-900 flex-1 truncate">
             {projectName === null ? '📂 Ohne Projekt' : `📁 ${projectName}`}
@@ -1008,35 +1017,35 @@ function VehicleList({
             className="flex flex-col items-center gap-1 py-3 px-2 rounded-xl bg-brand-600 text-white text-center active:bg-brand-700 shadow-sm"
           >
             <span className="text-xl leading-none">➕</span>
-            <span className="text-xs font-semibold leading-tight">Neues Fahrzeug<br />& Protokoll</span>
+            <span className="text-xs font-semibold leading-tight">{t('vehicles.new_vehicle_and_protocol')}</span>
           </button>
           <button
             onClick={onExistingProtocol}
             className="flex flex-col items-center gap-1 py-3 px-2 rounded-xl bg-green-600 text-white text-center active:bg-green-700 shadow-sm"
           >
             <span className="text-xl leading-none">🚙</span>
-            <span className="text-xs font-semibold leading-tight">Protokoll für<br />bestehendes Fzg.</span>
+            <span className="text-xs font-semibold leading-tight">{t('vehicles.existing_protocol_btn')}</span>
           </button>
         </div>
         <input
           type="search"
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="🔍 Kennzeichen, Marke, FIN …"
+          placeholder={`🔍 ${t('vehicles.search_placeholder')}`}
           className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-400"
         />
       </div>
 
-      {/* List */}
-      <div className="flex-1 overflow-y-auto">
+      {/* List – no overflow, <main> handles scrolling */}
+      <div>
         {filtered.length === 0 ? (
           <p className="text-center text-gray-400 text-sm mt-12">
-            {search ? 'Keine Treffer.' : 'Keine Fahrzeuge in diesem Projekt.'}
+            {search ? t('common.no_results') : t('vehicles.no_vehicles')}
           </p>
         ) : (
           <>
             <p className="text-xs text-gray-400 px-4 pt-3 pb-1">
-              {filtered.length} Fahrzeug{filtered.length !== 1 ? 'e' : ''}
+              {t(filtered.length === 1 ? 'projects.vehicle_count_one' : 'projects.vehicle_count_other', { count: filtered.length })}
             </p>
             <ul className="divide-y divide-gray-100">
               {filtered.map((v) => {
@@ -1056,12 +1065,12 @@ function VehicleList({
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-gray-900 truncate">{v.license_plate}</p>
                         <p className="text-sm text-gray-500 truncate">
-                          {v.brand_model || <span className="italic text-gray-300">Marke unbekannt</span>}
+                          {v.brand_model || <span className="italic text-gray-300">{t('vehicles.brand_unknown')}</span>}
                         </p>
                         <p className="text-xs text-gray-400 mt-0.5">
-                          {protos.length} Protokoll{protos.length !== 1 ? 'e' : ''}
+                          {t(protos.length === 1 ? 'vehicles.protocol_count_one' : 'vehicles.protocol_count_other', { count: protos.length })}
                           {drafts > 0 && (
-                            <span className="ml-1 text-amber-500">· {drafts} Entwurf</span>
+                            <span className="ml-1 text-amber-500">· {t(drafts === 1 ? 'vehicles.draft_count_one' : 'vehicles.draft_count_other', { count: drafts })}</span>
                           )}
                           {last && (
                             <span className="ml-1">· {last.slice(0, 10)}</span>
@@ -1094,6 +1103,7 @@ function GlobalSearchResults({
   onSelect: (v: Vehicle) => void
   onBack: () => void
 }) {
+  const { t } = useTranslation()
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [loading, setLoading] = useState(true)
   const [vehicleProjects, setVehicleProjects] = useState<Record<string, Project[]>>({})
@@ -1137,17 +1147,17 @@ function GlobalSearchResults({
     <div className="flex flex-col h-full">
       <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10">
         <button onClick={onBack} className="text-brand-600 text-sm font-medium mb-2 block">
-          ← Zurück
+          ← {t('common.back')}
         </button>
         <p className="text-sm text-gray-500">
-          {loading ? 'Lädt …' : `${filtered.length} Treffer für „${search}"`}
+          {loading ? t('common.loading') : t('vehicles.results_count', { count: filtered.length })}
         </p>
       </div>
       <div className="flex-1 overflow-y-auto">
         {loading ? (
           <SkeletonList count={3} />
         ) : filtered.length === 0 ? (
-          <p className="text-center text-gray-400 text-sm mt-12">Keine Treffer.</p>
+          <p className="text-center text-gray-400 text-sm mt-12">{t('common.no_results')}</p>
         ) : (
           <ul className="divide-y divide-gray-100">
             {filtered.map((v) => {
@@ -1162,7 +1172,7 @@ function GlobalSearchResults({
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-gray-900 truncate">{v.license_plate}</p>
                       <p className="text-sm text-gray-500 truncate">
-                        {v.brand_model || <span className="italic text-gray-300">Marke unbekannt</span>}
+                        {v.brand_model || <span className="italic text-gray-300">{t('vehicles.brand_unknown')}</span>}
                       </p>
                       {projs.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1">
@@ -1184,7 +1194,7 @@ function GlobalSearchResults({
                         </div>
                       )}
                       {projs.length === 0 && (
-                        <span className="text-xs text-gray-400 mt-0.5 block">Ohne Projekt</span>
+                        <span className="text-xs text-gray-400 mt-0.5 block">{t('projects.no_project')}</span>
                       )}
                     </div>
                     <span className="text-gray-300 text-lg">›</span>
@@ -1212,6 +1222,7 @@ function VehicleProjectSection({
   allProjects: Project[]
   onProjectsChanged?: () => void
 }) {
+  const { t } = useTranslation()
   const [assignments, setAssignments] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
@@ -1254,7 +1265,7 @@ function VehicleProjectSection({
       setAddDropdownOpen(false)
       onProjectsChanged?.()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Fehler beim Hinzufügen.')
+      setError(e instanceof Error ? e.message : t('common.error'))
     } finally {
       setSavingId(null)
     }
@@ -1277,7 +1288,7 @@ function VehicleProjectSection({
       setRemoveConfirm(null)
       onProjectsChanged?.()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Fehler beim Entfernen.')
+      setError(e instanceof Error ? e.message : t('common.error'))
     } finally {
       setSavingId(null)
     }
@@ -1289,13 +1300,13 @@ function VehicleProjectSection({
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-gray-700">📁 Projekte</h3>
+        <h3 className="text-sm font-semibold text-gray-700">📁 {t('vehicles.project_section_title')}</h3>
         {available.length > 0 && (
           <button
             onClick={() => setShowAdd((v) => !v)}
             className="text-xs text-brand-600 font-medium"
           >
-            {showAdd ? 'Schließen' : '+ Hinzufügen'}
+            {showAdd ? t('common.close') : `+ ${t('common.add')}`}
           </button>
         )}
       </div>
@@ -1307,11 +1318,11 @@ function VehicleProjectSection({
       )}
 
       {loading ? (
-        <p className="text-xs text-gray-400">Lädt …</p>
+        <p className="text-xs text-gray-400">{t('common.loading')}</p>
       ) : (
         <div className="flex flex-wrap gap-2">
           {assignments.length === 0 ? (
-            <span className="text-xs text-gray-400 italic">Kein Projekt zugeordnet (in „Ohne Projekt")</span>
+            <span className="text-xs text-gray-400 italic">{t('vehicles.no_project_assigned')}</span>
           ) : (
             assignments.map((p) => (
               <span
@@ -1326,7 +1337,7 @@ function VehicleProjectSection({
                   onClick={() => handleRemove(p)}
                   disabled={savingId === p.id}
                   className="text-gray-400 hover:text-red-500 disabled:opacity-40 leading-none ml-0.5"
-                  aria-label="Entfernen"
+                  aria-label={t('vehicles.remove')}
                 >
                   ×
                 </button>
@@ -1344,7 +1355,7 @@ function VehicleProjectSection({
               onClick={() => setAddDropdownOpen((o) => !o)}
               className="w-full flex items-center justify-between border border-gray-300 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
             >
-              <span className="text-gray-400">Projekt auswählen …</span>
+              <span className="text-gray-400">{t('projects.project_select_placeholder')}</span>
               <span className="text-gray-400 text-xs ml-2">{addDropdownOpen ? '▲' : '▼'}</span>
             </button>
             {addDropdownOpen && (
@@ -1374,16 +1385,16 @@ function VehicleProjectSection({
         <>
           <div className="fixed inset-0 bg-black/40 z-30" onClick={() => setRemoveConfirm(null)} />
           <div className="fixed bottom-0 left-0 right-0 z-40 bg-white rounded-t-2xl shadow-2xl px-6 pt-6 pb-[calc(1.5rem+4rem+env(safe-area-inset-bottom))]">
-            <h2 className="text-lg font-bold text-gray-900 mb-2">Letztes Projekt entfernen?</h2>
+            <h2 className="text-lg font-bold text-gray-900 mb-2">{t('vehicles.last_project_confirm_title')}</h2>
             <p className="text-sm text-gray-600 mb-4">
-              Das Fahrzeug hat dann kein Projekt mehr und landet in „Ohne Projekt". Fortfahren?
+              {t('vehicles.last_project_confirm_body')}
             </p>
             <div className="grid grid-cols-2 gap-3">
               <button onClick={() => setRemoveConfirm(null)} className="py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm">
-                Abbrechen
+                {t('common.cancel')}
               </button>
               <button onClick={() => doRemove(removeConfirm.id)} className="py-3 rounded-xl bg-red-600 text-white font-semibold text-sm">
-                Entfernen
+                {t('vehicles.remove')}
               </button>
             </div>
           </div>
@@ -1413,6 +1424,7 @@ function VehicleDetail({
   allProjects: Project[]
 }) {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const protos = (vehicle.protocols ?? []).slice().sort((a, b) =>
     b.created_at.localeCompare(a.created_at)
   )
@@ -1443,7 +1455,7 @@ function VehicleDetail({
     try {
       await updateVehicleStatus(vehicle.id, patch)
     } catch (e) {
-      setStatusError(e instanceof Error ? e.message : 'Speichern fehlgeschlagen.')
+      setStatusError(e instanceof Error ? e.message : t('common.error'))
     }
   }
 
@@ -1475,7 +1487,7 @@ function VehicleDetail({
 
   async function handleDamageSave() {
     if (!formPos || !formType || !formInt) {
-      setDmgError('Alle Felder ausfüllen.')
+      setDmgError(t('vehicles.damage_all_fields'))
       return
     }
     setDmgSaving(true)
@@ -1502,7 +1514,7 @@ function VehicleDetail({
       onDamagesChange(updated)
       closeForm()
     } catch (e: unknown) {
-      setDmgError(e instanceof Error ? e.message : 'Speichern fehlgeschlagen.')
+      setDmgError(e instanceof Error ? e.message : t('common.error'))
     } finally {
       setDmgSaving(false)
     }
@@ -1515,7 +1527,7 @@ function VehicleDetail({
       setDamages(updated)
       onDamagesChange(updated)
     } catch (e: unknown) {
-      setDmgError(e instanceof Error ? e.message : 'Löschen fehlgeschlagen.')
+      setDmgError(e instanceof Error ? e.message : t('common.error'))
     }
   }
 
@@ -1524,7 +1536,7 @@ function VehicleDetail({
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10 flex items-center gap-3">
         <button onClick={onBack} className="text-brand-600 text-sm font-medium pr-1">
-          ← Zurück
+          ← {t('common.back')}
         </button>
         <h1 className="text-lg font-bold text-gray-900 flex-1 truncate">{vehicle.license_plate}</h1>
       </div>
@@ -1536,13 +1548,13 @@ function VehicleDetail({
           <div className="flex-1 min-w-0">
             <p className="font-bold text-gray-900 text-lg">{vehicle.license_plate}</p>
             <p className="text-gray-600 text-sm">{vehicle.brand_model || '—'}</p>
-            <p className="text-gray-400 text-xs mt-1">FIN: {vehicle.vin || '—'}</p>
+            <p className="text-gray-400 text-xs mt-1">{t('vehicles.detail_fin')} {vehicle.vin || '—'}</p>
             <div className="flex gap-3 mt-2.5">
               {([
-                { icon: <Sparkles size={18} />, label: 'Innen', active: statusInnen === 'sauber' },
-                { icon: <Droplets size={18} />, label: 'Außen', active: statusAussen === 'sauber' },
-                { icon: <Fuel size={18} />, label: 'Tank', active: isFueled },
-                { icon: <Zap size={18} />, label: 'Akku', active: isCharged },
+                { icon: <Sparkles size={18} />, label: t('vehicles.status_innen'), active: statusInnen === 'sauber' },
+                { icon: <Droplets size={18} />, label: t('vehicles.status_aussen'), active: statusAussen === 'sauber' },
+                { icon: <Fuel size={18} />, label: t('vehicles.status_tank'), active: isFueled },
+                { icon: <Zap size={18} />, label: t('vehicles.status_akku'), active: isCharged },
               ] as { icon: React.ReactNode; label: string; active: boolean }[]).map(({ icon, label, active }) => (
                 <div key={label} className="flex flex-col items-center gap-0.5">
                   <span className={active ? 'text-green-500' : 'text-gray-300'}>{icon}</span>
@@ -1554,7 +1566,7 @@ function VehicleDetail({
                   {availability === 'verfügbar' ? <CircleCheck size={18} /> : <Navigation size={18} />}
                 </span>
                 <span className={`text-[10px] font-medium ${availability === 'verfügbar' ? 'text-green-600' : 'text-orange-500'}`}>
-                  {availability === 'verfügbar' ? 'Verfügbar' : 'Unterwegs'}
+                  {availability === 'verfügbar' ? t('vehicles.status_verfuegbar') : t('vehicles.status_unterwegs')}
                 </span>
               </div>
             </div>
@@ -1583,7 +1595,7 @@ function VehicleDetail({
             }
             className="py-3 rounded-xl bg-brand-50 text-brand-700 font-medium text-sm active:bg-brand-100"
           >
-            📝 Neues Annahmeprotokoll
+            📝 {t('vehicles.new_annahme')}
           </button>
           <button
             onClick={() =>
@@ -1599,14 +1611,14 @@ function VehicleDetail({
             }
             className="py-3 rounded-xl bg-green-50 text-green-700 font-medium text-sm active:bg-green-100"
           >
-            🚙 Neues Überführungsprotokoll
+            🚙 {t('vehicles.new_ueberfuehrung')}
           </button>
         </div>
 
         {/* Known damages */}
         <details className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden" open>
           <summary className="px-4 py-3 font-medium text-gray-800 cursor-pointer select-none flex items-center justify-between">
-            <span>🔧 Bekannte Vorschäden ({damages.length})</span>
+            <span>🔧 {t(damages.length === 1 ? 'vehicles.known_damages_title_one' : 'vehicles.known_damages_title_other', { count: damages.length })}</span>
             <span className="text-gray-400 text-xs">details</span>
           </summary>
           <div className="px-4 pb-4 space-y-2">
@@ -1616,14 +1628,14 @@ function VehicleDetail({
               </p>
             )}
             {damages.length === 0 && !formOpen && (
-              <p className="text-sm text-gray-400 italic">Keine dauerhaften Vorschäden hinterlegt.</p>
+              <p className="text-sm text-gray-400 italic">{t('vehicles.no_damages')}</p>
             )}
             {damages.map((d, i) => (
               <div key={i} className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-sm text-gray-700">
                 <div className="flex items-center gap-2">
                   <span className="flex-1">📍 {d.pos} · 🛠️ {d.type} · ⚠️ {d.int}</span>
-                  <button type="button" onClick={() => openEdit(i)} className="text-gray-400 hover:text-gray-600 active:text-gray-800 p-1 flex-shrink-0" aria-label="Bearbeiten">✏️</button>
-                  <button type="button" onClick={() => handleDamageDelete(i)} className="text-red-400 hover:text-red-600 active:text-red-800 p-1 flex-shrink-0" aria-label="Löschen">🗑️</button>
+                  <button type="button" onClick={() => openEdit(i)} className="text-gray-400 hover:text-gray-600 active:text-gray-800 p-1 flex-shrink-0" aria-label={t('common.edit')}>✏️</button>
+                  <button type="button" onClick={() => handleDamageDelete(i)} className="text-red-400 hover:text-red-600 active:text-red-800 p-1 flex-shrink-0" aria-label={t('common.delete')}>🗑️</button>
                 </div>
                 {d.photo_url && (
                   <img src={d.photo_url} alt="Schadenfoto" className="mt-2 w-full max-h-40 object-cover rounded-lg border border-amber-200" loading="lazy" />
@@ -1634,20 +1646,20 @@ function VehicleDetail({
             {formOpen && (
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2 mt-1">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                  {editIdx !== null ? 'Schaden bearbeiten' : 'Neuer Schaden'}
+                  {editIdx !== null ? t('vehicles.damage_edit') : t('vehicles.damage_new')}
                 </p>
                 <select value={formPos} onChange={(e) => setFormPos(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400">
-                  <option value="">Position wählen …</option>
+                  <option value="">{t('damage_selector.title')} …</option>
                   {DAMAGE_POSITIONS.map((p) => <option key={p} value={p}>{p}</option>)}
                 </select>
                 <div className="grid grid-cols-2 gap-2">
                   <select value={formType} onChange={(e) => setFormType(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400">
-                    <option value="">Art …</option>
-                    {DAMAGE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                    <option value="">{t('damage_selector.type_placeholder', { defaultValue: 'Type …' })}</option>
+                    {DAMAGE_TYPES.map((dt) => <option key={dt} value={dt}>{t(`damage.types.${dt}`, { defaultValue: dt })}</option>)}
                   </select>
                   <select value={formInt} onChange={(e) => setFormInt(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400">
-                    <option value="">Intensität …</option>
-                    {DAMAGE_INTENSITIES.map((v) => <option key={v} value={v}>{v}</option>)}
+                    <option value="">{t('damage_selector.intensity_placeholder', { defaultValue: 'Intensity …' })}</option>
+                    {DAMAGE_INTENSITIES.map((v) => <option key={v} value={v}>{t(`damage.intensities.${v}`, { defaultValue: v })}</option>)}
                   </select>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1658,17 +1670,17 @@ function VehicleDetail({
                     </div>
                   ) : (
                     <div className="flex gap-2">
-                      <button type="button" onClick={() => formCameraRef.current?.click()} className="flex items-center gap-1.5 text-sm text-brand-600 border border-brand-200 rounded-lg px-3 py-2 bg-brand-50 active:bg-brand-100">📷 <span>Kamera</span></button>
-                      <button type="button" onClick={() => formPhotoRef.current?.click()} className="flex items-center gap-1.5 text-sm text-gray-500 border border-gray-300 rounded-lg px-3 py-2 bg-white active:bg-gray-50">🖼 <span>Galerie</span></button>
+                      <button type="button" onClick={() => formCameraRef.current?.click()} className="flex items-center gap-1.5 text-sm text-brand-600 border border-brand-200 rounded-lg px-3 py-2 bg-brand-50 active:bg-brand-100">📷 <span>{t('vehicles.camera')}</span></button>
+                      <button type="button" onClick={() => formPhotoRef.current?.click()} className="flex items-center gap-1.5 text-sm text-gray-500 border border-gray-300 rounded-lg px-3 py-2 bg-white active:bg-gray-50">🖼 <span>{t('vehicles.gallery')}</span></button>
                     </div>
                   )}
                   <input ref={formCameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFormPhoto} />
                   <input ref={formPhotoRef} type="file" accept="image/*" className="hidden" onChange={handleFormPhoto} />
                 </div>
                 <div className="flex gap-2 pt-1">
-                  <button type="button" onClick={closeForm} className="flex-1 py-2 rounded-lg border border-gray-300 text-gray-600 text-sm font-medium active:bg-gray-100">Abbrechen</button>
+                  <button type="button" onClick={closeForm} className="flex-1 py-2 rounded-lg border border-gray-300 text-gray-600 text-sm font-medium active:bg-gray-100">{t('common.cancel')}</button>
                   <button type="button" onClick={handleDamageSave} disabled={dmgSaving} className="flex-1 py-2 rounded-lg bg-brand-600 text-white text-sm font-semibold disabled:opacity-60 active:bg-brand-700">
-                    {dmgSaving ? 'Speichert …' : 'Speichern'}
+                    {dmgSaving ? t('projects.saving') : t('common.save')}
                   </button>
                 </div>
               </div>
@@ -1676,7 +1688,7 @@ function VehicleDetail({
 
             {!formOpen && (
               <button type="button" onClick={openAdd} className="w-full mt-1 py-2.5 rounded-xl border-2 border-dashed border-gray-300 text-sm text-gray-500 flex items-center justify-center gap-2 active:border-brand-400 active:text-brand-600">
-                + Schaden hinzufügen
+                + {t('annahme.add_damage')}
               </button>
             )}
           </div>
@@ -1685,22 +1697,22 @@ function VehicleDetail({
         {/* Fahrzeugstatus */}
         <details className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <summary className="px-4 py-3 font-medium text-gray-800 cursor-pointer select-none flex items-center justify-between">
-            <span>📊 Fahrzeugstatus</span>
+            <span>📊 {t('vehicles.vehicle_status')}</span>
             <span className="text-gray-400 text-xs">details</span>
           </summary>
           <div className="px-4 pb-4 space-y-2">
             {statusError && (
               <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">⚠️ {statusError}</p>
             )}
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pb-1">Sauberkeit</p>
-            <StatusToggle label="Innen" checked={statusInnen === 'sauber'} onChange={(v) => { const val = v ? 'sauber' : 'schmutzig'; setStatusInnen(val); saveStatus({ cleanliness_interior: val }) }} trueLabel="Sauber" falseLabel="Schmutzig" />
-            <StatusToggle label="Außen" checked={statusAussen === 'sauber'} onChange={(v) => { const val = v ? 'sauber' : 'schmutzig'; setStatusAussen(val); saveStatus({ cleanliness_exterior: val }) }} trueLabel="Sauber" falseLabel="Schmutzig" />
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pt-2 pb-1">Tank / Ladung</p>
-            <StatusToggle label="Getankt" checked={isFueled} onChange={(v) => { setIsFueled(v); saveStatus({ is_fueled: v }) }} trueLabel="Ja" falseLabel="Nein" />
-            <StatusToggle label="Geladen" checked={isCharged} onChange={(v) => { setIsCharged(v); saveStatus({ is_charged: v }) }} trueLabel="Ja" falseLabel="Nein" />
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pt-2 pb-1">Verfügbarkeit</p>
-            <StatusToggle label="Status" checked={availability === 'verfügbar'} onChange={(v) => { const val = v ? 'verfügbar' : 'unterwegs'; setAvailability(val); saveStatus({ availability: val }) }} trueLabel="Verfügbar" falseLabel="Unterwegs" />
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pt-2 pb-1">Kilometerstand</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pb-1">{t('vehicles.status_cleanliness')}</p>
+            <StatusToggle label={t('vehicles.status_innen')} checked={statusInnen === 'sauber'} onChange={(v) => { const val = v ? 'sauber' : 'schmutzig'; setStatusInnen(val); saveStatus({ cleanliness_interior: val }) }} trueLabel={t('common.clean')} falseLabel={t('common.dirty')} />
+            <StatusToggle label={t('vehicles.status_aussen')} checked={statusAussen === 'sauber'} onChange={(v) => { const val = v ? 'sauber' : 'schmutzig'; setStatusAussen(val); saveStatus({ cleanliness_exterior: val }) }} trueLabel={t('common.clean')} falseLabel={t('common.dirty')} />
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pt-2 pb-1">{t('vehicles.status_fuel_charge')}</p>
+            <StatusToggle label={t('vehicles.status_fueled')} checked={isFueled} onChange={(v) => { setIsFueled(v); saveStatus({ is_fueled: v }) }} trueLabel={t('common.yes')} falseLabel={t('common.no')} />
+            <StatusToggle label={t('vehicles.status_charged')} checked={isCharged} onChange={(v) => { setIsCharged(v); saveStatus({ is_charged: v }) }} trueLabel={t('common.yes')} falseLabel={t('common.no')} />
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pt-2 pb-1">{t('vehicles.availability_toggle')}</p>
+            <StatusToggle label={t('vehicles.availability_toggle')} checked={availability === 'verfügbar'} onChange={(v) => { const val = v ? 'verfügbar' : 'unterwegs'; setAvailability(val); saveStatus({ availability: val }) }} trueLabel={t('vehicles.status_verfuegbar')} falseLabel={t('vehicles.status_unterwegs')} />
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pt-2 pb-1">{t('annahme.odometer_label')}</p>
             <div className="flex items-center gap-2">
               <input
                 type="number"
@@ -1719,10 +1731,10 @@ function VehicleDetail({
         {/* Protocols */}
         <div>
           <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
-            Protokolle ({protos.length})
+            {t('vehicles.protocols_section', { count: protos.length })}
           </h2>
           {protos.length === 0 ? (
-            <p className="text-sm text-gray-400 italic text-center py-4">Noch keine Protokolle für dieses Fahrzeug.</p>
+            <p className="text-sm text-gray-400 italic text-center py-4">{t('vehicles.no_protocols')}</p>
           ) : (
             <ul className="space-y-2">
               {protos.map((p) => {
@@ -1738,10 +1750,10 @@ function VehicleDetail({
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-800">
                           {p.created_at.slice(0, 10)}
-                          {isDraft && <span className="ml-2 text-xs text-amber-600 font-normal">⚠️ Entwurf</span>}
+                          {isDraft && <span className="ml-2 text-xs text-amber-600 font-normal">⚠️ {t('archiv.draft')}</span>}
                         </p>
                         <p className="text-xs text-gray-500">
-                          {isTransfer ? 'Überführung' : 'Annahme'}
+                          {isTransfer ? t('protocol_type.transfer') : t('protocol_type.intake')}
                           {p.inspector_name ? ` · ${p.inspector_name}` : ''}
                         </p>
                       </div>
@@ -1756,8 +1768,8 @@ function VehicleDetail({
 
         {/* Edit / Delete */}
         <div className="grid grid-cols-2 gap-2 pt-2">
-          <button onClick={onEdit} className="py-3 rounded-xl bg-gray-100 text-gray-700 font-medium text-sm active:bg-gray-200">✏️ Bearbeiten</button>
-          <button onClick={onDelete} className="py-3 rounded-xl bg-red-50 text-red-600 font-medium text-sm active:bg-red-100">🗑️ Löschen</button>
+          <button onClick={onEdit} className="py-3 rounded-xl bg-gray-100 text-gray-700 font-medium text-sm active:bg-gray-200">✏️ {t('common.edit')}</button>
+          <button onClick={onDelete} className="py-3 rounded-xl bg-red-50 text-red-600 font-medium text-sm active:bg-red-100">🗑️ {t('common.delete')}</button>
         </div>
       </div>
     </div>
@@ -1777,6 +1789,7 @@ function VehicleForm({
   onSave: (v: Vehicle) => void
   onCancel: () => void
 }) {
+  const { t } = useTranslation()
   const [plate, setPlate] = useState(initial?.license_plate ?? '')
   const [brandModel, setBrandModel] = useState(initial?.brand_model ?? '')
   const [vin, setVin] = useState(initial?.vin ?? '')
@@ -1798,7 +1811,7 @@ function VehicleForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!plate.trim()) { setError('Kennzeichen ist Pflichtfeld.'); return }
+    if (!plate.trim()) { setError(t('create_wizard.plate_required')); return }
     setSaving(true)
     setError(null)
     try {
@@ -1821,14 +1834,14 @@ function VehicleForm({
       }
       onSave(saved)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Speichern fehlgeschlagen.')
+      setError(err instanceof Error ? err.message : t('common.error'))
       setSaving(false)
     }
   }
 
   const normalized = normalizeKennzeichen(plate)
   const plateWarning = plate && normalized.length > 0 && normalized.length < 5
-    ? `Kennzeichen ist sehr kurz (${normalized.length} Zeichen). Bitte prüfen.`
+    ? t('vehicles.plate_too_short', { length: normalized.length })
     : null
 
   return (
@@ -1840,26 +1853,26 @@ function VehicleForm({
         </div>
         <form onSubmit={handleSubmit} className="px-4 pb-[calc(4rem+env(safe-area-inset-bottom))] space-y-4">
           <h2 className="text-lg font-bold text-gray-900 mt-1 mb-4">
-            {initial ? 'Fahrzeug bearbeiten' : 'Fahrzeug anlegen'}
+            {initial ? t('vehicles.vehicle_edit_title') : t('vehicles.vehicle_create_title')}
           </h2>
           {error && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">⚠️ {error}</div>
           )}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Kennzeichen <span className="text-red-500">*</span></label>
-            <input type="text" value={plate} onChange={(e) => setPlate(e.target.value)} placeholder="M-AB 1234" autoCapitalize="characters" className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 uppercase" required />
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('create_wizard.plate_label')} <span className="text-red-500">*</span></label>
+            <input type="text" value={plate} onChange={(e) => setPlate(e.target.value)} placeholder={t('create_wizard.plate_placeholder')} autoCapitalize="characters" className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 uppercase" required />
             {plateWarning && <p className="text-xs text-amber-600 mt-1">⚠️ {plateWarning}</p>}
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Marke / Modell</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('create_wizard.brand_model_label')}</label>
             <input type="text" value={brandModel} onChange={(e) => setBrandModel(e.target.value)} placeholder="BMW 3er, VW Golf …" className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">FIN / VIN</label>
-            <input type="text" value={vin} onChange={(e) => setVin(e.target.value)} placeholder="17-stellige Fahrzeugidentnummer" autoCapitalize="characters" maxLength={17} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 uppercase font-mono tracking-wider" />
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('vehicles.fin_vin_label')}</label>
+            <input type="text" value={vin} onChange={(e) => setVin(e.target.value)} placeholder={t('vehicles.fin_placeholder_long')} autoCapitalize="characters" maxLength={17} className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 uppercase font-mono tracking-wider" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Fahrzeugfoto <span className="text-gray-400 font-normal">(optional)</span></label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t('vehicles.vehicle_photo_label')} <span className="text-gray-400 font-normal">{t('create_wizard.brand_model_optional')}</span></label>
             {photoPreview ? (
               <div className="relative inline-block">
                 <img src={photoPreview} alt="Vorschau" className="w-32 h-32 object-cover rounded-xl border border-gray-200" />
@@ -1868,10 +1881,10 @@ function VehicleForm({
             ) : (
               <div className="grid grid-cols-2 gap-3">
                 <button type="button" onClick={() => cameraFileRef.current?.click()} className="border-2 border-dashed border-brand-300 rounded-xl py-5 text-brand-600 text-sm flex flex-col items-center gap-1 active:border-brand-500 active:bg-brand-50">
-                  <span className="text-2xl">📷</span><span>Kamera</span>
+                  <span className="text-2xl">📷</span><span>{t('vehicles.camera')}</span>
                 </button>
                 <button type="button" onClick={() => fileRef.current?.click()} className="border-2 border-dashed border-gray-300 rounded-xl py-5 text-gray-500 text-sm flex flex-col items-center gap-1 active:border-brand-400 active:text-brand-600">
-                  <span className="text-2xl">🖼</span><span>Galerie</span>
+                  <span className="text-2xl">🖼</span><span>{t('vehicles.gallery')}</span>
                 </button>
               </div>
             )}
@@ -1879,9 +1892,9 @@ function VehicleForm({
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
           </div>
           <div className="grid grid-cols-2 gap-3 pt-2">
-            <button type="button" onClick={onCancel} className="py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm active:bg-gray-50">Abbrechen</button>
+            <button type="button" onClick={onCancel} className="py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm active:bg-gray-50">{t('common.cancel')}</button>
             <button type="submit" disabled={saving} className="py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm disabled:opacity-60 active:bg-brand-700">
-              {saving ? 'Speichert …' : 'Speichern'}
+              {saving ? t('projects.saving') : t('common.save')}
             </button>
           </div>
         </form>
@@ -1895,17 +1908,18 @@ function VehicleForm({
 // ─────────────────────────────────────────────────────────────────────────────
 
 function DeleteConfirm({ vehicle, onConfirm, onCancel, deleting }: { vehicle: Vehicle; onConfirm: () => void; onCancel: () => void; deleting: boolean }) {
+  const { t } = useTranslation()
   return (
     <>
       <div className="fixed inset-0 bg-black/40 z-30" onClick={onCancel} />
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-white rounded-t-2xl shadow-2xl px-6 pt-6 pb-[calc(1.5rem+4rem+env(safe-area-inset-bottom))]">
-        <h2 className="text-lg font-bold text-gray-900 mb-2">Fahrzeug löschen?</h2>
-        <p className="text-sm text-gray-600 mb-1">Soll <strong>{vehicle.license_plate}</strong> dauerhaft gelöscht werden?</p>
-        <p className="text-xs text-red-600 mb-6">⚠️ Alle verknüpften Protokolle werden ebenfalls unwiderruflich gelöscht.</p>
+        <h2 className="text-lg font-bold text-gray-900 mb-2">{t('vehicles.delete_title')}</h2>
+        <p className="text-sm text-gray-600 mb-1">{t('vehicles.delete_body', { plate: vehicle.license_plate })}</p>
+        <p className="text-xs text-red-600 mb-6">⚠️ {t('vehicles.delete_warning')}</p>
         <div className="grid grid-cols-2 gap-3">
-          <button onClick={onCancel} className="py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm">Abbrechen</button>
+          <button onClick={onCancel} className="py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm">{t('common.cancel')}</button>
           <button onClick={onConfirm} disabled={deleting} className="py-3 rounded-xl bg-red-600 text-white font-semibold text-sm disabled:opacity-60">
-            {deleting ? 'Löscht …' : 'Ja, löschen'}
+            {deleting ? t('vehicles.deleting') : t('vehicles.delete_confirm')}
           </button>
         </div>
       </div>
@@ -1920,6 +1934,7 @@ function DeleteConfirm({ vehicle, onConfirm, onCancel, deleting }: { vehicle: Ve
 type View = 'projects' | 'list' | 'detail' | 'search'
 
 export default function Fahrzeuge() {
+  const { t } = useTranslation()
   // Project state
   const [projects, setProjects] = useState<ProjectWithCount[]>([])
   const [noneCount, setNoneCount] = useState(0)
@@ -1965,7 +1980,7 @@ export default function Fahrzeuge() {
       setNoneCount(nc)
       setAllProjects(ap)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Projekte konnten nicht geladen werden.')
+      setError(e instanceof Error ? e.message : String(e))
     } finally {
       setProjectsLoading(false)
     }
@@ -1980,7 +1995,7 @@ export default function Fahrzeuge() {
         : await fetchVehiclesForProject(project.id)
       setVehicles(data as Vehicle[])
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Fahrzeuge konnten nicht geladen werden.')
+      setError(e instanceof Error ? e.message : t('common.error'))
     } finally {
       setVehiclesLoading(false)
     }
@@ -2049,7 +2064,7 @@ export default function Fahrzeuge() {
       await loadVehiclesForProject(activeProject ?? null)
       await loadProjects()
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Löschen fehlgeschlagen.')
+      setError(e instanceof Error ? e.message : t('common.error'))
       setShowDelete(false)
     } finally {
       setDeleting(false)
@@ -2066,7 +2081,7 @@ export default function Fahrzeuge() {
       setProjectArchiveTarget(null)
       await loadProjects()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Archivieren fehlgeschlagen.')
+      setError(e instanceof Error ? e.message : t('common.error'))
     } finally {
       setProjectActionLoading(false)
     }
@@ -2080,7 +2095,7 @@ export default function Fahrzeuge() {
       setProjectDeleteTarget(null)
       await loadProjects()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Löschen fehlgeschlagen.')
+      setError(e instanceof Error ? e.message : t('common.error'))
     } finally {
       setProjectActionLoading(false)
     }
@@ -2114,7 +2129,7 @@ export default function Fahrzeuge() {
   }, [showExistingFlow, allVehicles.length])
 
   return (
-    <div className="flex flex-col min-h-full bg-gray-50">
+    <div className="block h-full bg-gray-50">
       {error && <ErrorBanner msg={error} onClose={() => setError(null)} />}
 
       {view === 'projects' && (
@@ -2142,9 +2157,9 @@ export default function Fahrzeuge() {
 
       {view === 'list' && (
         vehiclesLoading ? (
-          <div className="flex flex-col">
+          <div className="block min-h-full bg-gray-50">
             <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10">
-              <button onClick={handleBackToProjects} className="text-brand-600 text-sm font-medium mb-1">← Projekte</button>
+              <button onClick={handleBackToProjects} className="text-brand-600 text-sm font-medium mb-1">← {t('projects.title')}</button>
             </div>
             <SkeletonList count={5} />
           </div>

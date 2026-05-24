@@ -1,9 +1,12 @@
 import { useEffect, useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { syncOffline, getPendingOffline } from '../lib/protocols'
 
 export const OFFLINE_SAVED_EVENT = 'vp-offline-saved'
+export const SYNC_REQUEST_EVENT = 'vp-sync-request'
 
 export default function OfflineIndicator() {
+  const { t } = useTranslation()
   const [offline, setOffline] = useState(!navigator.onLine)
   const [pendingCount, setPendingCount] = useState(0)
   const [syncing, setSyncing] = useState(false)
@@ -13,33 +16,39 @@ export default function OfflineIndicator() {
     setPendingCount(pending.length)
   }, [])
 
+  const doSync = useCallback(async () => {
+    const pending = await getPendingOffline()
+    if (pending.length === 0) return
+    setSyncing(true)
+    try {
+      await syncOffline()
+    } finally {
+      setSyncing(false)
+      await refreshCount()
+    }
+  }, [refreshCount])
+
   useEffect(() => {
     refreshCount()
+    if (navigator.onLine) doSync()
 
     const goOffline = () => setOffline(true)
-
     const goOnline = async () => {
       setOffline(false)
-      const pending = await getPendingOffline()
-      if (pending.length === 0) return
-      setSyncing(true)
-      try {
-        await syncOffline()
-      } finally {
-        setSyncing(false)
-        await refreshCount()
-      }
+      await doSync()
     }
 
     window.addEventListener('offline', goOffline)
     window.addEventListener('online', goOnline)
     window.addEventListener(OFFLINE_SAVED_EVENT, refreshCount)
+    window.addEventListener(SYNC_REQUEST_EVENT, doSync)
     return () => {
       window.removeEventListener('offline', goOffline)
       window.removeEventListener('online', goOnline)
       window.removeEventListener(OFFLINE_SAVED_EVENT, refreshCount)
+      window.removeEventListener(SYNC_REQUEST_EVENT, doSync)
     }
-  }, [refreshCount])
+  }, [refreshCount, doSync])
 
   if (!offline && pendingCount === 0 && !syncing) return null
 
@@ -53,23 +62,19 @@ export default function OfflineIndicator() {
         <>
           <span>📵</span>
           <span>
-            Kein Internet – Daten werden lokal gespeichert
-            {pendingCount > 0 ? ` (${pendingCount} ausstehend)` : ''}
+            {t('offline.no_internet')}
+            {pendingCount > 0 ? ' ' + t('offline.pending', { count: pendingCount }) : ''}
           </span>
         </>
       ) : syncing ? (
         <>
           <span>🔄</span>
-          <span>
-            Synchronisiere {pendingCount} Protokoll{pendingCount !== 1 ? 'e' : ''} …
-          </span>
+          <span>{t('offline.syncing', { count: pendingCount })}</span>
         </>
       ) : (
         <>
           <span>⏳</span>
-          <span>
-            {pendingCount} Protokoll{pendingCount !== 1 ? 'e' : ''} warten auf Internetverbindung
-          </span>
+          <span>{t('offline.waiting', { count: pendingCount })}</span>
         </>
       )}
     </div>

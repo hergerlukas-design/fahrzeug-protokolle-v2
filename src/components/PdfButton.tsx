@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { PdfData } from '../lib/generatePdf'
 
 interface Props {
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export default function PdfButton({ data, accent = 'brand' }: Props) {
+  const { t, i18n } = useTranslation()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -21,7 +23,8 @@ export default function PdfButton({ data, accent = 'brand' }: Props) {
     setError(null)
     try {
       const { generatePdf } = await import('../lib/generatePdf')
-      const pdfBytes = await generatePdf(data)
+      const lang = i18n.language?.startsWith('en') ? 'en' : 'de'
+      const pdfBytes = await generatePdf(data, lang)
 
       const date = data.inspection_date
         ? new Date(data.inspection_date).toISOString().slice(0, 10)
@@ -52,7 +55,6 @@ export default function PdfButton({ data, accent = 'brand' }: Props) {
 
       if (isIOS) {
         window.open(url, '_blank')
-        // URL nicht sofort revoken — der Tab braucht die Ressource noch
         setTimeout(() => URL.revokeObjectURL(url), 10000)
       } else {
         const a = document.createElement('a')
@@ -79,10 +81,10 @@ export default function PdfButton({ data, accent = 'brand' }: Props) {
         {loading ? (
           <span className="flex items-center justify-center gap-2">
             <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            Generiere PDF…
+            {t('common.loading')}
           </span>
         ) : (
-          '📄 PDF erstellen'
+          '📄 PDF'
         )}
       </button>
       {error && <p className="mt-2 text-xs text-red-500 text-center">{error}</p>}

@@ -27,6 +27,7 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,svg,webp}'],
         globIgnores: ['carhandling.png'],
+        cleanupOutdatedCaches: true,
       },
     }),
   ],
