@@ -56,7 +56,7 @@ export default function OnboardingOverlay() {
         </p>
       </div>
 
-      <div className="px-6 pb-10 flex flex-col items-center gap-6">
+      <div className="px-6 pb-[calc(2.5rem+env(safe-area-inset-bottom))] flex flex-col items-center gap-6">
         <div className="flex gap-2 items-center">
           {slides.map((_, i) => (
             <span

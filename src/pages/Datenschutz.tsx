@@ -170,7 +170,7 @@ export default function Datenschutz() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-4 flex items-center gap-3">
+      <div className="bg-white border-b border-gray-200 px-4 py-4 flex items-center gap-3 sticky top-0 z-10">
         <button
           onClick={() => navigate(-1)}
           className="text-brand-600 font-medium text-sm"
