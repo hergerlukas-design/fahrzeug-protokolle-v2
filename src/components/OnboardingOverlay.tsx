@@ -35,7 +35,7 @@ export default function OnboardingOverlay() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-white">
+    <div className="fixed inset-0 z-[70] flex flex-col bg-white">
       <div className="flex justify-end p-4">
         <button
           type="button"
