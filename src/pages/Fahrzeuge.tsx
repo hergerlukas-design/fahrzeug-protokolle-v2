@@ -885,7 +885,7 @@ function ExistingVehicleFlow({
           />
         </div>
 
-        <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="flex-1 overflow-y-auto min-h-0 pb-[calc(1rem+4rem+env(safe-area-inset-bottom))]">
           {filtered.length === 0 ? (
             <p className="text-center text-gray-400 text-sm mt-8">{t('common.no_results')}</p>
           ) : (
@@ -1541,7 +1541,7 @@ function VehicleDetail({
         <h1 className="text-lg font-bold text-gray-900 flex-1 truncate">{vehicle.license_plate}</h1>
       </div>
 
-      <div className="p-4 space-y-4">
+      <div className="px-4 pt-4 pb-[calc(1.5rem+4rem+env(safe-area-inset-bottom))] space-y-4">
         {/* Vehicle card */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex gap-4">
           <VehicleAvatar vehicleId={vehicle.id} size={72} />
@@ -2161,7 +2161,9 @@ export default function Fahrzeuge() {
             <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10">
               <button onClick={handleBackToProjects} className="text-brand-600 text-sm font-medium mb-1">← {t('projects.title')}</button>
             </div>
-            <SkeletonList count={5} />
+            <div className="pb-[calc(1rem+4rem+env(safe-area-inset-bottom))]">
+              <SkeletonList count={5} />
+            </div>
           </div>
         ) : (
           <VehicleList

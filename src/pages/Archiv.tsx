@@ -315,7 +315,7 @@ export default function Archiv() {
 
       {/* Archived projects tab */}
       {tab === 'projekte' && (
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+        <div className="flex-1 overflow-y-auto px-4 pt-3 pb-[calc(1rem+4rem+env(safe-area-inset-bottom))] space-y-2">
           {projectMsg && (
             <div className={`p-3 rounded-xl text-sm font-medium ${projectMsg.ok ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
               {projectMsg.text}
@@ -386,7 +386,7 @@ export default function Archiv() {
       )}
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+      <div className="flex-1 overflow-y-auto px-4 pt-3 pb-[calc(1rem+4rem+env(safe-area-inset-bottom))] space-y-2">
         {loading && <SkeletonList count={6} />}
         {error && (
           <div className="py-6 text-center space-y-2">
