@@ -515,7 +515,7 @@ function ProjectKartei({
 
       {/* Only show project cards when not searching */}
       {!search && (
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div className="flex-1 overflow-y-auto px-4 pt-4 pb-[calc(1rem+4rem+env(safe-area-inset-bottom))] space-y-3">
           {loading ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
@@ -1037,7 +1037,7 @@ function VehicleList({
       </div>
 
       {/* List – no overflow, <main> handles scrolling */}
-      <div>
+      <div className="pb-[calc(1rem+4rem+env(safe-area-inset-bottom))]">
         {filtered.length === 0 ? (
           <p className="text-center text-gray-400 text-sm mt-12">
             {search ? t('common.no_results') : t('vehicles.no_vehicles')}
@@ -1153,7 +1153,7 @@ function GlobalSearchResults({
           {loading ? t('common.loading') : t('vehicles.results_count', { count: filtered.length })}
         </p>
       </div>
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto pb-[calc(1rem+4rem+env(safe-area-inset-bottom))]">
         {loading ? (
           <SkeletonList count={3} />
         ) : filtered.length === 0 ? (
