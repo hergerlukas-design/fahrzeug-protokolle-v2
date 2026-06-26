@@ -9,6 +9,7 @@ import Archiv from './pages/Archiv'
 import Einstellungen from './pages/Einstellungen'
 import Impressum from './pages/Impressum'
 import Datenschutz from './pages/Datenschutz'
+import ErrorBoundary from './components/ErrorBoundary'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   return isAuthenticated() ? <>{children}</> : <Navigate to="/login" replace />
@@ -16,6 +17,7 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
@@ -38,5 +40,6 @@ export default function App() {
         </Route>
       </Routes>
     </BrowserRouter>
+    </ErrorBoundary>
   )
 }

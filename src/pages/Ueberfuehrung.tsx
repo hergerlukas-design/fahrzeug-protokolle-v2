@@ -627,6 +627,19 @@ export default function Ueberfuehrung() {
         }
         await saveOffline(offlineEntry)
         window.dispatchEvent(new CustomEvent(OFFLINE_SAVED_EVENT))
+        // Build local photo URLs so offline PDF can embed them
+        const localPhotos: Record<string, string> = {}
+        for (const pk of PHOTO_KEYS) {
+          const entry = vehiclePhotos[pk]
+          if (entry?.previewUrl) localPhotos[pk] = entry.previewUrl
+        }
+        for (let i = 0; i < damages.length; i++) {
+          const d = damages[i]
+          if (d.previewUrl) localPhotos[`schaden_${i}`] = d.previewUrl
+        }
+        if (sigDataUrl) localPhotos.signature = sigDataUrl
+        if (sigReceiverDataUrl) localPhotos.signature_receiver = sigReceiverDataUrl
+        basePayload.condition_data.photos = localPhotos
       }
       setSavedPdfData({
         protocol_type: 'transfer',

@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { supabase, requireOnline } from './supabase'
 
 export interface DamageRecord {
   pos: string
@@ -52,6 +52,7 @@ export async function createVehicle(values: {
   brand_model: string
   vin: string
 }): Promise<Vehicle> {
+  requireOnline()
   const normalized = normalizeKennzeichen(values.license_plate)
   const { data, error } = await supabase
     .from('vehicles')
@@ -71,6 +72,7 @@ export async function updateVehicle(
   id: string,
   values: { license_plate: string; brand_model: string; vin: string }
 ): Promise<Vehicle> {
+  requireOnline()
   const normalized = normalizeKennzeichen(values.license_plate)
   const { data, error } = await supabase
     .from('vehicles')
@@ -98,6 +100,7 @@ export async function updateVehicleStatus(
     current_odometer?: number | null
   }
 ): Promise<void> {
+  requireOnline()
   const { error } = await supabase
     .from('vehicles')
     .update(patch)
@@ -117,7 +120,7 @@ export async function updateVehicleKnownDamages(
 }
 
 export async function deleteVehicle(id: string): Promise<void> {
-  // Zuerst alle verknüpften Protokolle löschen (verhindert FK-Constraint 409)
+  requireOnline()
   const { error: protoErr } = await supabase
     .from('protocols')
     .delete()
@@ -155,6 +158,7 @@ async function compressImage(file: File): Promise<Blob> {
 
 /** Uploads a vehicle photo and returns the public URL. */
 export async function uploadVehiclePhoto(vehicleId: string, file: File): Promise<string> {
+  requireOnline()
   const blob = await compressImage(file)
   const path = `vehicle-kartei/${vehicleId}.jpg`
 
@@ -169,6 +173,7 @@ export async function uploadVehiclePhoto(vehicleId: string, file: File): Promise
 
 /** Uploads a damage photo for a vehicle kartei entry and returns its public URL. */
 export async function uploadDamagePhoto(vehicleId: string, index: number, file: File): Promise<string> {
+  requireOnline()
   const blob = await compressImage(file)
   const path = `vehicle-kartei/${vehicleId}/damage_${index}.jpg`
   const { error } = await supabase.storage
@@ -189,7 +194,9 @@ export function getVehiclePhotoUrl(vehicleId: string): string {
 
 /** Deletes the vehicle photo from storage. */
 export async function deleteVehiclePhoto(vehicleId: string): Promise<void> {
-  await supabase.storage
+  requireOnline()
+  const { error } = await supabase.storage
     .from('vehicle-photos')
     .remove([`vehicle-kartei/${vehicleId}.jpg`])
+  if (error) throw error
 }

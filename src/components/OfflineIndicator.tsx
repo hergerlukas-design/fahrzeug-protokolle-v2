@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { syncOffline, getPendingOffline } from '../lib/protocols'
 
@@ -10,18 +10,32 @@ export default function OfflineIndicator() {
   const [offline, setOffline] = useState(!navigator.onLine)
   const [pendingCount, setPendingCount] = useState(0)
   const [syncing, setSyncing] = useState(false)
+  const [lastSyncFailed, setLastSyncFailed] = useState(0)
+  const retryTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   const refreshCount = useCallback(async () => {
-    const pending = await getPendingOffline()
-    setPendingCount(pending.length)
+    try {
+      const pending = await getPendingOffline()
+      setPendingCount(pending.length)
+    } catch {
+      // IndexedDB may fail — don't crash
+    }
   }, [])
 
   const doSync = useCallback(async () => {
+    if (!navigator.onLine) return
     const pending = await getPendingOffline()
     if (pending.length === 0) return
     setSyncing(true)
     try {
-      await syncOffline()
+      const result = await syncOffline()
+      setLastSyncFailed(result.failed)
+      if (result.failed > 0 && navigator.onLine) {
+        clearTimeout(retryTimer.current)
+        retryTimer.current = setTimeout(() => doSync(), 30_000)
+      }
+    } catch {
+      // sync itself failed — retry later
     } finally {
       setSyncing(false)
       await refreshCount()
@@ -32,9 +46,10 @@ export default function OfflineIndicator() {
     refreshCount()
     if (navigator.onLine) doSync()
 
-    const goOffline = () => setOffline(true)
+    const goOffline = () => { setOffline(true); clearTimeout(retryTimer.current) }
     const goOnline = async () => {
       setOffline(false)
+      setLastSyncFailed(0)
       await doSync()
     }
 
@@ -47,15 +62,16 @@ export default function OfflineIndicator() {
       window.removeEventListener('online', goOnline)
       window.removeEventListener(OFFLINE_SAVED_EVENT, refreshCount)
       window.removeEventListener(SYNC_REQUEST_EVENT, doSync)
+      clearTimeout(retryTimer.current)
     }
   }, [refreshCount, doSync])
 
-  if (!offline && pendingCount === 0 && !syncing) return null
+  if (!offline && pendingCount === 0 && !syncing && lastSyncFailed === 0) return null
 
   return (
     <div
       className={`text-white text-sm font-semibold text-center py-2 px-4 flex items-center justify-center gap-2 ${
-        offline ? 'bg-amber-500' : 'bg-blue-500'
+        offline ? 'bg-amber-500' : lastSyncFailed > 0 ? 'bg-red-500' : 'bg-blue-500'
       }`}
     >
       {offline ? (
@@ -68,8 +84,14 @@ export default function OfflineIndicator() {
         </>
       ) : syncing ? (
         <>
-          <span>🔄</span>
+          <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
           <span>{t('offline.syncing', { count: pendingCount })}</span>
+        </>
+      ) : lastSyncFailed > 0 ? (
+        <>
+          <span>⚠️</span>
+          <span>{t('offline.sync_failed', { count: lastSyncFailed })}</span>
+          <button onClick={doSync} className="underline ml-1">{t('offline.retry')}</button>
         </>
       ) : (
         <>

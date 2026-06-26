@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { supabase, requireOnline } from './supabase'
 
 export interface Project {
   id: string
@@ -76,6 +76,7 @@ export async function createProject(values: {
   description?: string
   color?: string
 }): Promise<Project> {
+  requireOnline()
   const { data, error } = await supabase
     .from('projects')
     .insert({
@@ -93,6 +94,7 @@ export async function updateProject(
   id: string,
   values: { name: string; description?: string; color?: string }
 ): Promise<Project> {
+  requireOnline()
   const { data, error } = await supabase
     .from('projects')
     .update({
@@ -108,6 +110,7 @@ export async function updateProject(
 }
 
 export async function archiveProject(id: string): Promise<void> {
+  requireOnline()
   const { error } = await supabase
     .from('projects')
     .update({ is_archived: true, archived_at: new Date().toISOString() })
@@ -116,6 +119,7 @@ export async function archiveProject(id: string): Promise<void> {
 }
 
 export async function unarchiveProject(id: string): Promise<void> {
+  requireOnline()
   const { error } = await supabase
     .from('projects')
     .update({ is_archived: false, archived_at: null })
@@ -124,6 +128,7 @@ export async function unarchiveProject(id: string): Promise<void> {
 }
 
 export async function deleteProject(id: string): Promise<void> {
+  requireOnline()
   const { error } = await supabase.from('projects').delete().eq('id', id)
   if (error) throw error
 }
@@ -172,6 +177,7 @@ export async function fetchVehicleProjects(vehicleId: string): Promise<Project[]
 }
 
 export async function addVehicleToProject(vehicleId: string, projectId: string): Promise<void> {
+  requireOnline()
   const { error } = await supabase
     .from('vehicle_projects')
     .insert({ vehicle_id: vehicleId, project_id: projectId })
@@ -179,6 +185,7 @@ export async function addVehicleToProject(vehicleId: string, projectId: string):
 }
 
 export async function removeVehicleFromProject(vehicleId: string, projectId: string): Promise<void> {
+  requireOnline()
   const { error } = await supabase
     .from('vehicle_projects')
     .delete()

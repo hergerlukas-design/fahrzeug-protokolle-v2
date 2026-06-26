@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { supabase, requireOnline } from './supabase'
 import { updateVehicleKnownDamages } from './vehicles'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -131,6 +131,7 @@ export async function uploadProtocolPhoto(
   photoKey: string,
   file: File
 ): Promise<string> {
+  requireOnline()
   const blob = await compressImage(file)
   const path = `vehicle-protocols/${vehicleId}/${sessionKey}_${photoKey}.jpg`
   const { error } = await supabase.storage
@@ -148,7 +149,9 @@ export async function uploadSignature(
   dataUrl: string,
   suffix = 'signature'
 ): Promise<string> {
+  requireOnline()
   const res = await fetch(dataUrl)
+  if (!res.ok) throw new Error('Signatur konnte nicht verarbeitet werden')
   const blob = await res.blob()
   const path = `vehicle-protocols/${vehicleId}/${sessionKey}_${suffix}.png`
   const { error } = await supabase.storage
@@ -164,6 +167,7 @@ export async function uploadSignature(
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function updateProtocol(id: number, payload: ProtocolPayload): Promise<void> {
+  requireOnline()
   const { error } = await supabase
     .from('protocols')
     .update(payload)
@@ -172,6 +176,7 @@ export async function updateProtocol(id: number, payload: ProtocolPayload): Prom
 }
 
 export async function saveProtocol(payload: ProtocolPayload): Promise<number> {
+  requireOnline()
   const { data, error } = await supabase
     .from('protocols')
     .insert(payload)
@@ -199,6 +204,7 @@ export async function deleteProtocol(
   id: number,
   conditionDataPhotos?: Record<string, string>
 ): Promise<void> {
+  requireOnline()
   // Storage-Fotos löschen (best-effort, kein Fehler wenn nicht gefunden)
   if (conditionDataPhotos) {
     const paths = Object.values(conditionDataPhotos)
@@ -314,14 +320,21 @@ async function uploadBlobAsSignature(
 
 let syncInProgress = false
 
-/** Syncs all pending offline entries to Supabase. Returns number of synced entries. */
-export async function syncOffline(): Promise<number> {
-  if (syncInProgress) return 0
+export interface SyncResult {
+  synced: number
+  failed: number
+}
+
+/** Syncs all pending offline entries to Supabase. Stops early if connection drops. */
+export async function syncOffline(): Promise<SyncResult> {
+  if (syncInProgress || !navigator.onLine) return { synced: 0, failed: 0 }
   syncInProgress = true
   try {
     const pending = await getPendingOffline()
     let synced = 0
+    let failed = 0
     for (const entry of pending) {
+      if (!navigator.onLine) break
       try {
         const photos: Record<string, string> = {}
         for (const [key, blob] of Object.entries(entry.photoBlobs)) {
@@ -349,10 +362,10 @@ export async function syncOffline(): Promise<number> {
         await deleteOffline(entry.localId!)
         synced++
       } catch {
-        // leave in queue for next attempt
+        failed++
       }
     }
-    return synced
+    return { synced, failed }
   } finally {
     syncInProgress = false
   }

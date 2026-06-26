@@ -77,7 +77,10 @@
     "syncing_one": "Synchronisiere {{count}} Protokoll …",
     "syncing_other": "Synchronisiere {{count}} Protokolle …",
     "waiting_one": "{{count}} Protokoll wartet auf Internetverbindung",
-    "waiting_other": "{{count}} Protokolle warten auf Internetverbindung"
+    "waiting_other": "{{count}} Protokolle warten auf Internetverbindung",
+    "sync_failed_one": "{{count}} Protokoll konnte nicht synchronisiert werden",
+    "sync_failed_other": "{{count}} Protokolle konnten nicht synchronisiert werden",
+    "retry": "Erneut versuchen"
   },
   "create_wizard": {
     "title": "Erstellen",

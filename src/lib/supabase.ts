@@ -8,3 +8,14 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 export const supabase = createClient(supabaseUrl, supabaseKey)
+
+export class OfflineError extends Error {
+  constructor() {
+    super('Keine Internetverbindung. Bitte später erneut versuchen.')
+    this.name = 'OfflineError'
+  }
+}
+
+export function requireOnline(): void {
+  if (!navigator.onLine) throw new OfflineError()
+}

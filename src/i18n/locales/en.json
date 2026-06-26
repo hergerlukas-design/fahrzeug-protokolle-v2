@@ -77,7 +77,10 @@
     "syncing_one": "Syncing {{count}} protocol …",
     "syncing_other": "Syncing {{count}} protocols …",
     "waiting_one": "{{count}} protocol waiting for internet connection",
-    "waiting_other": "{{count}} protocols waiting for internet connection"
+    "waiting_other": "{{count}} protocols waiting for internet connection",
+    "sync_failed_one": "{{count}} protocol could not be synced",
+    "sync_failed_other": "{{count}} protocols could not be synced",
+    "retry": "Retry"
   },
   "create_wizard": {
     "title": "Create",
