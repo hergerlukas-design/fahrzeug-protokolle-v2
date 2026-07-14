@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from 'react'
+import { AlertTriangle } from 'lucide-react'
 
 interface Props { children: ReactNode }
 interface State { error: Error | null }
@@ -15,7 +16,7 @@ export default class ErrorBoundary extends Component<Props, State> {
 
     return (
       <div className="flex flex-col items-center justify-center min-h-dvh px-6 gap-4 text-center bg-gray-50">
-        <div className="text-5xl">⚠️</div>
+        <AlertTriangle size={48} className="text-amber-500" />
         <h1 className="text-lg font-bold text-gray-900">Etwas ist schiefgelaufen</h1>
         <p className="text-sm text-gray-500 max-w-xs">{this.state.error.message}</p>
         <button

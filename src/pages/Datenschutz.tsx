@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { ArrowLeft } from 'lucide-react'
 
 function DatenschutzDe() {
   return (
@@ -173,9 +174,9 @@ export default function Datenschutz() {
       <div className="bg-white border-b border-gray-200 px-4 py-4 flex items-center gap-3 sticky top-0 z-10">
         <button
           onClick={() => navigate(-1)}
-          className="text-brand-600 font-medium text-sm"
+          className="flex items-center gap-1.5 text-brand-600 font-medium text-sm"
         >
-          ← {t('common.back')}
+          <ArrowLeft size={16} /> {t('common.back')}
         </button>
         <h1 className="text-lg font-bold text-gray-900">{t('datenschutz.title')}</h1>
       </div>

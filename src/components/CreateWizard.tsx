@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
+  X, ClipboardList, Folder, Search, Car, AlertTriangle, ArrowLeft, Check,
+} from 'lucide-react'
+import {
   createProject,
   checkProjectNameSimilar,
   PROJECT_COLORS,
@@ -19,10 +22,10 @@ function VehicleAvatar({ vehicleId, size = 40 }: { vehicleId: string; size?: num
   if (!hasPhoto) {
     return (
       <div
-        className="rounded-lg bg-gray-100 flex items-center justify-center text-xl flex-shrink-0"
+        className="rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0"
         style={{ width: size, height: size }}
       >
-        🚗
+        <Car size={Math.round(size * 0.5)} className="text-gray-400" />
       </div>
     )
   }
@@ -51,14 +54,14 @@ function RootStep({
     <div className="px-4 pb-[calc(4rem+env(safe-area-inset-bottom))]">
       <div className="flex items-center justify-between mb-5">
         <h2 className="text-xl font-bold text-gray-900">{t('create_wizard.title')}</h2>
-        <button onClick={onClose} className="text-gray-400 text-2xl leading-none px-1">×</button>
+        <button onClick={onClose} className="text-gray-400 leading-none px-1"><X size={22} /></button>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <button
           onClick={onProtokoll}
           className="flex flex-col items-center gap-3 rounded-2xl bg-brand-50 border-2 border-brand-200 px-4 py-6 active:bg-brand-100 active:scale-95 transition-transform"
         >
-          <span className="text-4xl">📋</span>
+          <ClipboardList size={36} className="text-brand-500" />
           <div className="text-center">
             <p className="font-bold text-brand-800 text-base">{t('create_wizard.protocol')}</p>
             <p className="text-xs text-brand-600 mt-0.5 leading-tight">{t('create_wizard.protocol_desc')}</p>
@@ -66,12 +69,12 @@ function RootStep({
         </button>
         <button
           onClick={onProjekt}
-          className="flex flex-col items-center gap-3 rounded-2xl bg-green-50 border-2 border-green-200 px-4 py-6 active:bg-green-100 active:scale-95 transition-transform"
+          className="flex flex-col items-center gap-3 rounded-2xl bg-gray-50 border-2 border-gray-200 px-4 py-6 active:bg-gray-100 active:scale-95 transition-transform"
         >
-          <span className="text-4xl">📁</span>
+          <Folder size={36} className="text-gray-500" />
           <div className="text-center">
-            <p className="font-bold text-green-800 text-base">{t('create_wizard.project')}</p>
-            <p className="text-xs text-green-600 mt-0.5 leading-tight">{t('create_wizard.project_desc')}</p>
+            <p className="font-bold text-gray-800 text-base">{t('create_wizard.project')}</p>
+            <p className="text-xs text-gray-500 mt-0.5 leading-tight">{t('create_wizard.project_desc')}</p>
           </div>
         </button>
       </div>
@@ -92,7 +95,7 @@ function ProtokollStep({
   return (
     <div className="px-4 pb-[calc(4rem+env(safe-area-inset-bottom))]">
       <div className="flex items-center gap-2 mb-5">
-        <button onClick={onBack} className="text-brand-600 text-sm font-medium">← {t('common.back')}</button>
+        <button onClick={onBack} className="flex items-center gap-1.5 text-brand-600 text-sm font-medium"><ArrowLeft size={16} /> {t('common.back')}</button>
         <h2 className="text-lg font-bold text-gray-900 flex-1">{t('create_wizard.create_protocol_title')}</h2>
       </div>
       <div className="space-y-3">
@@ -100,7 +103,7 @@ function ProtokollStep({
           onClick={onExisting}
           className="w-full flex items-center gap-4 rounded-2xl bg-brand-50 border-2 border-brand-200 px-4 py-5 active:bg-brand-100 text-left"
         >
-          <span className="text-3xl">🔍</span>
+          <Search size={30} className="text-brand-500" />
           <div>
             <p className="font-bold text-brand-800">{t('create_wizard.existing_vehicle')}</p>
             <p className="text-sm text-brand-600 mt-0.5">{t('create_wizard.existing_vehicle_desc')}</p>
@@ -110,7 +113,7 @@ function ProtokollStep({
           onClick={onNew}
           className="w-full flex items-center gap-4 rounded-2xl bg-gray-50 border-2 border-gray-200 px-4 py-5 active:bg-gray-100 text-left"
         >
-          <span className="text-3xl">🚗</span>
+          <Car size={30} className="text-gray-400" />
           <div>
             <p className="font-bold text-gray-800">{t('create_wizard.new_vehicle')}</p>
             <p className="text-sm text-gray-500 mt-0.5">{t('create_wizard.new_vehicle_desc')}</p>
@@ -155,12 +158,12 @@ function NewVehicleStep({ onBack, onClose }: { onBack: () => void; onClose: () =
   return (
     <div className="px-4 pb-[calc(4rem+env(safe-area-inset-bottom))]">
       <div className="flex items-center gap-2 mb-5">
-        <button onClick={onBack} className="text-brand-600 text-sm font-medium">← {t('common.back')}</button>
+        <button onClick={onBack} className="flex items-center gap-1.5 text-brand-600 text-sm font-medium"><ArrowLeft size={16} /> {t('common.back')}</button>
         <h2 className="text-lg font-bold text-gray-900 flex-1">{t('create_wizard.new_vehicle_title')}</h2>
       </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">⚠️ {error}</div>
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-start gap-2"><AlertTriangle size={16} className="mt-0.5 flex-shrink-0" /> {error}</div>
         )}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -251,17 +254,20 @@ function ExistingVehicleStep({ onBack, onClose }: { onBack: () => void; onClose:
     <>
       <div className="flex-shrink-0 px-4 pb-3">
         <div className="flex items-center gap-2 mb-3">
-          <button onClick={onBack} className="text-brand-600 text-sm font-medium">← {t('common.back')}</button>
+          <button onClick={onBack} className="flex items-center gap-1.5 text-brand-600 text-sm font-medium"><ArrowLeft size={16} /> {t('common.back')}</button>
           <h2 className="text-lg font-bold text-gray-900 flex-1">{t('create_wizard.search_vehicle_title')}</h2>
         </div>
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setSelected(null) }}
-          placeholder={'🔍 ' + t('create_wizard.search_placeholder')}
-          autoFocus
-          className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-400"
-        />
+        <div className="relative">
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setSelected(null) }}
+            placeholder={t('create_wizard.search_placeholder')}
+            autoFocus
+            className="w-full border border-gray-300 rounded-xl pl-9 pr-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-400"
+          />
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto min-h-0">
@@ -284,7 +290,7 @@ function ExistingVehicleStep({ onBack, onClose }: { onBack: () => void; onClose:
                     <p className="font-semibold text-gray-900 truncate">{v.license_plate}</p>
                     <p className="text-sm text-gray-500 truncate">{v.brand_model || '—'}</p>
                   </div>
-                  {selected?.id === v.id && <span className="text-brand-600 text-lg">✓</span>}
+                  {selected?.id === v.id && <Check size={18} className="text-brand-600" />}
                 </button>
               </li>
             ))}
@@ -296,9 +302,9 @@ function ExistingVehicleStep({ onBack, onClose }: { onBack: () => void; onClose:
         <div className="flex-shrink-0 border-t border-gray-100 px-4 pt-3 pb-2 bg-white">
           <button
             onClick={() => handleGo(selected)}
-            className="w-full py-3 rounded-xl bg-green-600 text-white font-semibold text-sm"
+            className="w-full py-3 rounded-xl bg-green-600 text-white font-semibold text-sm flex items-center justify-center gap-1.5"
           >
-            🚙 {t('create_wizard.start_transfer', { plate: selected.license_plate })} →
+            <Car size={16} /> {t('create_wizard.start_transfer', { plate: selected.license_plate })} →
           </button>
         </div>
       )}
@@ -356,12 +362,12 @@ function ProjektStep({ onBack, onClose }: { onBack: () => void; onClose: () => v
   return (
     <div className="px-4 pb-[calc(4rem+env(safe-area-inset-bottom))]">
       <div className="flex items-center gap-2 mb-5">
-        <button onClick={onBack} className="text-brand-600 text-sm font-medium">← {t('common.back')}</button>
+        <button onClick={onBack} className="flex items-center gap-1.5 text-brand-600 text-sm font-medium"><ArrowLeft size={16} /> {t('common.back')}</button>
         <h2 className="text-lg font-bold text-gray-900 flex-1">{t('create_wizard.new_project_title')}</h2>
       </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">⚠️ {error}</div>
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-start gap-2"><AlertTriangle size={16} className="mt-0.5 flex-shrink-0" /> {error}</div>
         )}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -378,8 +384,8 @@ function ProjektStep({ onBack, onClose }: { onBack: () => void; onClose: () => v
             }`}
           />
           {similar.length > 0 && (
-            <p className="text-xs text-amber-600 mt-1">
-              ⚠️ {t('create_wizard.similar_projects', { names: similar.map((p) => p.name).join(', ') })}
+            <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+              <AlertTriangle size={12} /> {t('create_wizard.similar_projects', { names: similar.map((p) => p.name).join(', ') })}
             </p>
           )}
         </div>
@@ -405,7 +411,7 @@ function ProjektStep({ onBack, onClose }: { onBack: () => void; onClose: () => v
               onClick={() => setColor('')}
               className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs ${!color ? 'border-gray-800' : 'border-gray-300'} bg-gray-100`}
             >
-              ✕
+              <X size={14} className="text-gray-500" />
             </button>
             {PROJECT_COLORS.map((c) => (
               <button

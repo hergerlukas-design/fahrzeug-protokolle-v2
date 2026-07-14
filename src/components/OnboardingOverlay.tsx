@@ -1,8 +1,17 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Car, Folder, ClipboardList, FileText, WifiOff, type LucideIcon } from 'lucide-react'
 
 const STORAGE_KEY = 'vp_onboarding_done'
 export const TUTORIAL_EVENT = 'vp-open-tutorial'
+
+const SLIDE_ICONS: Record<string, LucideIcon> = {
+  car: Car,
+  folder: Folder,
+  clipboard: ClipboardList,
+  'file-text': FileText,
+  'wifi-off': WifiOff,
+}
 
 export default function OnboardingOverlay() {
   const { t } = useTranslation()
@@ -28,6 +37,7 @@ export default function OnboardingOverlay() {
 
   const slide = slides[step]
   const isLast = step === slides.length - 1
+  const SlideIcon = SLIDE_ICONS[slide.icon] ?? Car
 
   function dismiss() {
     localStorage.setItem(STORAGE_KEY, '1')
@@ -47,7 +57,9 @@ export default function OnboardingOverlay() {
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center px-8 text-center gap-6">
-        <div className="text-7xl">{slide.icon}</div>
+        <div className="w-20 h-20 rounded-3xl bg-brand-50 flex items-center justify-center">
+          <SlideIcon size={40} className="text-brand-600" />
+        </div>
         <h2 className="text-2xl font-bold text-gray-900 whitespace-pre-line leading-tight">
           {slide.title}
         </h2>

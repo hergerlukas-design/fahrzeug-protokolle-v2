@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
+import { WifiOff, AlertTriangle, Clock } from 'lucide-react'
 import { syncOffline, getPendingOffline } from '../lib/protocols'
 
 export const OFFLINE_SAVED_EVENT = 'vp-offline-saved'
@@ -76,7 +77,7 @@ export default function OfflineIndicator() {
     >
       {offline ? (
         <>
-          <span>📵</span>
+          <WifiOff size={16} />
           <span>
             {t('offline.no_internet')}
             {pendingCount > 0 ? ' ' + t('offline.pending', { count: pendingCount }) : ''}
@@ -89,13 +90,13 @@ export default function OfflineIndicator() {
         </>
       ) : lastSyncFailed > 0 ? (
         <>
-          <span>⚠️</span>
+          <AlertTriangle size={16} />
           <span>{t('offline.sync_failed', { count: lastSyncFailed })}</span>
           <button onClick={doSync} className="underline ml-1">{t('offline.retry')}</button>
         </>
       ) : (
         <>
-          <span>⏳</span>
+          <Clock size={16} />
           <span>{t('offline.waiting', { count: pendingCount })}</span>
         </>
       )}

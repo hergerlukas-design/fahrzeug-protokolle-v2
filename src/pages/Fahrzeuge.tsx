@@ -2,7 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
-import { Sparkles, Droplets, Fuel, Zap, CircleCheck, Navigation } from 'lucide-react'
+import {
+  Sparkles, Droplets, Fuel, Zap, CircleCheck, Navigation,
+  Folder, FolderOpen, Search, Plus, ChevronRight, ArrowLeft,
+  Pencil, Archive, Trash2, AlertTriangle, Car, ClipboardList,
+  MapPin, Wrench, Camera, Image, RefreshCw, FileText, BarChart3,
+  Check, X, ChevronUp, ChevronDown,
+} from 'lucide-react'
 import { SkeletonList } from '../components/Skeleton'
 import {
   fetchVehicles,
@@ -46,9 +52,9 @@ import { DAMAGE_POSITIONS, DAMAGE_TYPES, DAMAGE_INTENSITIES } from '../lib/proto
 function ErrorBanner({ msg, onClose }: { msg: string; onClose: () => void }) {
   return (
     <div className="mx-4 mt-3 p-3 bg-red-50 border border-red-200 rounded-lg flex gap-2 items-start">
-      <span className="text-red-500 mt-0.5">⚠️</span>
+      <AlertTriangle size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
       <p className="text-red-700 text-sm flex-1">{msg}</p>
-      <button onClick={onClose} className="text-red-400 text-lg leading-none">×</button>
+      <button onClick={onClose} className="text-red-400 leading-none"><X size={16} /></button>
     </div>
   )
 }
@@ -59,10 +65,10 @@ function VehicleAvatar({ vehicleId, size = 48 }: { vehicleId: string; size?: num
   if (!hasPhoto) {
     return (
       <div
-        className="rounded-lg bg-gray-100 flex items-center justify-center text-2xl flex-shrink-0"
+        className="rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0"
         style={{ width: size, height: size }}
       >
-        🚗
+        <Car size={Math.round(size * 0.5)} className="text-gray-400" />
       </div>
     )
   }
@@ -198,8 +204,8 @@ function ProjectForm({
             {initial ? t('projects.form_title_edit') : t('projects.form_title_new')}
           </h2>
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-              ⚠️ {error}
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-start gap-2">
+              <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" /> {error}
             </div>
           )}
           <div>
@@ -218,7 +224,7 @@ function ProjectForm({
             />
             {similar.length > 0 && (
               <div className="mt-2 space-y-1">
-                <p className="text-xs text-amber-600 font-medium">⚠️ {t('projects.similar_found_label')}</p>
+                <p className="text-xs text-amber-600 font-medium flex items-center gap-1"><AlertTriangle size={12} /> {t('projects.similar_found_label')}</p>
                 {similar.map((p) => (
                   <div key={p.id} className="flex items-center gap-2 text-xs text-gray-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-1.5">
                     <ProjectColorDot color={p.color} />
@@ -255,7 +261,7 @@ function ProjectForm({
                   !color ? 'border-gray-800' : 'border-gray-300'
                 } bg-gray-100`}
               >
-                ✕
+                <X size={14} className="text-gray-500" />
               </button>
               {PROJECT_COLORS.map((c) => (
                 <button
@@ -326,21 +332,21 @@ function ProjectContextMenu({
             onClick={() => { onEdit(); onClose() }}
             className="w-full flex items-center gap-3 px-2 py-3.5 text-left text-gray-800 font-medium rounded-xl active:bg-gray-100"
           >
-            <span className="text-xl w-8 text-center">✏️</span>
+            <span className="w-8 flex justify-center"><Pencil size={18} /></span>
             {t('projects.context_edit')}
           </button>
           <button
             onClick={() => { onArchive(); onClose() }}
             className="w-full flex items-center gap-3 px-2 py-3.5 text-left text-amber-700 font-medium rounded-xl active:bg-amber-50"
           >
-            <span className="text-xl w-8 text-center">📦</span>
+            <span className="w-8 flex justify-center"><Archive size={18} /></span>
             {t('projects.context_archive')}
           </button>
           <button
             onClick={() => { onDelete(); onClose() }}
             className="w-full flex items-center gap-3 px-2 py-3.5 text-left text-red-600 font-medium rounded-xl active:bg-red-50"
           >
-            <span className="text-xl w-8 text-center">🗑️</span>
+            <span className="w-8 flex justify-center"><Trash2 size={18} /></span>
             {t('projects.context_delete')}
           </button>
         </div>
@@ -382,7 +388,7 @@ function ProjectArchiveConfirm({
             <span>{t('projects.archive_contains', { vehicles: stats.vehicleCount, protocols: stats.protocolCount })}</span>
           )}
         </p>
-        <p className="text-xs text-amber-700 mb-6">📦 {t('projects.archive_note')}</p>
+        <p className="text-xs text-amber-700 mb-6 flex items-center gap-1.5"><Archive size={14} /> {t('projects.archive_note')}</p>
         <div className="grid grid-cols-2 gap-3">
           <button onClick={onCancel} className="py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm">{t('common.cancel')}</button>
           <button onClick={onConfirm} disabled={loading} className="py-3 rounded-xl bg-amber-600 text-white font-semibold text-sm disabled:opacity-60">
@@ -427,8 +433,8 @@ function ProjectDeleteConfirm({
             <span> {t('projects.delete_contains', { vehicles: stats.vehicleCount, protocols: stats.protocolCount })}</span>
           )}
         </p>
-        <p className="text-xs text-red-600 mb-6">
-          ⚠️ {t('projects.delete_note')}
+        <p className="text-xs text-red-600 mb-6 flex items-center gap-1.5">
+          <AlertTriangle size={14} /> {t('projects.delete_note')}
         </p>
         <div className="grid grid-cols-2 gap-3">
           <button onClick={onCancel} className="py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm">{t('common.cancel')}</button>
@@ -494,23 +500,29 @@ function ProjectKartei({
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10">
-        <div className="flex items-center justify-between mb-3">
-          <h1 className="text-xl font-bold text-gray-900">📁 {t('projects.title')}</h1>
+        <div className="flex items-center justify-between mb-3 gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <img src="/logo.webp" alt="" className="w-7 h-7 object-contain flex-shrink-0" onError={(e) => (e.currentTarget.style.display = 'none')} />
+            <h1 className="text-xl font-bold text-gray-900 truncate">{t('projects.title')}</h1>
+          </div>
           <button
             onClick={onNewProject}
-            className="flex items-center gap-1.5 py-2 px-3 rounded-xl bg-brand-600 text-white text-sm font-semibold active:bg-brand-700"
+            className="flex items-center gap-1.5 py-2 px-3 rounded-xl bg-brand-600 text-white text-sm font-semibold active:bg-brand-700 flex-shrink-0"
           >
-            <span>+</span>
+            <Plus size={16} />
             <span>{t('projects.new_button')}</span>
           </button>
         </div>
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          placeholder={`🔍 ${t('projects.search_placeholder')}`}
-          className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-400"
-        />
+        <div className="relative">
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            placeholder={t('projects.search_placeholder')}
+            className="w-full border border-gray-300 rounded-xl pl-9 pr-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-400"
+          />
+        </div>
       </div>
 
       {/* Only show project cards when not searching */}
@@ -524,7 +536,7 @@ function ProjectKartei({
             </div>
           ) : projects.length === 0 && noneCount === 0 ? (
             <div className="text-center py-16">
-              <p className="text-4xl mb-3">📁</p>
+              <Folder size={40} className="mx-auto mb-3 text-gray-300" />
               <p className="text-gray-500 font-medium">{t('projects.empty_state')}</p>
               <p className="text-gray-400 text-sm mt-1">{t('projects.empty_state_hint')}</p>
             </div>
@@ -558,8 +570,8 @@ function ProjectKartei({
                       </div>
                     </div>
                   ) : (
-                    <div className="w-10 h-10 rounded-xl bg-gray-100 flex-shrink-0 flex items-center justify-center text-xl">
-                      📁
+                    <div className="w-10 h-10 rounded-xl bg-gray-100 flex-shrink-0 flex items-center justify-center">
+                      <Folder size={18} className="text-gray-400" />
                     </div>
                   )}
                   <div className="flex-1 min-w-0 text-left">
@@ -571,7 +583,7 @@ function ProjectKartei({
                       {t(p.vehicle_count === 1 ? 'projects.vehicle_count_one' : 'projects.vehicle_count_other', { count: p.vehicle_count })}
                     </p>
                   </div>
-                  <span className="text-gray-300 text-lg flex-shrink-0">›</span>
+                  <ChevronRight size={18} className="text-gray-300 flex-shrink-0" />
                 </button>
               ))}
 
@@ -581,8 +593,8 @@ function ProjectKartei({
                   onClick={onSelectNone}
                   className="w-full bg-gray-50 rounded-2xl border border-gray-200 px-4 py-4 flex items-center gap-3 active:bg-gray-100 text-left"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-gray-200 flex-shrink-0 flex items-center justify-center text-xl">
-                    📂
+                  <div className="w-10 h-10 rounded-xl bg-gray-200 flex-shrink-0 flex items-center justify-center">
+                    <FolderOpen size={18} className="text-gray-500" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-gray-600">{t('projects.no_project')}</p>
@@ -590,7 +602,7 @@ function ProjectKartei({
                       {t(noneCount === 1 ? 'projects.vehicle_count_one' : 'projects.vehicle_count_other', { count: noneCount })}
                     </p>
                   </div>
-                  <span className="text-gray-300 text-lg flex-shrink-0">›</span>
+                  <ChevronRight size={18} className="text-gray-300 flex-shrink-0" />
                 </button>
               </div>
             </>
@@ -703,8 +715,8 @@ function NewVehicleFlow({
           <h2 className="text-lg font-bold text-gray-900 mt-1">{t('vehicles.new_vehicle_and_protocol')}</h2>
           <p className="text-sm text-gray-500">{t('vehicles.new_vehicle_and_protocol_hint')}</p>
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-              ⚠️ {error}
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-start gap-2">
+              <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" /> {error}
             </div>
           )}
           <div>
@@ -750,7 +762,7 @@ function NewVehicleFlow({
                       ? t('projects.project_select_placeholder')
                       : t(selectedProjectIds.length === 1 ? 'projects.selected_count_one' : 'projects.selected_count_other', { count: selectedProjectIds.length })}
                   </span>
-                  <span className="text-gray-400 text-xs ml-2">{dropdownOpen ? '▲' : '▼'}</span>
+                  <span className="text-gray-400 ml-2 flex-shrink-0">{dropdownOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
                 </button>
 
                 {dropdownOpen && (
@@ -765,7 +777,7 @@ function NewVehicleFlow({
                           className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-gray-50 transition-colors text-left"
                         >
                           <span className={`w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors ${selected ? 'bg-brand-600 border-brand-600' : 'border-gray-300'}`}>
-                            {selected && <span className="text-white text-xs leading-none">✓</span>}
+                            {selected && <Check size={11} strokeWidth={3} className="text-white" />}
                           </span>
                           {p.color && (
                             <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
@@ -793,9 +805,9 @@ function NewVehicleFlow({
                         <button
                           type="button"
                           onClick={() => toggleProject(id)}
-                          className="ml-0.5 text-brand-400 hover:text-brand-600 leading-none font-bold"
+                          className="ml-0.5 text-brand-400 hover:text-brand-600 leading-none"
                         >
-                          ×
+                          <X size={12} />
                         </button>
                       </span>
                     )
@@ -906,7 +918,7 @@ function ExistingVehicleFlow({
                       <p className="text-sm text-gray-500 truncate">{v.brand_model || '—'}</p>
                     </div>
                     {selected?.id === v.id && (
-                      <span className="text-brand-600 text-lg">✓</span>
+                      <Check size={18} className="text-brand-600" />
                     )}
                   </button>
                 </li>
@@ -923,23 +935,23 @@ function ExistingVehicleFlow({
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => setProtocolType('transfer')}
-                className={`py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                className={`py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
                   protocolType === 'transfer'
                     ? 'bg-green-600 text-white'
                     : 'bg-gray-100 text-gray-600'
                 }`}
               >
-                🚙 {t('protocol_type.transfer')}
+                <Car size={15} /> {t('protocol_type.transfer')}
               </button>
               <button
                 onClick={() => setProtocolType('intake')}
-                className={`py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                className={`py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
                   protocolType === 'intake'
                     ? 'bg-brand-600 text-white'
                     : 'bg-gray-100 text-gray-600'
                 }`}
               >
-                📝 {t('protocol_type.intake')}
+                <ClipboardList size={15} /> {t('protocol_type.intake')}
               </button>
             </div>
             <button
@@ -1003,11 +1015,12 @@ function VehicleList({
       {/* Header – sticky relative to <main> scroll container */}
       <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10">
         <div className="flex items-center gap-2 mb-3">
-          <button onClick={onBack} className="text-brand-600 text-sm font-medium pr-1 flex-shrink-0">
-            ← {t('projects.title')}
+          <button onClick={onBack} className="p-1 -ml-1 text-gray-500 hover:text-gray-800 flex-shrink-0">
+            <ArrowLeft size={20} />
           </button>
-          <h1 className="text-lg font-bold text-gray-900 flex-1 truncate">
-            {projectName === null ? '📂 Ohne Projekt' : `📁 ${projectName}`}
+          <h1 className="text-lg font-bold text-gray-900 flex-1 truncate flex items-center gap-1.5">
+            {projectName === null ? <FolderOpen size={17} className="text-gray-400 flex-shrink-0" /> : <Folder size={17} className="text-gray-400 flex-shrink-0" />}
+            <span className="truncate">{projectName === null ? t('projects.no_project') : projectName}</span>
           </h1>
         </div>
         {/* Protocol entry buttons */}
@@ -1016,24 +1029,27 @@ function VehicleList({
             onClick={onNewWithProtocol}
             className="flex flex-col items-center gap-1 py-3 px-2 rounded-xl bg-brand-600 text-white text-center active:bg-brand-700 shadow-sm"
           >
-            <span className="text-xl leading-none">➕</span>
+            <Plus size={20} />
             <span className="text-xs font-semibold leading-tight">{t('vehicles.new_vehicle_and_protocol')}</span>
           </button>
           <button
             onClick={onExistingProtocol}
             className="flex flex-col items-center gap-1 py-3 px-2 rounded-xl bg-green-600 text-white text-center active:bg-green-700 shadow-sm"
           >
-            <span className="text-xl leading-none">🚙</span>
+            <Car size={20} />
             <span className="text-xs font-semibold leading-tight">{t('vehicles.existing_protocol_btn')}</span>
           </button>
         </div>
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder={`🔍 ${t('vehicles.search_placeholder')}`}
-          className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-400"
-        />
+        <div className="relative">
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder={t('vehicles.search_placeholder')}
+            className="w-full border border-gray-300 rounded-xl pl-9 pr-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-400"
+          />
+        </div>
       </div>
 
       {/* List – no overflow, <main> handles scrolling */}
@@ -1077,7 +1093,7 @@ function VehicleList({
                           )}
                         </p>
                       </div>
-                      <span className="text-gray-300 text-lg">›</span>
+                      <ChevronRight size={18} className="text-gray-300 flex-shrink-0" />
                     </button>
                   </li>
                 )
@@ -1146,8 +1162,8 @@ function GlobalSearchResults({
   return (
     <div className="flex flex-col h-full">
       <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10">
-        <button onClick={onBack} className="text-brand-600 text-sm font-medium mb-2 block">
-          ← {t('common.back')}
+        <button onClick={onBack} className="flex items-center gap-1.5 text-brand-600 text-sm font-medium mb-2">
+          <ArrowLeft size={16} /> {t('common.back')}
         </button>
         <p className="text-sm text-gray-500">
           {loading ? t('common.loading') : t('vehicles.results_count', { count: filtered.length })}
@@ -1188,7 +1204,7 @@ function GlobalSearchResults({
                                 />
                               )}
                               {p.name}
-                              {p.is_archived && ' 📦'}
+                              {p.is_archived && <Archive size={11} className="text-gray-400" />}
                             </span>
                           ))}
                         </div>
@@ -1197,7 +1213,7 @@ function GlobalSearchResults({
                         <span className="text-xs text-gray-400 mt-0.5 block">{t('projects.no_project')}</span>
                       )}
                     </div>
-                    <span className="text-gray-300 text-lg">›</span>
+                    <ChevronRight size={18} className="text-gray-300 flex-shrink-0" />
                   </button>
                 </li>
               )
@@ -1300,7 +1316,7 @@ function VehicleProjectSection({
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-gray-700">📁 {t('vehicles.project_section_title')}</h3>
+        <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1.5"><Folder size={15} className="text-gray-400" /> {t('vehicles.project_section_title')}</h3>
         {available.length > 0 && (
           <button
             onClick={() => setShowAdd((v) => !v)}
@@ -1312,8 +1328,8 @@ function VehicleProjectSection({
       </div>
 
       {error && (
-        <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-2">
-          ⚠️ {error}
+        <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-2 flex items-center gap-1.5">
+          <AlertTriangle size={13} /> {error}
         </p>
       )}
 
@@ -1339,7 +1355,7 @@ function VehicleProjectSection({
                   className="text-gray-400 hover:text-red-500 disabled:opacity-40 leading-none ml-0.5"
                   aria-label={t('vehicles.remove')}
                 >
-                  ×
+                  <X size={13} />
                 </button>
               </span>
             ))
@@ -1356,7 +1372,7 @@ function VehicleProjectSection({
               className="w-full flex items-center justify-between border border-gray-300 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
             >
               <span className="text-gray-400">{t('projects.project_select_placeholder')}</span>
-              <span className="text-gray-400 text-xs ml-2">{addDropdownOpen ? '▲' : '▼'}</span>
+              <span className="text-gray-400 ml-2">{addDropdownOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
             </button>
             {addDropdownOpen && (
               <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
@@ -1535,8 +1551,8 @@ function VehicleDetail({
     <div className="flex flex-col">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10 flex items-center gap-3">
-        <button onClick={onBack} className="text-brand-600 text-sm font-medium pr-1">
-          ← {t('common.back')}
+        <button onClick={onBack} className="p-1 -ml-1 text-gray-500 hover:text-gray-800 flex-shrink-0">
+          <ArrowLeft size={20} />
         </button>
         <h1 className="text-lg font-bold text-gray-900 flex-1 truncate">{vehicle.license_plate}</h1>
       </div>
@@ -1562,10 +1578,10 @@ function VehicleDetail({
                 </div>
               ))}
               <div className="flex flex-col items-center gap-0.5">
-                <span className={availability === 'verfügbar' ? 'text-green-500' : 'text-orange-400'}>
+                <span className={availability === 'verfügbar' ? 'text-green-500' : 'text-amber-500'}>
                   {availability === 'verfügbar' ? <CircleCheck size={18} /> : <Navigation size={18} />}
                 </span>
-                <span className={`text-[10px] font-medium ${availability === 'verfügbar' ? 'text-green-600' : 'text-orange-500'}`}>
+                <span className={`text-[10px] font-medium ${availability === 'verfügbar' ? 'text-green-600' : 'text-amber-600'}`}>
                   {availability === 'verfügbar' ? t('vehicles.status_verfuegbar') : t('vehicles.status_unterwegs')}
                 </span>
               </div>
@@ -1593,9 +1609,9 @@ function VehicleDetail({
                 },
               })
             }
-            className="py-3 rounded-xl bg-brand-50 text-brand-700 font-medium text-sm active:bg-brand-100"
+            className="py-3 rounded-xl bg-brand-50 text-brand-700 font-medium text-sm active:bg-brand-100 flex items-center justify-center gap-1.5"
           >
-            📝 {t('vehicles.new_annahme')}
+            <ClipboardList size={16} /> {t('vehicles.new_annahme')}
           </button>
           <button
             onClick={() =>
@@ -1609,22 +1625,22 @@ function VehicleDetail({
                 },
               })
             }
-            className="py-3 rounded-xl bg-green-50 text-green-700 font-medium text-sm active:bg-green-100"
+            className="py-3 rounded-xl bg-green-50 text-green-700 font-medium text-sm active:bg-green-100 flex items-center justify-center gap-1.5"
           >
-            🚙 {t('vehicles.new_ueberfuehrung')}
+            <Car size={16} /> {t('vehicles.new_ueberfuehrung')}
           </button>
         </div>
 
         {/* Known damages */}
         <details className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden" open>
           <summary className="px-4 py-3 font-medium text-gray-800 cursor-pointer select-none flex items-center justify-between">
-            <span>🔧 {t(damages.length === 1 ? 'vehicles.known_damages_title_one' : 'vehicles.known_damages_title_other', { count: damages.length })}</span>
+            <span className="flex items-center gap-1.5"><Wrench size={15} className="text-gray-400" /> {t(damages.length === 1 ? 'vehicles.known_damages_title_one' : 'vehicles.known_damages_title_other', { count: damages.length })}</span>
             <span className="text-gray-400 text-xs">details</span>
           </summary>
           <div className="px-4 pb-4 space-y-2">
             {dmgError && (
-              <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                ⚠️ {dmgError}
+              <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2 flex items-center gap-1.5">
+                <AlertTriangle size={13} /> {dmgError}
               </p>
             )}
             {damages.length === 0 && !formOpen && (
@@ -1633,9 +1649,13 @@ function VehicleDetail({
             {damages.map((d, i) => (
               <div key={i} className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-sm text-gray-700">
                 <div className="flex items-center gap-2">
-                  <span className="flex-1">📍 {d.pos} · 🛠️ {d.type} · ⚠️ {d.int}</span>
-                  <button type="button" onClick={() => openEdit(i)} className="text-gray-400 hover:text-gray-600 active:text-gray-800 p-1 flex-shrink-0" aria-label={t('common.edit')}>✏️</button>
-                  <button type="button" onClick={() => handleDamageDelete(i)} className="text-red-400 hover:text-red-600 active:text-red-800 p-1 flex-shrink-0" aria-label={t('common.delete')}>🗑️</button>
+                  <span className="flex-1 flex items-center flex-wrap gap-x-1.5 gap-y-0.5">
+                    <MapPin size={12} className="text-gray-400" /> {d.pos} ·
+                    <Wrench size={12} className="text-gray-400" /> {d.type} ·
+                    <AlertTriangle size={12} className="text-gray-400" /> {d.int}
+                  </span>
+                  <button type="button" onClick={() => openEdit(i)} className="text-gray-400 hover:text-gray-600 active:text-gray-800 p-1 flex-shrink-0" aria-label={t('common.edit')}><Pencil size={15} /></button>
+                  <button type="button" onClick={() => handleDamageDelete(i)} className="text-red-400 hover:text-red-600 active:text-red-800 p-1 flex-shrink-0" aria-label={t('common.delete')}><Trash2 size={15} /></button>
                 </div>
                 {d.photo_url && (
                   <img src={d.photo_url} alt="Schadenfoto" className="mt-2 w-full max-h-40 object-cover rounded-lg border border-amber-200" loading="lazy" />
@@ -1666,12 +1686,12 @@ function VehicleDetail({
                   {formPhotoPreview ? (
                     <div className="relative flex-shrink-0">
                       <img src={formPhotoPreview} alt="Vorschau" className="w-16 h-16 object-cover rounded-lg border border-gray-200" />
-                      <button type="button" onClick={() => { setFormPhotoFile(null); setFormPhotoPreview(null) }} className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center">×</button>
+                      <button type="button" onClick={() => { setFormPhotoFile(null); setFormPhotoPreview(null) }} className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center"><X size={12} /></button>
                     </div>
                   ) : (
                     <div className="flex gap-2">
-                      <button type="button" onClick={() => formCameraRef.current?.click()} className="flex items-center gap-1.5 text-sm text-brand-600 border border-brand-200 rounded-lg px-3 py-2 bg-brand-50 active:bg-brand-100">📷 <span>{t('vehicles.camera')}</span></button>
-                      <button type="button" onClick={() => formPhotoRef.current?.click()} className="flex items-center gap-1.5 text-sm text-gray-500 border border-gray-300 rounded-lg px-3 py-2 bg-white active:bg-gray-50">🖼 <span>{t('vehicles.gallery')}</span></button>
+                      <button type="button" onClick={() => formCameraRef.current?.click()} className="flex items-center gap-1.5 text-sm text-brand-600 border border-brand-200 rounded-lg px-3 py-2 bg-brand-50 active:bg-brand-100"><Camera size={15} /> <span>{t('vehicles.camera')}</span></button>
+                      <button type="button" onClick={() => formPhotoRef.current?.click()} className="flex items-center gap-1.5 text-sm text-gray-500 border border-gray-300 rounded-lg px-3 py-2 bg-white active:bg-gray-50"><Image size={15} /> <span>{t('vehicles.gallery')}</span></button>
                     </div>
                   )}
                   <input ref={formCameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFormPhoto} />
@@ -1688,7 +1708,7 @@ function VehicleDetail({
 
             {!formOpen && (
               <button type="button" onClick={openAdd} className="w-full mt-1 py-2.5 rounded-xl border-2 border-dashed border-gray-300 text-sm text-gray-500 flex items-center justify-center gap-2 active:border-brand-400 active:text-brand-600">
-                + {t('annahme.add_damage')}
+                <Plus size={15} /> {t('annahme.add_damage')}
               </button>
             )}
           </div>
@@ -1697,12 +1717,12 @@ function VehicleDetail({
         {/* Fahrzeugstatus */}
         <details className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <summary className="px-4 py-3 font-medium text-gray-800 cursor-pointer select-none flex items-center justify-between">
-            <span>📊 {t('vehicles.vehicle_status')}</span>
+            <span className="flex items-center gap-1.5"><BarChart3 size={15} className="text-gray-400" /> {t('vehicles.vehicle_status')}</span>
             <span className="text-gray-400 text-xs">details</span>
           </summary>
           <div className="px-4 pb-4 space-y-2">
             {statusError && (
-              <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">⚠️ {statusError}</p>
+              <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2 flex items-center gap-1.5"><AlertTriangle size={13} /> {statusError}</p>
             )}
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pb-1">{t('vehicles.status_cleanliness')}</p>
             <StatusToggle label={t('vehicles.status_innen')} checked={statusInnen === 'sauber'} onChange={(v) => { const val = v ? 'sauber' : 'schmutzig'; setStatusInnen(val); saveStatus({ cleanliness_interior: val }) }} trueLabel={t('common.clean')} falseLabel={t('common.dirty')} />
@@ -1744,20 +1764,20 @@ function VehicleDetail({
                   <li key={p.id}>
                     <button
                       onClick={() => navigate('/archiv', { state: { protocol_id: p.id } })}
-                      className="w-full bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex items-start gap-3 active:bg-gray-50 text-left"
+                      className="w-full bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3 flex items-start gap-3 active:bg-gray-50 text-left"
                     >
-                      <span className="text-lg mt-0.5">{isTransfer ? '🔄' : '📄'}</span>
+                      <span className="mt-0.5 text-gray-400">{isTransfer ? <RefreshCw size={16} /> : <FileText size={16} />}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-800">
                           {p.created_at.slice(0, 10)}
-                          {isDraft && <span className="ml-2 text-xs text-amber-600 font-normal">⚠️ {t('archiv.draft')}</span>}
+                          {isDraft && <span className="ml-2 text-xs text-amber-600 font-normal inline-flex items-center gap-1"><AlertTriangle size={11} /> {t('archiv.draft')}</span>}
                         </p>
                         <p className="text-xs text-gray-500">
                           {isTransfer ? t('protocol_type.transfer') : t('protocol_type.intake')}
                           {p.inspector_name ? ` · ${p.inspector_name}` : ''}
                         </p>
                       </div>
-                      <span className="text-gray-400 text-xs mt-1">›</span>
+                      <ChevronRight size={16} className="text-gray-400 mt-1 flex-shrink-0" />
                     </button>
                   </li>
                 )
@@ -1768,8 +1788,8 @@ function VehicleDetail({
 
         {/* Edit / Delete */}
         <div className="grid grid-cols-2 gap-2 pt-2">
-          <button onClick={onEdit} className="py-3 rounded-xl bg-gray-100 text-gray-700 font-medium text-sm active:bg-gray-200">✏️ {t('common.edit')}</button>
-          <button onClick={onDelete} className="py-3 rounded-xl bg-red-50 text-red-600 font-medium text-sm active:bg-red-100">🗑️ {t('common.delete')}</button>
+          <button onClick={onEdit} className="py-3 rounded-xl bg-gray-100 text-gray-700 font-medium text-sm active:bg-gray-200 flex items-center justify-center gap-1.5"><Pencil size={15} /> {t('common.edit')}</button>
+          <button onClick={onDelete} className="py-3 rounded-xl bg-red-50 text-red-600 font-medium text-sm active:bg-red-100 flex items-center justify-center gap-1.5"><Trash2 size={15} /> {t('common.delete')}</button>
         </div>
       </div>
     </div>
@@ -1856,12 +1876,12 @@ function VehicleForm({
             {initial ? t('vehicles.vehicle_edit_title') : t('vehicles.vehicle_create_title')}
           </h2>
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">⚠️ {error}</div>
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-start gap-2"><AlertTriangle size={16} className="mt-0.5 flex-shrink-0" /> {error}</div>
           )}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">{t('create_wizard.plate_label')} <span className="text-red-500">*</span></label>
             <input type="text" value={plate} onChange={(e) => setPlate(e.target.value)} placeholder={t('create_wizard.plate_placeholder')} autoCapitalize="characters" className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 uppercase" required />
-            {plateWarning && <p className="text-xs text-amber-600 mt-1">⚠️ {plateWarning}</p>}
+            {plateWarning && <p className="text-xs text-amber-600 mt-1 flex items-center gap-1"><AlertTriangle size={12} /> {plateWarning}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">{t('create_wizard.brand_model_label')}</label>
@@ -1876,15 +1896,15 @@ function VehicleForm({
             {photoPreview ? (
               <div className="relative inline-block">
                 <img src={photoPreview} alt="Vorschau" className="w-32 h-32 object-cover rounded-xl border border-gray-200" />
-                <button type="button" onClick={() => { setPhotoFile(null); setPhotoPreview(null) }} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs flex items-center justify-center">×</button>
+                <button type="button" onClick={() => { setPhotoFile(null); setPhotoPreview(null) }} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center"><X size={14} /></button>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3">
                 <button type="button" onClick={() => cameraFileRef.current?.click()} className="border-2 border-dashed border-brand-300 rounded-xl py-5 text-brand-600 text-sm flex flex-col items-center gap-1 active:border-brand-500 active:bg-brand-50">
-                  <span className="text-2xl">📷</span><span>{t('vehicles.camera')}</span>
+                  <Camera size={22} /><span>{t('vehicles.camera')}</span>
                 </button>
                 <button type="button" onClick={() => fileRef.current?.click()} className="border-2 border-dashed border-gray-300 rounded-xl py-5 text-gray-500 text-sm flex flex-col items-center gap-1 active:border-brand-400 active:text-brand-600">
-                  <span className="text-2xl">🖼</span><span>{t('vehicles.gallery')}</span>
+                  <Image size={22} /><span>{t('vehicles.gallery')}</span>
                 </button>
               </div>
             )}
@@ -1915,7 +1935,7 @@ function DeleteConfirm({ vehicle, onConfirm, onCancel, deleting }: { vehicle: Ve
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-white rounded-t-2xl shadow-2xl px-6 pt-6 pb-[calc(1.5rem+4rem+env(safe-area-inset-bottom))]">
         <h2 className="text-lg font-bold text-gray-900 mb-2">{t('vehicles.delete_title')}</h2>
         <p className="text-sm text-gray-600 mb-1">{t('vehicles.delete_body', { plate: vehicle.license_plate })}</p>
-        <p className="text-xs text-red-600 mb-6">⚠️ {t('vehicles.delete_warning')}</p>
+        <p className="text-xs text-red-600 mb-6 flex items-center gap-1.5"><AlertTriangle size={14} /> {t('vehicles.delete_warning')}</p>
         <div className="grid grid-cols-2 gap-3">
           <button onClick={onCancel} className="py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm">{t('common.cancel')}</button>
           <button onClick={onConfirm} disabled={deleting} className="py-3 rounded-xl bg-red-600 text-white font-semibold text-sm disabled:opacity-60">
@@ -2159,7 +2179,7 @@ export default function Fahrzeuge() {
         vehiclesLoading ? (
           <div className="block min-h-full bg-gray-50">
             <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10">
-              <button onClick={handleBackToProjects} className="text-brand-600 text-sm font-medium mb-1">← {t('projects.title')}</button>
+              <button onClick={handleBackToProjects} className="flex items-center gap-1.5 text-brand-600 text-sm font-medium mb-1"><ArrowLeft size={16} /> {t('projects.title')}</button>
             </div>
             <div className="pb-[calc(1rem+4rem+env(safe-area-inset-bottom))]">
               <SkeletonList count={5} />

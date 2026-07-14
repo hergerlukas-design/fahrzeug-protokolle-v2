@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import {
+  Globe, GraduationCap, ChevronRight, Info, LogOut, Scale, Lock,
+  UploadCloud, CheckCircle2, Archive, Folder, KeyRound, ChevronUp,
+  ChevronDown, Copy, Eraser,
+} from 'lucide-react'
 import { logout, changePin } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 import { syncOffline, getPendingOffline } from '../lib/protocols'
@@ -211,8 +216,16 @@ export default function Einstellungen() {
 
   return (
     <div className="block min-h-full bg-gray-50">
-      {/* Sub-Tab Bar */}
-      <div className="bg-white border-b border-gray-200 flex sticky top-0 z-10">
+      <div className="sticky top-0 z-10 bg-white">
+        {/* Header */}
+        <div className="border-b border-gray-200 px-4 pt-4 pb-3">
+          <div className="flex items-center gap-2.5">
+            <img src="/logo.webp" alt="" className="w-6 h-6 object-contain flex-shrink-0" onError={(e) => (e.currentTarget.style.display = 'none')} />
+            <h1 className="text-lg font-bold text-gray-800">{t('nav.settings')}</h1>
+          </div>
+        </div>
+        {/* Sub-Tab Bar */}
+        <div className="border-b border-gray-200 flex">
         <button
           type="button"
           onClick={() => setActiveTab('einstellungen')}
@@ -235,6 +248,7 @@ export default function Einstellungen() {
         >
           {t('settings.tab_admin')}
         </button>
+        </div>
       </div>
 
       <div className="p-4 max-w-lg mx-auto w-full">
@@ -244,7 +258,7 @@ export default function Einstellungen() {
             {/* Sprache / Language */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 px-4 py-4">
               <div className="flex items-center gap-3 mb-3">
-                <span className="text-2xl">🌐</span>
+                <Globe size={22} className="text-gray-400" />
                 <span className="font-semibold text-gray-800">{t('settings.language_title')} / Language</span>
               </div>
               <div className="flex gap-2">
@@ -280,19 +294,19 @@ export default function Einstellungen() {
                 onClick={() => window.dispatchEvent(new CustomEvent(TUTORIAL_EVENT))}
                 className="w-full flex items-center gap-3 px-4 py-4 text-left hover:bg-gray-50 active:scale-95 transition-all"
               >
-                <span className="text-2xl">🎓</span>
+                <GraduationCap size={22} className="text-gray-400" />
                 <div>
                   <span className="font-semibold text-gray-800">{t('settings.tutorial_title')}</span>
                   <p className="text-xs text-gray-400 mt-0.5">{t('settings.tutorial_desc')}</p>
                 </div>
-                <span className="ml-auto text-gray-400">›</span>
+                <ChevronRight size={16} className="ml-auto text-gray-400" />
               </button>
             </div>
 
             {/* App-Info */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 px-4 py-4">
               <div className="flex items-center gap-3 mb-3">
-                <span className="text-2xl">ℹ️</span>
+                <Info size={22} className="text-gray-400" />
                 <span className="font-semibold text-gray-800">{t('settings.app_info_title')}</span>
               </div>
               <div className="flex flex-col gap-1.5 text-sm text-gray-600">
@@ -321,7 +335,7 @@ export default function Einstellungen() {
                 onClick={handleLogout}
                 className="w-full flex items-center gap-3 px-4 py-4 text-red-600 font-semibold hover:bg-red-50 active:scale-95 transition-all"
               >
-                <span className="text-2xl">🚪</span>
+                <LogOut size={22} />
                 <span>{t('settings.logout')}</span>
               </button>
             </div>
@@ -332,17 +346,17 @@ export default function Einstellungen() {
                 href="/impressum"
                 className="flex items-center gap-3 px-4 py-4 text-gray-600 hover:bg-gray-50 border-b border-gray-100"
               >
-                <span className="text-2xl">⚖️</span>
+                <Scale size={22} className="text-gray-400" />
                 <span className="font-medium">{t('settings.impressum')}</span>
-                <span className="ml-auto text-gray-400">›</span>
+                <ChevronRight size={16} className="ml-auto text-gray-400" />
               </a>
               <a
                 href="/datenschutz"
                 className="flex items-center gap-3 px-4 py-4 text-gray-600 hover:bg-gray-50"
               >
-                <span className="text-2xl">🔒</span>
+                <Lock size={22} className="text-gray-400" />
                 <span className="font-medium">{t('settings.privacy')}</span>
-                <span className="ml-auto text-gray-400">›</span>
+                <ChevronRight size={16} className="ml-auto text-gray-400" />
               </a>
             </div>
           </>
@@ -354,7 +368,7 @@ export default function Einstellungen() {
             {/* Offline synchronisieren */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 px-4 py-4">
               <div className="flex items-center gap-3 mb-3">
-                <span className="text-2xl">📶</span>
+                <UploadCloud size={22} className="text-gray-400" />
                 <div>
                   <span className="font-semibold text-gray-800">{t('settings.sync_title')}</span>
                   <p className="text-xs text-gray-400 mt-0.5">
@@ -374,7 +388,11 @@ export default function Einstellungen() {
                     : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 }`}
               >
-                {syncing ? t('settings.syncing') : pendingCount > 0 ? t('settings.sync_button') : `✓ ${t('settings.sync_done')}`}
+                {syncing
+                  ? t('settings.syncing')
+                  : pendingCount > 0
+                  ? t('settings.sync_button')
+                  : <span className="inline-flex items-center gap-1.5"><CheckCircle2 size={16} /> {t('settings.sync_done')}</span>}
               </button>
             </div>
 
@@ -385,13 +403,13 @@ export default function Einstellungen() {
                 className="w-full flex items-center gap-3 px-4 py-4 text-left"
               >
                 <div className="flex items-center gap-3 flex-1">
-                  <span className="text-2xl">🗃️</span>
+                  <Archive size={22} className="text-gray-400" />
                   <div>
                     <span className="font-semibold text-gray-800">{t('settings.archive_title')}</span>
                     <p className="text-xs text-gray-400 mt-0.5">{t('settings.archive_desc')}</p>
                   </div>
                 </div>
-                <span className="text-gray-400 text-sm">›</span>
+                <ChevronRight size={16} className="text-gray-400" />
               </a>
             </div>
 
@@ -402,13 +420,13 @@ export default function Einstellungen() {
                 className="w-full flex items-center gap-3 px-4 py-4 text-left"
               >
                 <div className="flex items-center gap-3 flex-1">
-                  <span className="text-2xl">📁</span>
+                  <Folder size={22} className="text-gray-400" />
                   <div>
                     <span className="font-semibold text-gray-800">{t('settings.project_mgmt_title')}</span>
                     <p className="text-xs text-gray-400 mt-0.5">{t('settings.project_mgmt_desc')}</p>
                   </div>
                 </div>
-                <span className="text-gray-400 text-sm">›</span>
+                <ChevronRight size={16} className="text-gray-400" />
               </a>
             </div>
 
@@ -419,10 +437,10 @@ export default function Einstellungen() {
                 onClick={() => { setPinSection(v => !v); setPinMsg(null) }}
               >
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">🔑</span>
+                  <KeyRound size={22} className="text-gray-400" />
                   <span className="font-semibold text-gray-800">{t('settings.pin_title')}</span>
                 </div>
-                <span className="text-gray-400 text-sm">{pinSection ? '▲' : '▼'}</span>
+                <span className="text-gray-400">{pinSection ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
               </button>
 
               {pinSection && (
@@ -476,13 +494,13 @@ export default function Einstellungen() {
                 onClick={() => { setDupSection(v => !v); setDupMsg(null); setDupIds(null) }}
               >
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">🔁</span>
+                  <Copy size={22} className="text-gray-400" />
                   <div>
                     <span className="font-semibold text-gray-800">{t('settings.dup_title')}</span>
                     <p className="text-xs text-gray-400 mt-0.5">{t('settings.dup_desc')}</p>
                   </div>
                 </div>
-                <span className="text-gray-400 text-sm">{dupSection ? '▲' : '▼'}</span>
+                <span className="text-gray-400">{dupSection ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
               </button>
 
               {dupSection && (
@@ -528,13 +546,13 @@ export default function Einstellungen() {
                 onClick={() => { setEmptySection(v => !v); setEmptyMsg(null); setEmptyRows(null) }}
               >
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">🧹</span>
+                  <Eraser size={22} className="text-gray-400" />
                   <div>
                     <span className="font-semibold text-gray-800">{t('settings.empty_title')}</span>
                     <p className="text-xs text-gray-400 mt-0.5">{t('settings.empty_desc')}</p>
                   </div>
                 </div>
-                <span className="text-gray-400 text-sm">{emptySection ? '▲' : '▼'}</span>
+                <span className="text-gray-400">{emptySection ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
               </button>
 
               {emptySection && (

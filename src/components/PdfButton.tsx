@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { FileText } from 'lucide-react'
 import type { PdfData } from '../lib/generatePdf'
 
 interface Props {
@@ -84,7 +85,7 @@ export default function PdfButton({ data, accent = 'brand' }: Props) {
             {t('common.loading')}
           </span>
         ) : (
-          '📄 PDF'
+          <span className="flex items-center justify-center gap-1.5"><FileText size={16} /> PDF</span>
         )}
       </button>
       {error && <p className="mt-2 text-xs text-red-500 text-center">{error}</p>}

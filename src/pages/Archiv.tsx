@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import {
+  FileText, Archive as ArchiveIcon, AlertTriangle, X, ArrowLeft, Trash2,
+  RotateCcw, Folder, Pencil, ClipboardList, Car,
+} from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import PdfButton from '../components/PdfButton'
 import type { PdfData } from '../lib/generatePdf'
@@ -218,33 +222,36 @@ export default function Archiv() {
       {/* Delete error banner */}
       {deleteError && (
         <div className="mx-4 mt-3 p-3 bg-red-50 border border-red-200 rounded-xl flex gap-2 items-start">
-          <span className="text-red-500 mt-0.5 flex-shrink-0">⚠️</span>
+          <AlertTriangle size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
           <p className="text-red-700 text-sm flex-1 whitespace-pre-wrap">{deleteError}</p>
-          <button onClick={() => setDeleteError(null)} className="text-red-400 text-lg leading-none flex-shrink-0">×</button>
+          <button onClick={() => setDeleteError(null)} className="text-red-400 leading-none flex-shrink-0"><X size={16} /></button>
         </div>
       )}
 
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10">
-        <h1 className="text-lg font-bold text-gray-800 mb-3">{t('archiv.title')}</h1>
+        <div className="flex items-center gap-2.5 mb-3">
+          <img src="/logo.webp" alt="" className="w-6 h-6 object-contain flex-shrink-0" onError={(e) => (e.currentTarget.style.display = 'none')} />
+          <h1 className="text-lg font-bold text-gray-800">{t('archiv.title')}</h1>
+        </div>
 
         {/* Tab switcher */}
         <div className="flex gap-1 mb-3 bg-gray-100 p-1 rounded-xl">
           <button
             onClick={() => setTab('protokolle')}
-            className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
               tab === 'protokolle' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
             }`}
           >
-            {t('archiv.tab_protocols')}
+            <FileText size={14} /> {t('archiv.tab_protocols')}
           </button>
           <button
             onClick={() => setTab('projekte')}
-            className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
               tab === 'projekte' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
             }`}
           >
-            {t('archiv.tab_projects')}
+            <ArchiveIcon size={14} /> {t('archiv.tab_projects')}
           </button>
         </div>
 
@@ -303,9 +310,9 @@ export default function Archiv() {
               {(filterFrom || filterTo) && (
                 <button
                   onClick={() => { setFilterFrom(''); setFilterTo('') }}
-                  className="self-end mb-0 px-2 py-1.5 text-xs text-gray-400 active:text-gray-600"
+                  className="self-end mb-0 px-2 py-1.5 text-gray-400 active:text-gray-600"
                 >
-                  ✕
+                  <X size={14} />
                 </button>
               )}
             </div>
@@ -325,7 +332,7 @@ export default function Archiv() {
             <SkeletonList count={3} />
           ) : archivedProjects.length === 0 ? (
             <div className="text-center py-16">
-              <p className="text-4xl mb-3">📦</p>
+              <ArchiveIcon size={40} className="mx-auto mb-3 text-gray-300" />
               <p className="text-gray-500 font-medium">{t('archiv.no_archived_projects')}</p>
               <p className="text-gray-400 text-sm mt-1">{t('archiv.no_archived_projects_hint')}</p>
             </div>
@@ -338,7 +345,7 @@ export default function Archiv() {
                       <div className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: p.color }} />
                     </div>
                   ) : (
-                    <div className="w-9 h-9 rounded-xl bg-gray-100 flex-shrink-0 flex items-center justify-center text-lg">📦</div>
+                    <div className="w-9 h-9 rounded-xl bg-gray-100 flex-shrink-0 flex items-center justify-center"><Folder size={16} className="text-gray-400" /></div>
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-gray-700 truncate">{p.name}</p>
@@ -355,16 +362,16 @@ export default function Archiv() {
                   <button
                     onClick={() => handleProjectUnarchive(p.id)}
                     disabled={projectActionId === p.id}
-                    className="flex-1 py-2 rounded-lg bg-brand-50 text-brand-700 text-sm font-medium border border-brand-200 active:bg-brand-100 disabled:opacity-50"
+                    className="flex-1 py-2 rounded-lg bg-brand-50 text-brand-700 text-sm font-medium border border-brand-200 active:bg-brand-100 disabled:opacity-50 flex items-center justify-center gap-1.5"
                   >
-                    {projectActionId === p.id ? '…' : t('archiv.reactivate')}
+                    {projectActionId === p.id ? '…' : <><RotateCcw size={14} /> {t('archiv.reactivate')}</>}
                   </button>
                   <button
                     onClick={() => handleProjectDelete(p.id, p.name)}
                     disabled={projectActionId === p.id}
-                    className="flex-1 py-2 rounded-lg bg-red-50 text-red-600 text-sm font-medium border border-red-200 active:bg-red-100 disabled:opacity-50"
+                    className="flex-1 py-2 rounded-lg bg-red-50 text-red-600 text-sm font-medium border border-red-200 active:bg-red-100 disabled:opacity-50 flex items-center justify-center gap-1.5"
                   >
-                    {t('archiv.project_delete')}
+                    <Trash2 size={14} /> {t('archiv.project_delete')}
                   </button>
                 </div>
               </div>
@@ -448,9 +455,7 @@ export default function Archiv() {
               className="p-1 rounded-lg text-gray-500 active:bg-gray-100"
               aria-label={t('common.back')}
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
+              <ArrowLeft size={22} />
             </button>
             <div className="flex-1 min-w-0">
               <p className="font-bold text-gray-800 truncate">
@@ -463,10 +468,7 @@ export default function Archiv() {
               className="p-1 rounded-lg text-red-500 active:bg-red-50"
               aria-label={t('archiv.delete_title')}
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
+              <Trash2 size={20} />
             </button>
           </div>
 
@@ -585,9 +587,9 @@ export default function Archiv() {
                   },
                 })
               }}
-              className="w-full py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-medium active:bg-gray-200"
+              className="w-full py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-medium active:bg-gray-200 flex items-center justify-center gap-1.5"
             >
-              {t('archiv.edit_protocol')}
+              <Pencil size={15} /> {t('archiv.edit_protocol')}
             </button>
 
             {/* Quick-links: neues Protokoll für dieses Fahrzeug */}
@@ -601,9 +603,9 @@ export default function Archiv() {
                     vin: selected.vehicles?.vin,
                   },
                 })}
-                className="flex-1 py-2.5 rounded-xl border border-brand-500 text-brand-600 text-sm font-medium active:bg-brand-50"
+                className="flex-1 py-2.5 rounded-xl border border-brand-500 text-brand-600 text-sm font-medium active:bg-brand-50 flex items-center justify-center gap-1.5"
               >
-                {t('archiv.new_intake')}
+                <ClipboardList size={15} /> {t('archiv.new_intake')}
               </button>
               <button
                 onClick={() => navigate('/ueberfuehrung', {
@@ -615,9 +617,9 @@ export default function Archiv() {
                     known_damages: selected.condition_data?.damage_records ?? [],
                   },
                 })}
-                className="flex-1 py-2.5 rounded-xl border border-green-500 text-green-600 text-sm font-medium active:bg-green-50"
+                className="flex-1 py-2.5 rounded-xl border border-green-500 text-green-600 text-sm font-medium active:bg-green-50 flex items-center justify-center gap-1.5"
               >
-                {t('archiv.new_transfer')}
+                <Car size={15} /> {t('archiv.new_transfer')}
               </button>
             </div>
           </div>

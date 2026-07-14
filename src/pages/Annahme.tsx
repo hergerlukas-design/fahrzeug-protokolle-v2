@@ -1,6 +1,10 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import {
+  X, Camera, Image, ArrowLeft, ArrowRight, ClipboardList, AlertTriangle,
+  CheckCircle2, Plus, Save, CloudOff,
+} from 'lucide-react'
 import {
   DEFAULT_CHECKLISTE,
   DAMAGE_INTENSITIES,
@@ -19,7 +23,7 @@ import { OFFLINE_SAVED_EVENT } from '../components/OfflineIndicator'
 import PdfButton from '../components/PdfButton'
 import CarDamageSelector from '../components/CarDamageSelector'
 import type { PdfData } from '../lib/generatePdf'
-import { updateVehicle, updateVehicleKnownDamages } from '../lib/vehicles'
+import { updateVehicle, updateVehicleKnownDamages, type DamageRecord } from '../lib/vehicles'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -44,7 +48,7 @@ interface PrefillState {
   license_plate: string
   brand_model: string
   vin: string
-  known_damages: DamageItem[]
+  known_damages: DamageRecord[]
   edit?: AnnahmeEditData
 }
 
@@ -52,6 +56,8 @@ interface DamageFormItem extends DamageItem {
   key: string
   file?: File
   previewUrl?: string
+  /** Previously saved photo (from vehicle kartei or this protocol's own storage) */
+  photo_url?: string
 }
 
 type PhotoKey = 'vorne' | 'hinten' | 'links' | 'rechts' | 'schein'
@@ -180,9 +186,9 @@ function SignatureCanvas({
       <button
         type="button"
         onClick={clearCanvas}
-        className="mt-2 text-sm text-red-500 active:text-red-700"
+        className="mt-2 text-sm text-red-500 active:text-red-700 flex items-center gap-1"
       >
-        ✕ {t('annahme.sig_clear')}
+        <X size={14} /> {t('annahme.sig_clear')}
       </button>
     </div>
   )
@@ -309,9 +315,9 @@ function DamageRow({
         <button
           type="button"
           onClick={() => onRemove(item.key)}
-          className="text-red-400 text-sm active:text-red-600"
+          className="text-red-400 text-sm active:text-red-600 flex items-center gap-1"
         >
-          ✕ {t('annahme.damage_remove')}
+          <X size={14} /> {t('annahme.damage_remove')}
         </button>
       </div>
       <CarDamageSelector
@@ -341,19 +347,24 @@ function DamageRow({
         </select>
       </div>
       <div className="flex items-center gap-2">
-        {item.previewUrl ? (
+        {item.previewUrl || item.photo_url ? (
           <div className="relative">
             <img
-              src={item.previewUrl}
+              src={item.previewUrl ?? item.photo_url}
               alt={t('annahme.damage_label', { count: index + 1 })}
               className="w-16 h-16 object-cover rounded-lg border border-gray-200"
             />
+            {!item.previewUrl && item.photo_url && (
+              <span className="absolute -bottom-1 -left-1 bg-gray-900/70 text-white text-[9px] leading-none px-1 py-0.5 rounded">
+                {t('damage.existing_photo')}
+              </span>
+            )}
             <button
               type="button"
-              onClick={() => onUpdate(item.key, { file: undefined, previewUrl: undefined })}
-              className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center"
+              onClick={() => onUpdate(item.key, { file: undefined, previewUrl: undefined, photo_url: undefined })}
+              className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center"
             >
-              ×
+              <X size={12} />
             </button>
           </div>
         ) : (
@@ -363,14 +374,14 @@ function DamageRow({
               onClick={() => cameraRef.current?.click()}
               className="flex items-center gap-1.5 text-sm text-brand-600 border border-brand-200 rounded-lg px-3 py-2 bg-brand-50 active:bg-brand-100"
             >
-              📷 <span>{t('damage.camera')}</span>
+              <Camera size={15} /> <span>{t('damage.camera')}</span>
             </button>
             <button
               type="button"
               onClick={() => galleryRef.current?.click()}
               className="flex items-center gap-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 active:bg-gray-100"
             >
-              🖼 <span>{t('damage.gallery')}</span>
+              <Image size={15} /> <span>{t('damage.gallery')}</span>
             </button>
           </div>
         )}
@@ -406,7 +417,15 @@ export default function Annahme() {
   const [checklist, setChecklist] = useState<Checkliste>(ed?.checkliste ?? { ...DEFAULT_CHECKLISTE })
 
   const [damages, setDamages] = useState<DamageFormItem[]>(() =>
-    (ed?.damages ?? prefill?.known_damages ?? []).map((d, i) => ({ ...d, key: `d_${i}` }))
+    (ed?.damages ?? prefill?.known_damages ?? []).map((d, i) => ({
+      ...d,
+      key: `d_${i}`,
+      // Edit mode: pull the photo already saved on this protocol.
+      // New protocol: carry over the photo already saved on the vehicle's known damages.
+      photo_url: ed
+        ? ed.photos[`schaden_${i}`] ?? ed.photos[`schaden_d_${i}`]
+        : (d as DamageRecord).photo_url,
+    }))
   )
 
   const [existingPhotos, _setExistingPhotos] = useState<Partial<Record<PhotoKey, string>>>(() => {
@@ -447,6 +466,42 @@ export default function Annahme() {
   const [success, setSuccess] = useState(false)
   const [savedPdfData, setSavedPdfData] = useState<PdfData | null>(null)
 
+  // ── Step wizard ────────────────────────────────────────────────────────────
+  const [step, setStep] = useState(0)
+  const stepTitles = [
+    `${t('annahme.section_vehicle')} & ${t('annahme.section_creator')}`,
+    t('annahme.section_photos'),
+    t('annahme.section_damages'),
+    `${t('annahme.section_conditions')} & ${t('annahme.section_checklist')}`,
+    t('annahme.section_levels'),
+    t('annahme.section_remarks'),
+    t('annahme.section_signature'),
+  ]
+  const totalSteps = stepTitles.length
+  const isLastStep = step === totalSteps - 1
+
+  useEffect(() => {
+    document.querySelector('main')?.scrollTo({ top: 0 })
+  }, [step])
+
+  function goNext() {
+    if (step === 0 && !inspector.trim()) {
+      setError(t('annahme.creator_required'))
+      return
+    }
+    setError(null)
+    setStep((s) => Math.min(s + 1, totalSteps - 1))
+  }
+
+  function goBack() {
+    if (step === 0) {
+      navigate(-1)
+      return
+    }
+    setError(null)
+    setStep((s) => Math.max(s - 1, 0))
+  }
+
   // ── Handlers ───────────────────────────────────────────────────────────────
   function toggleCondition(c: string) {
     setConditions((prev) =>
@@ -478,8 +533,7 @@ export default function Annahme() {
   }
 
   // ── Save ──────────────────────────────────────────────────────────────────
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault()
+  async function handleSave() {
     if (!prefill) {
       setError(t('annahme.no_vehicle_error'))
       return
@@ -543,10 +597,9 @@ export default function Annahme() {
               `schaden_${i}`,
               d.file
             )
-          } else {
-            // Preserve existing URL (new format schaden_i first, then legacy schaden_d_key)
-            const existingUrl = ed?.photos[`schaden_${i}`] ?? ed?.photos[`schaden_${d.key}`]
-            if (existingUrl) photos[`schaden_${i}`] = existingUrl
+          } else if (d.photo_url) {
+            // Preserve existing photo (edit mode) or carry over the vehicle's saved damage photo
+            photos[`schaden_${i}`] = d.photo_url
           }
         }
         if (sigDataUrl) {
@@ -573,7 +626,10 @@ export default function Annahme() {
           await saveProtocol(basePayload)
         }
         if (damageRecords.length > 0) {
-          await updateVehicleKnownDamages(prefill.vehicle_id, damageRecords)
+          const damageRecordsWithPhotos: DamageRecord[] = damages
+            .map((d, i) => ({ pos: d.pos, type: d.type, int: d.int, photo_url: photos[`schaden_${i}`] }))
+            .filter((d) => d.pos || d.type || d.int)
+          await updateVehicleKnownDamages(prefill.vehicle_id, damageRecordsWithPhotos)
         }
         const vinTrimmed = vin.trim().toUpperCase()
         if (vinTrimmed !== prefill.vin) {
@@ -666,13 +722,14 @@ export default function Annahme() {
     setVehiclePhotos({})
     setHasSig(false)
     sessionKey.current = Date.now().toString()
+    setStep(0)
   }
 
   // ── Success screen ─────────────────────────────────────────────────────────
   if (success) {
     return (
       <div className="flex flex-col items-center justify-center min-h-full px-6 gap-6 text-center">
-        <div className="text-6xl">✅</div>
+        <CheckCircle2 size={64} className="text-green-500" />
         <div>
           <h1 className="text-xl font-bold text-gray-900 mb-1">{t('annahme.success_title')}</h1>
           <p className="text-sm text-gray-500">
@@ -702,7 +759,7 @@ export default function Annahme() {
   if (!prefill) {
     return (
       <div className="flex flex-col items-center justify-center min-h-full px-6 gap-4 text-center">
-        <div className="text-5xl">📋</div>
+        <ClipboardList size={48} className="text-gray-300" />
         <div>
           <h1 className="text-lg font-bold text-gray-900 mb-1">{t('annahme.no_vehicle_error')}</h1>
         </div>
@@ -718,32 +775,50 @@ export default function Annahme() {
 
   // ── Main form ──────────────────────────────────────────────────────────────
   return (
-    <form onSubmit={handleSave} className="block min-h-full bg-gray-50 pb-8">
+    <div className="block min-h-full bg-gray-50 pb-8">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10">
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="text-brand-600 text-sm font-medium mb-1 block"
-        >
-          ← {t('common.back')}
-        </button>
-        <h1 className="text-xl font-bold text-gray-900">📝 {t('annahme.title')}</h1>
-        <p className="text-sm text-gray-500 mt-0.5">{prefill.license_plate}</p>
+        <div className="flex items-center gap-2 mb-2">
+          <button
+            type="button"
+            onClick={goBack}
+            className="p-1 -ml-1 text-gray-500 hover:text-gray-800 flex-shrink-0"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-base font-bold text-gray-900 truncate flex items-center gap-1.5">
+              <ClipboardList size={16} className="text-gray-400 flex-shrink-0" /> {t('annahme.title')}
+            </h1>
+            <p className="text-xs text-gray-500 truncate">{prefill.license_plate}</p>
+          </div>
+          <span className="text-xs font-medium text-gray-400 flex-shrink-0">
+            {t('common.step_of', { current: step + 1, total: totalSteps })}
+          </span>
+        </div>
+        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-brand-600 rounded-full transition-all duration-300"
+            style={{ width: `${((step + 1) / totalSteps) * 100}%` }}
+          />
+        </div>
+        <p className="text-sm font-semibold text-gray-700 mt-2">{stepTitles[step]}</p>
       </div>
 
       {/* Error */}
       {error && (
         <div className="mx-4 mt-3 p-3 bg-red-50 border border-red-200 rounded-xl flex gap-2 items-start">
-          <span className="text-red-500 mt-0.5">⚠️</span>
+          <AlertTriangle size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
           <p className="text-red-700 text-sm flex-1">{error}</p>
-          <button type="button" onClick={() => setError(null)} className="text-red-400 text-lg leading-none">
-            ×
+          <button type="button" onClick={() => setError(null)} className="text-red-400 leading-none">
+            <X size={16} />
           </button>
         </div>
       )}
 
-      {/* ── 1. Fahrzeugdaten ── */}
+      {/* ── Step 1: Fahrzeugdaten + Ersteller & Standort ── */}
+      {step === 0 && (
+      <>
       <SectionHeader title={t('annahme.section_vehicle')} />
       <Card>
         <div className="space-y-1.5">
@@ -817,30 +892,12 @@ export default function Annahme() {
           />
         </div>
       </Card>
+      </>
+      )}
 
-      {/* ── 3. Sichtbedingungen ── */}
-      <SectionHeader title={t('annahme.section_conditions')} />
-      <Card>
-        <p className="text-xs text-gray-500 mb-2">{t('annahme.conditions_hint')}</p>
-        <div className="flex flex-wrap gap-2">
-          {INSPECTION_CONDITIONS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => toggleCondition(c)}
-              className={`px-3 py-2 rounded-xl text-sm font-medium border transition-colors ${
-                conditions.includes(c)
-                  ? 'bg-amber-100 text-amber-800 border-amber-300'
-                  : 'bg-gray-50 text-gray-500 border-gray-200'
-              }`}
-            >
-              {t(`conditions.${c}`, { defaultValue: c })}
-            </button>
-          ))}
-        </div>
-      </Card>
-
-      {/* ── 4. Fahrzeugfotos ── */}
+      {/* ── Step 2: Fahrzeugfotos ── */}
+      {step === 1 && (
+      <>
       <SectionHeader title={t('annahme.section_photos')} />
       <Card>
         <div className="grid grid-cols-3 gap-2 mb-2">
@@ -859,7 +916,7 @@ export default function Annahme() {
                   {previewSrc ? (
                     <img src={previewSrc} alt={pk} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-2xl">📷</span>
+                    <Camera size={24} className="text-gray-300" />
                   )}
                 </button>
                 <span className="text-xs text-gray-500">{t(`photo_labels.${pk}`, { defaultValue: PHOTO_LABELS[pk] })}</span>
@@ -885,7 +942,7 @@ export default function Annahme() {
                   {previewSrc ? (
                     <img src={previewSrc} alt={pk} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-2xl">📷</span>
+                    <Camera size={24} className="text-gray-300" />
                   )}
                 </button>
                 <span className="text-xs text-gray-500">{t(`photo_labels.${pk}`, { defaultValue: PHOTO_LABELS[pk] })}</span>
@@ -905,23 +962,27 @@ export default function Annahme() {
               <button
                 type="button"
                 onClick={() => { const k = photoPickerKey; setPhotoPickerKey(null); cameraPhotoFileRefs.current[k].current?.click() }}
-                className="py-3 rounded-xl bg-brand-50 border border-brand-200 text-brand-700 font-medium text-sm active:bg-brand-100"
+                className="py-3 rounded-xl bg-brand-50 border border-brand-200 text-brand-700 font-medium text-sm active:bg-brand-100 flex items-center justify-center gap-1.5"
               >
-                📷 {t('damage.camera')}
+                <Camera size={16} /> {t('damage.camera')}
               </button>
               <button
                 type="button"
                 onClick={() => { const k = photoPickerKey; setPhotoPickerKey(null); photoFileRefs.current[k].current?.click() }}
-                className="py-3 rounded-xl bg-gray-50 border border-gray-200 text-gray-700 font-medium text-sm active:bg-gray-100"
+                className="py-3 rounded-xl bg-gray-50 border border-gray-200 text-gray-700 font-medium text-sm active:bg-gray-100 flex items-center justify-center gap-1.5"
               >
-                🖼 {t('damage.gallery')}
+                <Image size={16} /> {t('damage.gallery')}
               </button>
             </div>
           </div>
         </div>
       )}
+      </>
+      )}
 
-      {/* ── 5. Schadenserfassung ── */}
+      {/* ── Step 3: Schadenserfassung ── */}
+      {step === 2 && (
+      <>
       <SectionHeader title={t('annahme.section_damages')} />
       <div className="mx-4 space-y-3">
         {damages.length === 0 ? (
@@ -938,11 +999,36 @@ export default function Annahme() {
           onClick={addDamage}
           className="w-full py-3 rounded-xl border-2 border-dashed border-gray-300 text-sm text-gray-500 flex items-center justify-center gap-2 active:border-brand-400 active:text-brand-600"
         >
-          {t('annahme.add_damage')}
+          <Plus size={16} /> {t('annahme.add_damage')}
         </button>
       </div>
+      </>
+      )}
 
-      {/* ── 6. Checkliste ── */}
+      {/* ── Step 4: Sichtbedingungen + Checkliste ── */}
+      {step === 3 && (
+      <>
+      <SectionHeader title={t('annahme.section_conditions')} />
+      <Card>
+        <p className="text-xs text-gray-500 mb-2">{t('annahme.conditions_hint')}</p>
+        <div className="flex flex-wrap gap-2">
+          {INSPECTION_CONDITIONS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => toggleCondition(c)}
+              className={`px-3 py-2 rounded-xl text-sm font-medium border transition-colors ${
+                conditions.includes(c)
+                  ? 'bg-amber-100 text-amber-800 border-amber-300'
+                  : 'bg-gray-50 text-gray-500 border-gray-200'
+              }`}
+            >
+              {t(`conditions.${c}`, { defaultValue: c })}
+            </button>
+          ))}
+        </div>
+      </Card>
+
       <SectionHeader title={t('annahme.section_checklist')} />
       <Card>
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('annahme.checklist_cleanliness')}</p>
@@ -972,8 +1058,12 @@ export default function Annahme() {
           ))}
         </div>
       </Card>
+      </>
+      )}
 
-      {/* ── 7. Füllstände ── */}
+      {/* ── Step 5: Füllstände ── */}
+      {step === 4 && (
+      <>
       <SectionHeader title={t('annahme.section_levels')} />
       <Card className="space-y-5">
         <LevelSlider label={t('annahme.fuel_label')} value={fuel} onChange={setFuel} />
@@ -991,8 +1081,12 @@ export default function Annahme() {
           />
         </div>
       </Card>
+      </>
+      )}
 
-      {/* ── 8. Bemerkungen ── */}
+      {/* ── Step 6: Bemerkungen ── */}
+      {step === 5 && (
+      <>
       <SectionHeader title={t('annahme.section_remarks')} />
       <Card>
         <textarea
@@ -1003,8 +1097,12 @@ export default function Annahme() {
           className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
         />
       </Card>
+      </>
+      )}
 
-      {/* ── 9. Unterschrift ── */}
+      {/* ── Step 7: Unterschrift + Spediteur ── */}
+      {step === 6 && (
+      <>
       <SectionHeader title={t('annahme.section_signature')} />
       <Card>
         <p className="text-xs text-gray-500 mb-3">
@@ -1048,22 +1146,44 @@ export default function Annahme() {
           <p className="text-xs text-gray-400 italic">{t('annahme.no_carrier')}</p>
         )}
       </Card>
+      </>
+      )}
 
-      {/* ── Save button ── */}
-      <div className="mx-4 mt-6">
-        <button
-          type="submit"
-          disabled={saving}
-          className="w-full py-4 rounded-2xl bg-brand-600 text-white font-bold text-base shadow-lg disabled:opacity-60 active:bg-brand-700"
-        >
-          {saving ? t('annahme.saving') : navigator.onLine ? `💾 ${t('annahme.save_online')}` : `📶 ${t('annahme.save_offline')}`}
-        </button>
-        {!navigator.onLine && (
-          <p className="text-xs text-center text-amber-600 mt-2">
-            {t('annahme.offline_hint')}
-          </p>
+      {/* ── Step navigation ── */}
+      <div className="mx-4 mt-6 flex gap-3">
+        {step > 0 && (
+          <button
+            type="button"
+            onClick={goBack}
+            className="flex-1 py-4 rounded-2xl border border-gray-300 text-gray-700 font-semibold text-base flex items-center justify-center gap-2"
+          >
+            <ArrowLeft size={18} /> {t('common.back')}
+          </button>
+        )}
+        {isLastStep ? (
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="flex-1 py-4 rounded-2xl bg-brand-600 text-white font-bold text-base shadow-lg disabled:opacity-60 active:bg-brand-700 flex items-center justify-center gap-2"
+          >
+            {saving ? t('annahme.saving') : navigator.onLine ? <><Save size={18} /> {t('annahme.save_online')}</> : <><CloudOff size={18} /> {t('annahme.save_offline')}</>}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={goNext}
+            className="flex-1 py-4 rounded-2xl bg-brand-600 text-white font-bold text-base shadow-lg active:bg-brand-700 flex items-center justify-center gap-2"
+          >
+            {t('common.next')} <ArrowRight size={18} />
+          </button>
         )}
       </div>
-    </form>
+      {isLastStep && !navigator.onLine && (
+        <p className="text-xs text-center text-amber-600 mt-2">
+          {t('annahme.offline_hint')}
+        </p>
+      )}
+    </div>
   )
 }

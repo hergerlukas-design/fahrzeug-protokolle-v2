@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { X } from 'lucide-react'
 
 // ViewId 'back' aligns with locale key damage_selector.view_back
 type ViewId = 'top' | 'front' | 'back' | 'left' | 'right'
@@ -390,9 +391,9 @@ export default function CarDamageSelector({ value, onChange }: Props) {
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 active:bg-gray-100 text-xl leading-none"
+                className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 active:bg-gray-100"
               >
-                ×
+                <X size={18} />
               </button>
             </div>
 

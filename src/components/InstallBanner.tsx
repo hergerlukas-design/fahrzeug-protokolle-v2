@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Smartphone, X } from 'lucide-react'
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>
@@ -47,17 +48,17 @@ export default function InstallBanner() {
     return (
       <div className="bg-brand-600 text-white px-4 py-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-sm font-medium">
-          <span>📲</span>
+          <Smartphone size={16} />
           <span>{t('install_banner.add_to_homescreen')}</span>
         </div>
-        <div className="flex gap-2 flex-shrink-0">
+        <div className="flex gap-2 flex-shrink-0 items-center">
           <button
             onClick={handleInstall}
             className="bg-white text-brand-600 font-semibold text-xs px-3 py-1.5 rounded-lg active:scale-95 transition-all"
           >
             {t('install_banner.install')}
           </button>
-          <button onClick={dismiss} className="text-brand-200 text-xs px-2 py-1.5">✕</button>
+          <button onClick={dismiss} className="text-brand-200 px-2 py-1.5"><X size={14} /></button>
         </div>
       </div>
     )
@@ -67,11 +68,14 @@ export default function InstallBanner() {
     return (
       <div className="bg-brand-600 text-white px-4 py-3">
         <div className="flex items-start justify-between gap-2">
-          <div className="text-sm">
-            <p className="font-semibold mb-0.5">📲 {t('install_banner.ios_tip_title')}</p>
-            <p className="text-brand-100 text-xs">{t('install_banner.ios_tip_body')}</p>
+          <div className="text-sm flex gap-2">
+            <Smartphone size={16} className="mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-semibold mb-0.5">{t('install_banner.ios_tip_title')}</p>
+              <p className="text-brand-100 text-xs">{t('install_banner.ios_tip_body')}</p>
+            </div>
           </div>
-          <button onClick={dismiss} className="text-brand-200 text-xs px-2 py-1 flex-shrink-0">✕</button>
+          <button onClick={dismiss} className="text-brand-200 px-2 py-1 flex-shrink-0"><X size={14} /></button>
         </div>
       </div>
     )
