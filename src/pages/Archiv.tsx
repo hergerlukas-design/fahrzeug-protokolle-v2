@@ -737,8 +737,10 @@ function ProtocolSignSheet({
   const disclaimer = isTransfer ? t('ueberfuehrung.sig_disclaimer') : t('annahme.sig_disclaimer')
   // Same rule as the full wizard: a transfer becomes final only with BOTH driver and
   // receiver signatures — with the driver signature alone it stays a draft. Intake
-  // protocols become final with the creator signature.
-  const willBeFinal = isTransfer ? hasSig && hasSigReceiver : hasSig
+  // protocols become final with the creator signature. A receiver signature already
+  // stored on the draft counts too, so we don't force re-signing it.
+  const hasStoredReceiverSig = !!protocol.condition_data?.photos?.signature_receiver
+  const willBeFinal = isTransfer ? hasSig && (hasSigReceiver || hasStoredReceiverSig) : hasSig
 
   async function handleComplete() {
     if (!hasSig || !canvasRef.current) return
@@ -752,10 +754,10 @@ function ProtocolSignSheet({
         canvasRef.current.toDataURL('image/png')
       )
       const photos: Record<string, string> = {
-        ...protocol.condition_data.photos,
+        ...(protocol.condition_data?.photos ?? {}),
         signature: driverUrl,
       }
-      const condition_data: ProtocolConditionData = { ...protocol.condition_data }
+      let receiver_name = protocol.condition_data?.receiver_name
       if (isTransfer && hasSigReceiver && canvasRefReceiver.current) {
         photos.signature_receiver = await uploadSignature(
           protocol.vehicle_id,
@@ -763,9 +765,18 @@ function ProtocolSignSheet({
           canvasRefReceiver.current.toDataURL('image/png'),
           'signature_receiver'
         )
-        if (receiverName.trim()) condition_data.receiver_name = receiverName.trim()
+        if (receiverName.trim()) receiver_name = receiverName.trim()
       }
-      condition_data.photos = photos
+      // Fall back to a valid empty shape if the row has no condition_data yet.
+      const condition_data: ProtocolConditionData = {
+        battery: 0,
+        conditions: [],
+        damage_records: [],
+        checkliste: DEFAULT_CHECKLISTE,
+        ...(protocol.condition_data ?? {}),
+        photos,
+        receiver_name,
+      }
       const status: 'final' | 'draft' = willBeFinal ? 'final' : 'draft'
       const payload: ProtocolPayload = {
         vehicle_id: protocol.vehicle_id,
@@ -851,7 +862,7 @@ function ProtocolSignSheet({
             ? t('archiv.sign_complete')
             : t('archiv.sign_save_draft')}
         </button>
-        {isTransfer && hasSig && !hasSigReceiver && (
+        {isTransfer && hasSig && !willBeFinal && (
           <p className="text-xs text-center text-gray-400 mt-2">{t('archiv.sign_draft_hint')}</p>
         )}
       </div>
