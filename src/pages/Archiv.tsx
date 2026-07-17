@@ -1,14 +1,22 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   FileText, Archive as ArchiveIcon, AlertTriangle, X, ArrowLeft, Trash2,
-  RotateCcw, Folder, Pencil, ClipboardList, Car,
+  RotateCcw, Folder, Pencil, ClipboardList, Car, FileSignature,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import PdfButton from '../components/PdfButton'
+import SignatureCanvas from '../components/SignatureCanvas'
 import type { PdfData } from '../lib/generatePdf'
-import { DEFAULT_CHECKLISTE, deleteProtocol, type ProtocolConditionData } from '../lib/protocols'
+import {
+  DEFAULT_CHECKLISTE,
+  deleteProtocol,
+  updateProtocol,
+  uploadSignature,
+  type ProtocolConditionData,
+  type ProtocolPayload,
+} from '../lib/protocols'
 import { SkeletonList } from '../components/Skeleton'
 import {
   fetchArchivedProjectsWithCounts,
@@ -96,6 +104,7 @@ export default function Archiv() {
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [signProtocol, setSignProtocol] = useState<ProtocolRow | null>(null)
 
   // ── Archived projects state ───────────────────────────────────────────────
   const [archivedProjects, setArchivedProjects] = useState<ProjectWithCount[]>([])
@@ -557,6 +566,16 @@ export default function Archiv() {
               />
             </div>
 
+            {/* Signieren (nur Entwürfe) */}
+            {selected.status === 'draft' && (
+              <button
+                onClick={() => setSignProtocol(selected)}
+                className="w-full py-2.5 rounded-xl bg-brand-600 text-white text-sm font-semibold active:bg-brand-700 flex items-center justify-center gap-1.5"
+              >
+                <FileSignature size={15} /> {t('archiv.sign_button')}
+              </button>
+            )}
+
             {/* Bearbeiten */}
             <button
               onClick={() => {
@@ -653,6 +672,18 @@ export default function Archiv() {
           </div>
         </div>
       )}
+
+      {/* ── Quick-Sign Sheet ─────────────────────────────────────────────────── */}
+      {signProtocol && (
+        <ProtocolSignSheet
+          protocol={signProtocol}
+          onClose={() => setSignProtocol(null)}
+          onSigned={(updates) => {
+            setProtocols(prev => prev.map(p => p.id === signProtocol.id ? { ...p, ...updates } : p))
+            if (selected?.id === signProtocol.id) setSelected(prev => prev ? { ...prev, ...updates } : prev)
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -675,6 +706,155 @@ function Field({ label, value }: { label: string; value: string }) {
     <div className="flex justify-between py-1.5 border-b border-gray-200 last:border-0 gap-2">
       <span className="text-xs text-gray-500 shrink-0">{label}</span>
       <span className="text-sm font-medium text-gray-800 text-right break-all">{value || '—'}</span>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Quick-Sign Sheet — finish a draft with just a signature, without the full wizard
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ProtocolSignSheet({
+  protocol,
+  onClose,
+  onSigned,
+}: {
+  protocol: ProtocolRow
+  onClose: () => void
+  onSigned: (updates: Partial<ProtocolRow>) => void
+}) {
+  const { t, i18n } = useTranslation()
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const canvasRefReceiver = useRef<HTMLCanvasElement>(null)
+  const [hasSig, setHasSig] = useState(false)
+  const [hasSigReceiver, setHasSigReceiver] = useState(false)
+  const [receiverName, setReceiverName] = useState(protocol.condition_data?.receiver_name ?? '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const isTransfer = protocol.protocol_type === 'transfer'
+  const driverTitle = isTransfer ? t('ueberfuehrung.section_driver_sig') : t('annahme.section_signature')
+  const disclaimer = isTransfer ? t('ueberfuehrung.sig_disclaimer') : t('annahme.sig_disclaimer')
+  // Same rule as the full wizard: a transfer becomes final only with BOTH driver and
+  // receiver signatures — with the driver signature alone it stays a draft. Intake
+  // protocols become final with the creator signature.
+  const willBeFinal = isTransfer ? hasSig && hasSigReceiver : hasSig
+
+  async function handleComplete() {
+    if (!hasSig || !canvasRef.current) return
+    setSaving(true)
+    setError(null)
+    try {
+      const sessionKey = Date.now().toString()
+      const driverUrl = await uploadSignature(
+        protocol.vehicle_id,
+        sessionKey,
+        canvasRef.current.toDataURL('image/png')
+      )
+      const photos: Record<string, string> = {
+        ...protocol.condition_data.photos,
+        signature: driverUrl,
+      }
+      const condition_data: ProtocolConditionData = { ...protocol.condition_data }
+      if (isTransfer && hasSigReceiver && canvasRefReceiver.current) {
+        photos.signature_receiver = await uploadSignature(
+          protocol.vehicle_id,
+          sessionKey,
+          canvasRefReceiver.current.toDataURL('image/png'),
+          'signature_receiver'
+        )
+        if (receiverName.trim()) condition_data.receiver_name = receiverName.trim()
+      }
+      condition_data.photos = photos
+      const status: 'final' | 'draft' = willBeFinal ? 'final' : 'draft'
+      const payload: ProtocolPayload = {
+        vehicle_id: protocol.vehicle_id,
+        inspector_name: protocol.inspector_name,
+        location: protocol.location,
+        odometer: protocol.odometer,
+        fuel_level: protocol.fuel_level,
+        remarks: protocol.remarks,
+        inspection_date: protocol.inspection_date,
+        status,
+        protocol_type: protocol.protocol_type,
+        condition_data,
+      }
+      await updateProtocol(protocol.id, payload)
+      onSigned({ status, condition_data })
+      onClose()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('common.error'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40">
+      <div className="w-full max-w-sm bg-white rounded-t-2xl max-h-[90dvh] overflow-y-auto pt-3 px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-base font-semibold text-gray-800">{t('archiv.sign_sheet_title')}</p>
+          <button onClick={onClose} className="p-1 text-gray-400 active:text-gray-600" aria-label={t('common.cancel')}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="bg-gray-50 rounded-xl p-3 mb-4 space-y-1">
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-semibold text-gray-800 truncate">{protocol.vehicles?.license_plate ?? '—'}</span>
+            <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${
+              isTransfer ? 'bg-green-100 text-green-700' : 'bg-brand-100 text-brand-700'
+            }`}>
+              {isTransfer ? t('archiv.transfer') : t('archiv.intake')}
+            </span>
+          </div>
+          <p className="text-xs text-gray-500 truncate">{protocol.vehicles?.brand_model ?? '—'}</p>
+          <p className="text-xs text-gray-500">
+            {protocol.inspector_name} · {formatDate(protocol.inspection_date, i18n.language)}
+          </p>
+        </div>
+
+        {error && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-start gap-2 mb-3">
+            <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" /> {error}
+          </div>
+        )}
+
+        {/* Fahrer / Ersteller */}
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{driverTitle}</p>
+        <p className="text-xs text-gray-500 mb-2">{disclaimer}</p>
+        <SignatureCanvas canvasRef={canvasRef} onHasStroke={setHasSig} />
+
+        {/* Empfänger (nur Überführung, Pflicht) */}
+        {isTransfer && (
+          <>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 mt-5">{t('ueberfuehrung.section_receiver')}</p>
+            <input
+              type="text"
+              value={receiverName}
+              onChange={(e) => setReceiverName(e.target.value)}
+              placeholder={t('ueberfuehrung.receiver_placeholder')}
+              className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-green-400"
+            />
+            <SignatureCanvas canvasRef={canvasRefReceiver} onHasStroke={setHasSigReceiver} />
+          </>
+        )}
+
+        <button
+          onClick={handleComplete}
+          disabled={!hasSig || saving}
+          className="w-full mt-4 py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm disabled:opacity-50 active:bg-brand-700"
+        >
+          {saving
+            ? t('archiv.sign_saving')
+            : willBeFinal
+            ? t('archiv.sign_complete')
+            : t('archiv.sign_save_draft')}
+        </button>
+        {isTransfer && hasSig && !hasSigReceiver && (
+          <p className="text-xs text-center text-gray-400 mt-2">{t('archiv.sign_draft_hint')}</p>
+        )}
+      </div>
     </div>
   )
 }
