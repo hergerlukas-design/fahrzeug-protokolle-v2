@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom'
 import BottomNav from './BottomNav'
 import OfflineIndicator from './OfflineIndicator'
 import InstallBanner from './InstallBanner'
+import UpdateBanner from './UpdateBanner'
 import OnboardingOverlay from './OnboardingOverlay'
 import CreateWizard from './CreateWizard'
 
@@ -11,6 +12,7 @@ export default function Layout() {
       <OnboardingOverlay />
       <OfflineIndicator />
       <InstallBanner />
+      <UpdateBanner />
       <CreateWizard />
       <main className="flex-1 overflow-y-auto pt-[env(safe-area-inset-top)]">
         <Outlet />

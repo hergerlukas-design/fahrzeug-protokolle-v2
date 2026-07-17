@@ -72,6 +72,10 @@
     "ios_tip_title": "Add to Home Screen",
     "ios_tip_body": "Tap <bold>Share</bold> (□↑) → <bold>\"Add to Home Screen\"</bold>"
   },
+  "update_banner": {
+    "message": "New version available",
+    "refresh": "Refresh"
+  },
   "offline": {
     "no_internet": "No internet – data is saved locally",
     "pending_one": "({{count}} pending)",
