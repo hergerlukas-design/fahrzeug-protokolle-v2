@@ -331,7 +331,7 @@
     "save_draft": "Save as draft",
     "saving": "Saving...",
     "offline_hint": "No internet — data will be stored locally and synced automatically.",
-    "no_sig_hint": "Without signature → Status: Draft",
+    "no_sig_hint": "Without both signatures → Status: Draft",
     "creator_required": "Inspector is a required field.",
     "no_vehicle_error": "No vehicle selected. Please start from the vehicle list.",
     "save_error": "Save failed.",
@@ -589,7 +589,13 @@
     "project_error": "Error.",
     "project_vehicle_count_one": "{{count}} vehicle",
     "project_vehicle_count_other": "{{count}} vehicles",
-    "archived_at": "archived {{date}}"
+    "archived_at": "archived {{date}}",
+    "sign_button": "Sign",
+    "sign_sheet_title": "Sign protocol",
+    "sign_saving": "Saving…",
+    "sign_complete": "Complete",
+    "sign_save_draft": "Save as draft",
+    "sign_draft_hint": "Saved as a draft without the receiver's signature."
   },
   "pdf": {
     "title_annahme": "Vehicle Intake Protocol",

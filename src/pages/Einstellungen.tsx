@@ -215,7 +215,7 @@ export default function Einstellungen() {
   }
 
   return (
-    <div className="block min-h-full bg-gray-50">
+    <div className="block min-h-full bg-gray-50 pb-[calc(1rem+4rem+env(safe-area-inset-bottom))]">
       <div className="sticky top-0 z-10 bg-white">
         {/* Header */}
         <div className="border-b border-gray-200 px-4 pt-4 pb-3">

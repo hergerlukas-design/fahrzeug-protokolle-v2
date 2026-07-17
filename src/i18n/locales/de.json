@@ -331,7 +331,7 @@
     "save_draft": "Als Entwurf speichern",
     "saving": "Wird gespeichert …",
     "offline_hint": "Kein Internet — Daten werden lokal gespeichert und automatisch synchronisiert.",
-    "no_sig_hint": "Ohne Unterschrift → Status: Entwurf",
+    "no_sig_hint": "Ohne beide Unterschriften → Status: Entwurf",
     "creator_required": "Ersteller ist ein Pflichtfeld.",
     "no_vehicle_error": "Kein Fahrzeug ausgewählt. Bitte von der Fahrzeugliste starten.",
     "save_error": "Speichern fehlgeschlagen.",
@@ -589,7 +589,13 @@
     "project_error": "Fehler.",
     "project_vehicle_count_one": "{{count}} Fahrzeug",
     "project_vehicle_count_other": "{{count}} Fahrzeuge",
-    "archived_at": "archiviert {{date}}"
+    "archived_at": "archiviert {{date}}",
+    "sign_button": "Signieren",
+    "sign_sheet_title": "Protokoll signieren",
+    "sign_saving": "Wird gespeichert …",
+    "sign_complete": "Fertigstellen",
+    "sign_save_draft": "Als Entwurf speichern",
+    "sign_draft_hint": "Ohne Empfänger-Unterschrift wird als Entwurf gespeichert."
   },
   "pdf": {
     "title_annahme": "Fahrzeug-Annahmeprotokoll",

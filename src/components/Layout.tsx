@@ -7,12 +7,12 @@ import CreateWizard from './CreateWizard'
 
 export default function Layout() {
   return (
-    <div className="flex flex-col h-dvh bg-gray-50 max-w-2xl mx-auto">
+    <div className="flex flex-col h-dvh bg-gray-50 w-full max-w-2xl mx-auto">
       <OnboardingOverlay />
       <OfflineIndicator />
       <InstallBanner />
       <CreateWizard />
-      <main className="flex-1 overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom))]">
+      <main className="flex-1 overflow-y-auto pt-[env(safe-area-inset-top)]">
         <Outlet />
       </main>
       <BottomNav />

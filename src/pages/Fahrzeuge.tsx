@@ -479,6 +479,7 @@ function ProjectKartei({
   const [search, setSearch] = useState('')
   const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const suppressTapRef = useRef(false)
+  const touchStartPos = useRef<{ x: number; y: number } | null>(null)
 
   function startLongPress(p: Project) {
     longPressRef.current = setTimeout(() => {
@@ -488,7 +489,31 @@ function ProjectKartei({
   }
 
   function cancelLongPress() {
-    if (longPressRef.current) clearTimeout(longPressRef.current)
+    if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null }
+  }
+
+  function handleTouchStart(p: Project, e: React.TouchEvent) {
+    const touch = e.touches[0]
+    touchStartPos.current = { x: touch.clientX, y: touch.clientY }
+    startLongPress(p)
+  }
+
+  // Small tolerance so natural finger jitter while holding doesn't cancel the long-press
+  function handleTouchMove(e: React.TouchEvent) {
+    const start = touchStartPos.current
+    if (!start) return
+    const touch = e.touches[0]
+    if (Math.abs(touch.clientX - start.x) > 10 || Math.abs(touch.clientY - start.y) > 10) {
+      cancelLongPress()
+    }
+  }
+
+  // Swallow the synthetic click iOS fires after touchend — otherwise it lands on the
+  // context-menu overlay that just mounted in the same spot and closes it instantly.
+  function handleTouchEnd(e: React.TouchEvent) {
+    cancelLongPress()
+    touchStartPos.current = null
+    if (suppressTapRef.current) e.preventDefault()
   }
 
   function handleSearchChange(val: string) {
@@ -549,9 +574,9 @@ function ProjectKartei({
                     if (suppressTapRef.current) { suppressTapRef.current = false; return }
                     onSelectProject(p)
                   }}
-                  onTouchStart={() => startLongPress(p)}
-                  onTouchEnd={cancelLongPress}
-                  onTouchMove={cancelLongPress}
+                  onTouchStart={(e) => handleTouchStart(p, e)}
+                  onTouchEnd={handleTouchEnd}
+                  onTouchMove={handleTouchMove}
                   onMouseDown={() => startLongPress(p)}
                   onMouseUp={cancelLongPress}
                   onMouseLeave={cancelLongPress}
@@ -616,7 +641,7 @@ function ProjectKartei({
           onEdit={() => onEditProject(contextMenu)}
           onArchive={() => onArchiveProject(contextMenu)}
           onDelete={() => onDeleteProject(contextMenu)}
-          onClose={() => setContextMenu(null)}
+          onClose={() => { suppressTapRef.current = false; setContextMenu(null) }}
         />
       )}
     </div>
