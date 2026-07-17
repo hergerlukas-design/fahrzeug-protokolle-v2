@@ -768,14 +768,17 @@ function ProtocolSignSheet({
         if (receiverName.trim()) receiver_name = receiverName.trim()
       }
       // Fall back to a valid empty shape if the row has no condition_data yet.
-      const condition_data: ProtocolConditionData = {
+      const base: ProtocolConditionData = protocol.condition_data ?? {
         battery: 0,
+        photos: {},
         conditions: [],
         damage_records: [],
         checkliste: DEFAULT_CHECKLISTE,
-        ...(protocol.condition_data ?? {}),
+      }
+      const condition_data: ProtocolConditionData = {
+        ...base,
         photos,
-        receiver_name,
+        ...(receiver_name ? { receiver_name } : {}),
       }
       const status: 'final' | 'draft' = willBeFinal ? 'final' : 'draft'
       const payload: ProtocolPayload = {
