@@ -72,6 +72,10 @@
     "ios_tip_title": "Zum Homescreen hinzufügen",
     "ios_tip_body": "Tippe auf Teilen dann Zum Home-Bildschirm"
   },
+  "update_banner": {
+    "message": "Neue Version verfügbar",
+    "refresh": "Aktualisieren"
+  },
   "offline": {
     "no_internet": "Kein Internet – Daten werden lokal gespeichert",
     "pending_one": "({{count}} ausstehend)",
