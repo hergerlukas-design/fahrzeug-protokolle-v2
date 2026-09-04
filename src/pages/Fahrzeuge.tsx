@@ -461,7 +461,9 @@ function ProjectKartei({
   onEditProject,
   onArchiveProject,
   onDeleteProject,
+  search,
   onSearch,
+  onSelectSearchVehicle,
 }: {
   projects: ProjectWithCount[]
   noneCount: number
@@ -472,11 +474,12 @@ function ProjectKartei({
   onEditProject: (p: Project) => void
   onArchiveProject: (p: Project) => void
   onDeleteProject: (p: Project) => void
+  search: string
   onSearch: (term: string) => void
+  onSelectSearchVehicle: (v: Vehicle) => void
 }) {
   const { t } = useTranslation()
   const [contextMenu, setContextMenu] = useState<Project | null>(null)
-  const [search, setSearch] = useState('')
   const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const suppressTapRef = useRef(false)
   const touchStartPos = useRef<{ x: number; y: number } | null>(null)
@@ -516,11 +519,6 @@ function ProjectKartei({
     if (suppressTapRef.current) e.preventDefault()
   }
 
-  function handleSearchChange(val: string) {
-    setSearch(val)
-    onSearch(val)
-  }
-
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -543,14 +541,16 @@ function ProjectKartei({
           <input
             type="search"
             value={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
+            onChange={(e) => onSearch(e.target.value)}
             placeholder={t('projects.search_placeholder')}
             className="w-full border border-gray-300 rounded-xl pl-9 pr-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
       </div>
 
-      {/* Only show project cards when not searching */}
+      {/* While searching, the results replace the project cards – the search
+          field above stays mounted so typing (and the keyboard) is never
+          interrupted. */}
       {!search && (
         <div className="flex-1 overflow-y-auto px-4 pt-4 pb-[calc(1rem+4rem+env(safe-area-inset-bottom))] space-y-3">
           {loading ? (
@@ -633,6 +633,10 @@ function ProjectKartei({
             </>
           )}
         </div>
+      )}
+
+      {search && (
+        <GlobalSearchResults search={search} onSelect={onSelectSearchVehicle} />
       )}
 
       {contextMenu && (
@@ -1138,11 +1142,9 @@ function VehicleList({
 function GlobalSearchResults({
   search,
   onSelect,
-  onBack,
 }: {
   search: string
   onSelect: (v: Vehicle) => void
-  onBack: () => void
 }) {
   const { t } = useTranslation()
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
@@ -1185,15 +1187,10 @@ function GlobalSearchResults({
     : []
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-brand-600 text-sm font-medium mb-2">
-          <ArrowLeft size={16} /> {t('common.back')}
-        </button>
-        <p className="text-sm text-gray-500">
-          {loading ? t('common.loading') : t('vehicles.results_count', { count: filtered.length })}
-        </p>
-      </div>
+    <div className="flex-1 flex flex-col min-h-0">
+      <p className="text-xs text-gray-400 px-4 pt-3 pb-1">
+        {loading ? t('common.loading') : t('vehicles.results_count', { count: filtered.length })}
+      </p>
       <div className="flex-1 overflow-y-auto pb-[calc(1rem+4rem+env(safe-area-inset-bottom))]">
         {loading ? (
           <SkeletonList count={3} />
@@ -1976,7 +1973,7 @@ function DeleteConfirm({ vehicle, onConfirm, onCancel, deleting }: { vehicle: Ve
 // Main page
 // ─────────────────────────────────────────────────────────────────────────────
 
-type View = 'projects' | 'list' | 'detail' | 'search'
+type View = 'projects' | 'list' | 'detail'
 
 export default function Fahrzeuge() {
   const { t } = useTranslation()
@@ -2064,6 +2061,7 @@ export default function Fahrzeuge() {
 
   function handleBackToProjects() {
     setView('projects')
+    setGlobalSearch('')
     setActiveProject(undefined)
     setVehicles([])
     loadProjects()
@@ -2148,11 +2146,6 @@ export default function Fahrzeuge() {
 
   function handleGlobalSearch(term: string) {
     setGlobalSearch(term)
-    if (term) {
-      setView('search')
-    } else {
-      setView('projects')
-    }
   }
 
   function handleSearchVehicleSelect(v: Vehicle) {
@@ -2188,15 +2181,9 @@ export default function Fahrzeuge() {
           onEditProject={(p) => { setEditProjectTarget(p); setShowProjectForm(true) }}
           onArchiveProject={(p) => setProjectArchiveTarget(p)}
           onDeleteProject={(p) => setProjectDeleteTarget(p)}
-          onSearch={handleGlobalSearch}
-        />
-      )}
-
-      {view === 'search' && (
-        <GlobalSearchResults
           search={globalSearch}
-          onSelect={handleSearchVehicleSelect}
-          onBack={() => { setView('projects'); setGlobalSearch('') }}
+          onSearch={handleGlobalSearch}
+          onSelectSearchVehicle={handleSearchVehicleSelect}
         />
       )}
 
@@ -2228,7 +2215,7 @@ export default function Fahrzeuge() {
         <VehicleDetail
           vehicle={selected}
           onBack={view === 'detail' && activeProject === undefined && globalSearch
-            ? () => { setView('search'); setSelected(null) }
+            ? () => { setView('projects'); setSelected(null) }
             : handleBackToList
           }
           onEdit={handleEdit}
