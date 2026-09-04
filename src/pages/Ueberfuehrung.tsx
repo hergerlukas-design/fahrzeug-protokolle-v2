@@ -23,6 +23,7 @@ import { OFFLINE_SAVED_EVENT } from '../components/OfflineIndicator'
 import PdfButton from '../components/PdfButton'
 import CarDamageSelector from '../components/CarDamageSelector'
 import SignatureCanvas from '../components/SignatureCanvas'
+import PhotoSourceSheet from '../components/PhotoSourceSheet'
 import type { PdfData } from '../lib/generatePdf'
 import { updateVehicle, updateVehicleKnownDamages, type DamageRecord } from '../lib/vehicles'
 
@@ -913,29 +914,13 @@ export default function Ueberfuehrung() {
       </Card>
 
       {photoPickerKey && (
-        <div className="fixed inset-0 z-[60] flex items-end" onClick={() => setPhotoPickerKey(null)}>
-          <div className="w-full bg-white rounded-t-2xl p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <p className="text-sm font-medium text-gray-700 text-center mb-3">
-              {t('annahme.photo_picker_label', { label: t(`photo_labels.${photoPickerKey}`, { defaultValue: PHOTO_LABELS[photoPickerKey] }) })}
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => { const k = photoPickerKey; setPhotoPickerKey(null); cameraPhotoFileRefs.current[k].current?.click() }}
-                className="py-3 rounded-xl bg-green-50 border border-green-200 text-green-700 font-medium text-sm active:bg-green-100 flex items-center justify-center gap-1.5"
-              >
-                <Camera size={16} /> {t('damage.camera')}
-              </button>
-              <button
-                type="button"
-                onClick={() => { const k = photoPickerKey; setPhotoPickerKey(null); photoFileRefs.current[k].current?.click() }}
-                className="py-3 rounded-xl bg-gray-50 border border-gray-200 text-gray-700 font-medium text-sm active:bg-gray-100 flex items-center justify-center gap-1.5"
-              >
-                <Image size={16} /> {t('damage.gallery')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <PhotoSourceSheet
+          title={t('annahme.photo_picker_label', { label: t(`photo_labels.${photoPickerKey}`, { defaultValue: PHOTO_LABELS[photoPickerKey] }) })}
+          accent="green"
+          onCamera={() => { const k = photoPickerKey; setPhotoPickerKey(null); cameraPhotoFileRefs.current[k].current?.click() }}
+          onGallery={() => { const k = photoPickerKey; setPhotoPickerKey(null); photoFileRefs.current[k].current?.click() }}
+          onClose={() => setPhotoPickerKey(null)}
+        />
       )}
       </>
       )}
