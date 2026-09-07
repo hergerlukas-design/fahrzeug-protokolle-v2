@@ -10,6 +10,7 @@ import {
   PROJECT_COLORS,
   type Project,
 } from '../lib/projects'
+import { errorText } from '../lib/supabase'
 import { fetchVehicles, createVehicle, getVehiclePhotoUrl, type Vehicle } from '../lib/vehicles'
 
 export const CREATE_EVENT = 'vp-open-create'
@@ -150,7 +151,7 @@ function NewVehicleStep({ onBack, onClose }: { onBack: () => void; onClose: () =
         },
       })
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : t('create_wizard.create_error'))
+      setError(errorText(err, t('create_wizard.create_error')))
       setSaving(false)
     }
   }
@@ -354,7 +355,7 @@ function ProjektStep({ onBack, onClose }: { onBack: () => void; onClose: () => v
       onClose()
       navigate('/fahrzeuge')
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : t('create_wizard.save_failed'))
+      setError(errorText(err, t('create_wizard.save_failed')))
       setSaving(false)
     }
   }

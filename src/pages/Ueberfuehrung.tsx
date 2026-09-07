@@ -19,6 +19,7 @@ import {
   type OfflineEntry,
   updateProtocol,
 } from '../lib/protocols'
+import { errorText } from '../lib/supabase'
 import { OFFLINE_SAVED_EVENT } from '../components/OfflineIndicator'
 import PdfButton from '../components/PdfButton'
 import CarDamageSelector from '../components/CarDamageSelector'
@@ -654,7 +655,7 @@ export default function Ueberfuehrung() {
       })
       setSuccess(true)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : t('ueberfuehrung.save_error'))
+      setError(errorText(err, t('ueberfuehrung.save_error')))
     } finally {
       setSaving(false)
     }

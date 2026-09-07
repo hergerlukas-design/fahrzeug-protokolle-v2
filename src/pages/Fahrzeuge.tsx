@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { supabase } from '../lib/supabase'
+import { supabase, errorText } from '../lib/supabase'
 import {
   Sparkles, Droplets, Fuel, Zap, CircleCheck, Navigation,
   Folder, FolderOpen, Search, Plus, ChevronRight, ArrowLeft,
@@ -188,7 +188,7 @@ function ProjectForm({
       }
       onSave(saved)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : t('projects.saving'))
+      setError(errorText(err, t('projects.saving')))
       setSaving(false)
     }
   }
@@ -723,7 +723,7 @@ function NewVehicleFlow({
         },
       })
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : t('create_wizard.create_error'))
+      setError(errorText(err, t('create_wizard.create_error')))
       setSaving(false)
     }
   }
@@ -1307,7 +1307,7 @@ function VehicleProjectSection({
       setAddDropdownOpen(false)
       onProjectsChanged?.()
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('common.error'))
+      setError(errorText(e, t('common.error')))
     } finally {
       setSavingId(null)
     }
@@ -1330,7 +1330,7 @@ function VehicleProjectSection({
       setRemoveConfirm(null)
       onProjectsChanged?.()
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('common.error'))
+      setError(errorText(e, t('common.error')))
     } finally {
       setSavingId(null)
     }
@@ -1504,7 +1504,7 @@ function VehicleDetail({
     try {
       await updateVehicleStatus(vehicle.id, patch)
     } catch (e) {
-      setStatusError(e instanceof Error ? e.message : t('common.error'))
+      setStatusError(errorText(e, t('common.error')))
     }
   }
 
@@ -1563,7 +1563,7 @@ function VehicleDetail({
       onDamagesChange(updated)
       closeForm()
     } catch (e: unknown) {
-      setDmgError(e instanceof Error ? e.message : t('common.error'))
+      setDmgError(errorText(e, t('common.error')))
     } finally {
       setDmgSaving(false)
     }
@@ -1576,7 +1576,7 @@ function VehicleDetail({
       setDamages(updated)
       onDamagesChange(updated)
     } catch (e: unknown) {
-      setDmgError(e instanceof Error ? e.message : t('common.error'))
+      setDmgError(errorText(e, t('common.error')))
     }
   }
 
@@ -1888,7 +1888,7 @@ function VehicleForm({
       }
       onSave(saved)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : t('common.error'))
+      setError(errorText(err, t('common.error')))
       setSaving(false)
     }
   }
@@ -2034,7 +2034,7 @@ export default function Fahrzeuge() {
       setNoneCount(nc)
       setAllProjects(ap)
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(errorText(e, t('common.error')))
     } finally {
       setProjectsLoading(false)
     }
@@ -2049,7 +2049,7 @@ export default function Fahrzeuge() {
         : await fetchVehiclesForProject(project.id)
       setVehicles(data as Vehicle[])
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('common.error'))
+      setError(errorText(e, t('common.error')))
     } finally {
       setVehiclesLoading(false)
     }
@@ -2118,7 +2118,7 @@ export default function Fahrzeuge() {
       await loadVehiclesForProject(activeProject ?? null)
       await loadProjects()
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : t('common.error'))
+      setError(errorText(e, t('common.error')))
       setShowDelete(false)
     } finally {
       setDeleting(false)
@@ -2135,7 +2135,7 @@ export default function Fahrzeuge() {
       setProjectArchiveTarget(null)
       await loadProjects()
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('common.error'))
+      setError(errorText(e, t('common.error')))
     } finally {
       setProjectActionLoading(false)
     }
@@ -2149,7 +2149,7 @@ export default function Fahrzeuge() {
       setProjectDeleteTarget(null)
       await loadProjects()
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('common.error'))
+      setError(errorText(e, t('common.error')))
     } finally {
       setProjectActionLoading(false)
     }
