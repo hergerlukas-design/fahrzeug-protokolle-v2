@@ -172,11 +172,14 @@ function LevelSlider({
 function DamageRow({
   item,
   index,
+  markers,
   onUpdate,
   onRemove,
 }: {
   item: DamageFormItem
   index: number
+  /** Positions of the other damages in this protocol — marked in the diagram. */
+  markers: string[]
   onUpdate: (key: string, fields: Partial<DamageFormItem>) => void
   onRemove: (key: string) => void
 }) {
@@ -207,6 +210,7 @@ function DamageRow({
       <CarDamageSelector
         value={item.pos || null}
         onChange={(pos) => onUpdate(item.key, { pos })}
+        markers={markers}
       />
       <div className="grid grid-cols-2 gap-2">
         <select
@@ -875,7 +879,14 @@ export default function Annahme() {
           </div>
         ) : (
           damages.map((d, i) => (
-            <DamageRow key={d.key} item={d} index={i} onUpdate={updateDamage} onRemove={removeDamage} />
+            <DamageRow
+              key={d.key}
+              item={d}
+              index={i}
+              markers={damages.filter((_, j) => j !== i).map((o) => o.pos).filter(Boolean)}
+              onUpdate={updateDamage}
+              onRemove={removeDamage}
+            />
           ))
         )}
         <button

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
@@ -10,6 +10,7 @@ import {
   Check, X, ChevronUp, ChevronDown,
 } from 'lucide-react'
 import { SkeletonList } from '../components/Skeleton'
+import CarDamageSelector from '../components/CarDamageSelector'
 import {
   fetchVehicles,
   createVehicle,
@@ -43,7 +44,7 @@ import {
   type Project,
   type ProjectWithCount,
 } from '../lib/projects'
-import { DAMAGE_POSITIONS, DAMAGE_TYPES, DAMAGE_INTENSITIES } from '../lib/protocols'
+import { DAMAGE_TYPES, DAMAGE_INTENSITIES } from '../lib/protocols'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared UI helpers
@@ -1483,6 +1484,13 @@ function VehicleDetail({
   const [dmgSaving, setDmgSaving] = useState(false)
   const [dmgError, setDmgError] = useState<string | null>(null)
 
+  // Positions of the other known damages — marked red in the diagram so an
+  // already reported spot is visible while a new damage is being added.
+  const otherDamagePositions = useMemo(
+    () => damages.filter((_, i) => i !== editIdx).map((d) => d.pos),
+    [damages, editIdx]
+  )
+
   const [statusInnen, setStatusInnen] = useState<string>(vehicle.cleanliness_interior ?? 'schmutzig')
   const [statusAussen, setStatusAussen] = useState<string>(vehicle.cleanliness_exterior ?? 'schmutzig')
   const [isFueled, setIsFueled] = useState<boolean>(vehicle.is_fueled ?? false)
@@ -1675,9 +1683,9 @@ function VehicleDetail({
               <div key={i} className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-sm text-gray-700">
                 <div className="flex items-center gap-2">
                   <span className="flex-1 flex items-center flex-wrap gap-x-1.5 gap-y-0.5">
-                    <MapPin size={12} className="text-gray-400" /> {d.pos} ·
-                    <Wrench size={12} className="text-gray-400" /> {d.type} ·
-                    <AlertTriangle size={12} className="text-gray-400" /> {d.int}
+                    <MapPin size={12} className="text-gray-400" /> {t(`damage.positions.${d.pos}`, { defaultValue: d.pos })} ·
+                    <Wrench size={12} className="text-gray-400" /> {t(`damage.types.${d.type}`, { defaultValue: d.type })} ·
+                    <AlertTriangle size={12} className="text-gray-400" /> {t(`damage.intensities.${d.int}`, { defaultValue: d.int })}
                   </span>
                   <button type="button" onClick={() => openEdit(i)} className="text-gray-400 hover:text-gray-600 active:text-gray-800 p-1 flex-shrink-0" aria-label={t('common.edit')}><Pencil size={15} /></button>
                   <button type="button" onClick={() => handleDamageDelete(i)} className="text-red-400 hover:text-red-600 active:text-red-800 p-1 flex-shrink-0" aria-label={t('common.delete')}><Trash2 size={15} /></button>
@@ -1693,10 +1701,12 @@ function VehicleDetail({
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
                   {editIdx !== null ? t('vehicles.damage_edit') : t('vehicles.damage_new')}
                 </p>
-                <select value={formPos} onChange={(e) => setFormPos(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400">
-                  <option value="">{t('damage_selector.title')} …</option>
-                  {DAMAGE_POSITIONS.map((p) => <option key={p} value={p}>{p}</option>)}
-                </select>
+                <CarDamageSelector
+                  value={formPos || null}
+                  onChange={setFormPos}
+                  markers={otherDamagePositions}
+                  inline
+                />
                 <div className="grid grid-cols-2 gap-2">
                   <select value={formType} onChange={(e) => setFormType(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400">
                     <option value="">{t('damage_selector.type_placeholder', { defaultValue: 'Type …' })}</option>
