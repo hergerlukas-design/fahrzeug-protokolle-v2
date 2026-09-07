@@ -377,7 +377,8 @@
       "Felge vorne": "Rim|front",
       "Felge hinten": "Rim|rear",
       "Kennzeichen vorne": "Plate|front",
-      "Kennzeichen hinten": "Plate|rear"
+      "Kennzeichen hinten": "Plate|rear",
+      "Innenraum": "Inte-|rior"
     },
     "positions": {
       "Motorhaube": "Bonnet",
@@ -417,7 +418,8 @@
       "Felge / Reifen vorne links": "Front left wheel / tyre",
       "Felge / Reifen hinten links": "Rear left wheel / tyre",
       "Felge / Reifen vorne rechts": "Front right wheel / tyre",
-      "Felge / Reifen hinten rechts": "Rear right wheel / tyre"
+      "Felge / Reifen hinten rechts": "Rear right wheel / tyre",
+      "Innenraum": "Interior"
     },
     "types": {
       "Kratzer": "Scratch",
@@ -542,7 +544,8 @@
     "empty_deleted_other": "{{count}} empty drafts deleted.",
     "empty_error": "Error deleting.",
     "empty_search_error": "Error searching.",
-    "no_name": "(no name)"
+    "no_name": "(no name)",
+    "check_update": "Check for updates"
   },
   "archiv": {
     "title": "Archive & Management",

@@ -377,7 +377,8 @@
       "Felge vorne": "Felge|vorne",
       "Felge hinten": "Felge|hinten",
       "Kennzeichen vorne": "KZ|vorne",
-      "Kennzeichen hinten": "KZ|hinten"
+      "Kennzeichen hinten": "KZ|hinten",
+      "Innenraum": "Innen-|raum"
     },
     "positions": {
       "Motorhaube": "Motorhaube",
@@ -417,7 +418,8 @@
       "Felge / Reifen vorne links": "Felge / Reifen vorne links",
       "Felge / Reifen hinten links": "Felge / Reifen hinten links",
       "Felge / Reifen vorne rechts": "Felge / Reifen vorne rechts",
-      "Felge / Reifen hinten rechts": "Felge / Reifen hinten rechts"
+      "Felge / Reifen hinten rechts": "Felge / Reifen hinten rechts",
+      "Innenraum": "Innenraum"
     },
     "types": {
       "Kratzer": "Kratzer",
@@ -542,7 +544,8 @@
     "empty_deleted_other": "{{count}} leere Entwürfe gelöscht.",
     "empty_error": "Fehler beim Löschen.",
     "empty_search_error": "Fehler bei der Suche.",
-    "no_name": "(kein Name)"
+    "no_name": "(kein Name)",
+    "check_update": "Aktualisieren"
   },
   "archiv": {
     "title": "Archiv & Verwaltung",

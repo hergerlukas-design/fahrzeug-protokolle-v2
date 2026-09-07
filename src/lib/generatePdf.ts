@@ -115,6 +115,8 @@ const DAMAGE_POSITIONS_EN: Record<string, string> = {
   'Felge vorne rechts': 'Front right rim',
   'Reifen hinten rechts': 'Rear right tyre',
   'Felge hinten rechts': 'Rear right rim',
+  // Interior
+  'Innenraum': 'Interior',
   // Legacy (kept for existing records)
   'Felge / Reifen vorne links': 'Front left wheel / tyre',
   'Felge / Reifen hinten links': 'Rear left wheel / tyre',
