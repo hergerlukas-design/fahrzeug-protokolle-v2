@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
-  X, Camera, Image, ArrowLeft, ArrowRight, ClipboardList, AlertTriangle,
+  X, Camera, Image, ChevronDown, ChevronRight, ArrowLeft, ArrowRight, ClipboardList, AlertTriangle,
   CheckCircle2, Plus, Save, CloudOff,
 } from 'lucide-react'
 import {
@@ -173,6 +173,8 @@ function DamageRow({
   item,
   index,
   markers,
+  expanded,
+  onToggle,
   onUpdate,
   onRemove,
 }: {
@@ -180,6 +182,9 @@ function DamageRow({
   index: number
   /** Positions of the other damages in this protocol — marked in the diagram. */
   markers: string[]
+  /** Only the damage currently being edited is expanded — the diagram is tall. */
+  expanded: boolean
+  onToggle: (key: string) => void
   onUpdate: (key: string, fields: Partial<DamageFormItem>) => void
   onRemove: (key: string) => void
 }) {
@@ -195,18 +200,48 @@ function DamageRow({
     e.target.value = ''
   }
 
+  // Collapsed rows only show what has been filled in so far.
+  const summary = [
+    item.pos && t(`damage.positions.${item.pos}`, { defaultValue: item.pos }),
+    item.type && t(`damage.types.${item.type}`, { defaultValue: item.type }),
+    item.int && t(`damage.intensities.${item.int}`, { defaultValue: item.int }),
+  ].filter(Boolean).join(' · ')
+
   return (
     <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-gray-500">{t('annahme.damage_label', { count: index + 1 })}</span>
+      <div className="flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => onToggle(item.key)}
+          className="flex-1 flex items-center gap-1.5 min-w-0 text-left"
+        >
+          {expanded
+            ? <ChevronDown size={15} className="text-gray-400 shrink-0" />
+            : <ChevronRight size={15} className="text-gray-400 shrink-0" />}
+          <span className="text-xs font-semibold text-gray-500 shrink-0">
+            {t('annahme.damage_label', { count: index + 1 })}
+          </span>
+          {!expanded && (
+            <>
+              <span className={`text-xs truncate ${summary ? 'text-gray-600' : 'text-gray-400 italic'}`}>
+                {summary || t('annahme.damage_position_placeholder')}
+              </span>
+              {(item.previewUrl || item.photo_url) && (
+                <Camera size={13} className="text-gray-400 shrink-0" />
+              )}
+            </>
+          )}
+        </button>
         <button
           type="button"
           onClick={() => onRemove(item.key)}
-          className="text-red-400 text-sm active:text-red-600 flex items-center gap-1"
+          className="text-red-400 text-sm active:text-red-600 flex items-center gap-1 shrink-0"
         >
           <X size={14} /> {t('annahme.damage_remove')}
         </button>
       </div>
+      {expanded && (
+      <>
       <CarDamageSelector
         value={item.pos || null}
         onChange={(pos) => onUpdate(item.key, { pos })}
@@ -276,6 +311,8 @@ function DamageRow({
         <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFile} />
         <input ref={galleryRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
       </div>
+      </>
+      )}
     </div>
   )
 }
@@ -315,6 +352,9 @@ export default function Annahme() {
         : (d as DamageRecord).photo_url,
     }))
   )
+  // Key of the damage whose form is expanded — one at a time, so a protocol
+  // with several damages stays scrollable on a phone.
+  const [openDamage, setOpenDamage] = useState<string | null>(null)
 
   const [existingPhotos, _setExistingPhotos] = useState<Partial<Record<PhotoKey, string>>>(() => {
     if (!ed?.photos) return {}
@@ -398,7 +438,13 @@ export default function Annahme() {
   }
 
   function addDamage() {
-    setDamages((prev) => [...prev, { key: `d_${Date.now()}`, pos: '', type: '', int: '' }])
+    const key = `d_${Date.now()}`
+    setDamages((prev) => [...prev, { key, pos: '', type: '', int: '' }])
+    setOpenDamage(key)
+  }
+
+  function toggleDamage(key: string) {
+    setOpenDamage((prev) => (prev === key ? null : key))
   }
 
   function updateDamage(key: string, fields: Partial<DamageFormItem>) {
@@ -411,6 +457,7 @@ export default function Annahme() {
       if (item?.previewUrl) URL.revokeObjectURL(item.previewUrl)
       return prev.filter((d) => d.key !== key)
     })
+    setOpenDamage((prev) => (prev === key ? null : prev))
   }
 
   function handleVehiclePhotoChange(pk: PhotoKey, e: React.ChangeEvent<HTMLInputElement>) {
@@ -884,6 +931,8 @@ export default function Annahme() {
               item={d}
               index={i}
               markers={damages.filter((_, j) => j !== i).map((o) => o.pos).filter(Boolean)}
+              expanded={openDamage === d.key}
+              onToggle={toggleDamage}
               onUpdate={updateDamage}
               onRemove={removeDamage}
             />
