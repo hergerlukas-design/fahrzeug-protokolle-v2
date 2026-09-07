@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { X } from 'lucide-react'
 
 // ViewId 'back' aligns with locale key damage_selector.view_back
 type ViewId = 'top' | 'front' | 'back' | 'left' | 'right'
@@ -13,8 +12,6 @@ interface Props {
   onChange: (pos: string) => void
   /** Positions that already have a damage reported — shown as marked zones even when not active. */
   markers?: string[]
-  /** Render the diagram directly instead of behind a bottom sheet (ADE Fleet Manager style). */
-  inline?: boolean
 }
 
 const ZONE_TO_VIEW: Record<string, ViewId> = {
@@ -368,12 +365,11 @@ function RightView({ sel, markers, on, sl }: ViewProps) {
 const VIEW_IDS: ViewId[] = ['top', 'front', 'back', 'left', 'right']
 
 function DamageDiagram({
-  sel, markerSet, onSelect, height,
+  sel, markerSet, onSelect,
 }: {
   sel: string
   markerSet: Set<string>
   onSelect: (pos: string) => void
-  height: number
 }) {
   const { t } = useTranslation()
 
@@ -429,7 +425,7 @@ function DamageDiagram({
       </div>
 
       {/* SVG diagram area — fixed height so all views look the same */}
-      <div className="px-1 py-2 shrink-0" style={{ height }}>
+      <div className="px-1 py-2 shrink-0" style={{ height: 200 }}>
         {activeView === 'top' && <TopView {...viewProps} />}
         {activeView === 'front' && <FrontView {...viewProps} />}
         {activeView === 'back' && <RearView {...viewProps} />}
@@ -457,99 +453,19 @@ function DamageDiagram({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function CarDamageSelector({ value, onChange, markers = [], inline = false }: Props) {
+export default function CarDamageSelector({ value, onChange, markers = [] }: Props) {
   const { t } = useTranslation()
   const sel = value ?? ''   // null → '' for internal use
   const markerSet = useMemo(() => new Set(markers), [markers])
 
-  const [open, setOpen] = useState(false)
-
-  // Translate the stored German key for display; fall back to key itself
-  const displayLabel = sel
-    ? t(`damage.positions.${sel}`, { defaultValue: sel })
-    : t('annahme.damage_position_placeholder')
-
-  if (inline) {
-    return (
-      <div className="space-y-2">
-        <DamageDiagram sel={sel} markerSet={markerSet} onSelect={onChange} height={200} />
-        {sel && (
-          <p className="text-xs text-amber-700 font-medium px-1">
-            ✓ {t(`damage.positions.${sel}`, { defaultValue: sel })}
-          </p>
-        )}
-      </div>
-    )
-  }
-
-  function handleSelect(pos: string) {
-    onChange(pos)
-    setOpen(false)
-  }
-
   return (
-    <>
-      {/* Trigger button */}
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className={`w-full flex items-center justify-between border rounded-lg px-3 py-2.5 text-sm bg-white transition-colors ${
-          sel
-            ? 'border-brand-400 text-gray-900'
-            : 'border-gray-300 text-gray-400'
-        }`}
-      >
-        <span className={sel ? 'font-medium' : ''}>{displayLabel}</span>
-        <svg className="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
-        </svg>
-      </button>
-
-      {/* Bottom sheet */}
-      {open && (
-        <div className="fixed inset-0 z-[60] flex flex-col justify-end">
-          {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
-
-          {/* Sheet */}
-          <div className="relative bg-white rounded-t-2xl shadow-xl flex flex-col" style={{ maxHeight: '88vh' }}>
-            {/* Drag handle */}
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 bg-gray-300 rounded-full" />
-            </div>
-
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 pb-2">
-              <h3 className="text-base font-semibold text-gray-900">
-                {t('damage_selector.title')}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 active:bg-gray-100"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="px-3 pb-3">
-              <DamageDiagram sel={sel} markerSet={markerSet} onSelect={handleSelect} height={240} />
-            </div>
-
-            {/* Selected position indicator */}
-            {sel && (
-              <div className="px-4 py-3 border-t border-gray-100 bg-amber-50 shrink-0">
-                <p className="text-sm text-amber-800">
-                  {t('damage_selector.selected')}:{' '}
-                  <span className="font-semibold">
-                    {t(`damage.positions.${sel}`, { defaultValue: sel })}
-                  </span>
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </>
+    <div className="space-y-2">
+      <DamageDiagram sel={sel} markerSet={markerSet} onSelect={onChange} />
+      <p className={`text-xs font-medium px-1 ${sel ? 'text-amber-700' : 'text-gray-400'}`}>
+        {sel
+          ? `✓ ${t(`damage.positions.${sel}`, { defaultValue: sel })}`
+          : t('annahme.damage_position_placeholder')}
+      </p>
+    </div>
   )
 }
