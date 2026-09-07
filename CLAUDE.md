@@ -47,6 +47,28 @@ VITE_SUPABASE_KEY=dein-anon-public-key
 VITE_APP_PASSWORD=dein-pin
 ```
 
+## Deploy
+
+Ein Push auf `main` löst den Workflow `.github/workflows/deploy.yml` aus, der
+über den Fly-Remote-Builder baut und deployt. Nötig sind die Repository-Secrets
+`FLY_API_TOKEN`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_KEY` und
+`VITE_APP_PASSWORD` (Settings → Secrets and variables → Actions); fehlt eines,
+bricht der Workflow mit einer entsprechenden Meldung ab.
+
+Die `VITE_*`-Werte stehen bewusst **nicht** in der `fly.toml`, weil sie ins
+Client-Bundle kompiliert werden. Ein Deploy von Hand braucht sie deshalb als
+Build-Args:
+
+```bash
+flyctl deploy --remote-only \
+  --build-arg VITE_SUPABASE_URL="$VITE_SUPABASE_URL" \
+  --build-arg VITE_SUPABASE_KEY="$VITE_SUPABASE_KEY" \
+  --build-arg VITE_APP_PASSWORD="$VITE_APP_PASSWORD"
+```
+
+Ohne die Build-Args entsteht ein Bundle ohne Supabase-Zugang, bei dem auch der
+Login nicht funktioniert.
+
 ## Datenbank-Migrationen
 
 Neue Migrationen liegen unter `supabase/migrations/`. Nach einem neuen
