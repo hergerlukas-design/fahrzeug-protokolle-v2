@@ -5,7 +5,7 @@ import {
   FileText, Archive as ArchiveIcon, AlertTriangle, X, ArrowLeft, Trash2,
   RotateCcw, Folder, Pencil, ClipboardList, Car, FileSignature,
 } from 'lucide-react'
-import { supabase } from '../lib/supabase'
+import { supabase, errorText } from '../lib/supabase'
 import PdfButton from '../components/PdfButton'
 import SignatureCanvas from '../components/SignatureCanvas'
 import type { PdfData } from '../lib/generatePdf'
@@ -128,7 +128,7 @@ export default function Archiv() {
         if (match) setSelected(match)
       }
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : t('common.error'))
+      setError(errorText(e, t('common.error')))
     } finally {
       setLoading(false)
     }
@@ -143,7 +143,7 @@ export default function Archiv() {
       const data = await fetchArchivedProjectsWithCounts()
       setArchivedProjects(data)
     } catch (e) {
-      setProjectMsg({ ok: false, text: e instanceof Error ? e.message : t('common.error') })
+      setProjectMsg({ ok: false, text: errorText(e, t('common.error')) })
     } finally {
       setProjectsLoading(false)
     }
@@ -161,7 +161,7 @@ export default function Archiv() {
       setArchivedProjects((prev) => prev.filter((p) => p.id !== id))
       setProjectMsg({ ok: true, text: t('archiv.project_reactivated') })
     } catch (e) {
-      setProjectMsg({ ok: false, text: e instanceof Error ? e.message : t('archiv.project_error') })
+      setProjectMsg({ ok: false, text: errorText(e, t('archiv.project_error')) })
     } finally {
       setProjectActionId(null)
     }
@@ -185,7 +185,7 @@ export default function Archiv() {
       setArchivedProjects((prev) => prev.filter((p) => p.id !== id))
       setProjectMsg({ ok: true, text: t('archiv.project_deleted') })
     } catch (e) {
-      setProjectMsg({ ok: false, text: e instanceof Error ? e.message : t('archiv.project_error') })
+      setProjectMsg({ ok: false, text: errorText(e, t('archiv.project_error')) })
     } finally {
       setProjectActionId(null)
     }
@@ -203,7 +203,7 @@ export default function Archiv() {
       setDeleteId(null)
     } catch (e: unknown) {
       console.error('handleDelete:', e)
-      setDeleteError(e instanceof Error ? e.message : t('common.error'))
+      setDeleteError(errorText(e, t('common.error')))
       setDeleteId(null)
     } finally {
       setDeleting(false)
@@ -797,7 +797,7 @@ function ProtocolSignSheet({
       onSigned({ status, condition_data })
       onClose()
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('common.error'))
+      setError(errorText(e, t('common.error')))
     } finally {
       setSaving(false)
     }

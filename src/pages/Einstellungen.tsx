@@ -7,7 +7,7 @@ import {
   ChevronDown, Copy, Eraser, RefreshCw,
 } from 'lucide-react'
 import { logout, changePin } from '../lib/auth'
-import { supabase } from '../lib/supabase'
+import { supabase, errorText } from '../lib/supabase'
 import { syncOffline, getPendingOffline } from '../lib/protocols'
 import { TUTORIAL_EVENT } from '../components/OnboardingOverlay'
 
@@ -157,7 +157,7 @@ export default function Einstellungen() {
         setDupMsg({ ok: true, text: t('settings.dup_none') })
       }
     } catch (err: unknown) {
-      setDupMsg({ ok: false, text: err instanceof Error ? err.message : t('settings.dup_search_error') })
+      setDupMsg({ ok: false, text: errorText(err, t('settings.dup_search_error')) })
     } finally {
       setDupSearching(false)
     }
@@ -175,7 +175,7 @@ export default function Einstellungen() {
       })
       setDupIds(null)
     } catch (err: unknown) {
-      setDupMsg({ ok: false, text: err instanceof Error ? err.message : t('settings.dup_error') })
+      setDupMsg({ ok: false, text: errorText(err, t('settings.dup_error')) })
     } finally {
       setDupDeleting(false)
     }
@@ -213,7 +213,7 @@ export default function Einstellungen() {
         setEmptyMsg({ ok: true, text: t('settings.empty_none') })
       }
     } catch (err: unknown) {
-      setEmptyMsg({ ok: false, text: err instanceof Error ? err.message : t('settings.empty_search_error') })
+      setEmptyMsg({ ok: false, text: errorText(err, t('settings.empty_search_error')) })
     } finally {
       setEmptySearching(false)
     }
@@ -232,7 +232,7 @@ export default function Einstellungen() {
       })
       setEmptyRows(null)
     } catch (err: unknown) {
-      setEmptyMsg({ ok: false, text: err instanceof Error ? err.message : t('settings.empty_error') })
+      setEmptyMsg({ ok: false, text: errorText(err, t('settings.empty_error')) })
     } finally {
       setEmptyDeleting(false)
     }
