@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import {
   Globe, GraduationCap, ChevronRight, Info, LogOut, Scale, Lock,
   UploadCloud, CheckCircle2, Archive, Folder, KeyRound, ChevronUp,
-  ChevronDown, Copy, Eraser,
+  ChevronDown, Copy, Eraser, RefreshCw,
 } from 'lucide-react'
 import { logout, changePin } from '../lib/auth'
 import { supabase } from '../lib/supabase'
@@ -33,6 +33,30 @@ export default function Einstellungen() {
   const { t, i18n } = useTranslation()
   const isEN = i18n.language.startsWith('en')
   const [activeTab, setActiveTab] = useState<'einstellungen' | 'verwaltung'>('einstellungen')
+
+  // ── App-Update ───────────────────────────────────────────────────────────
+  const [checking, setChecking] = useState(false)
+
+  /**
+   * Holt den Service Worker neu, wirft die Caches weg und lädt die App neu.
+   * Der UpdateBanner meldet sich nur, wenn der Browser von selbst ein Update
+   * bemerkt — hierüber lässt es sich manuell anstoßen.
+   */
+  async function checkForUpdate() {
+    setChecking(true)
+    try {
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.getRegistration()
+        await reg?.update()
+      }
+      if ('caches' in window) {
+        const keys = await caches.keys()
+        await Promise.all(keys.map((k) => caches.delete(k)))
+      }
+    } finally {
+      window.location.reload()
+    }
+  }
 
   // ── PIN ──────────────────────────────────────────────────────────────────
   const [pinSection, setPinSection] = useState(false)
@@ -316,7 +340,7 @@ export default function Einstellungen() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">{t('settings.version_label')}</span>
-                  <span>1.7.0</span>
+                  <span>{__APP_VERSION__}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">{t('settings.operator_label')}</span>
@@ -327,6 +351,14 @@ export default function Einstellungen() {
                   <span>React + Supabase + PWA</span>
                 </div>
               </div>
+              <button
+                onClick={checkForUpdate}
+                disabled={checking}
+                className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 active:bg-gray-50 disabled:opacity-50"
+              >
+                <RefreshCw size={15} className={checking ? 'animate-spin' : ''} />
+                {t('settings.check_update')}
+              </button>
             </div>
 
             {/* Abmelden */}

@@ -544,7 +544,8 @@
     "empty_deleted_other": "{{count}} leere Entwürfe gelöscht.",
     "empty_error": "Fehler beim Löschen.",
     "empty_search_error": "Fehler bei der Suche.",
-    "no_name": "(kein Name)"
+    "no_name": "(kein Name)",
+    "check_update": "Aktualisieren"
   },
   "archiv": {
     "title": "Archiv & Verwaltung",

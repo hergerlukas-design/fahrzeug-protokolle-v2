@@ -544,7 +544,8 @@
     "empty_deleted_other": "{{count}} empty drafts deleted.",
     "empty_error": "Error deleting.",
     "empty_search_error": "Error searching.",
-    "no_name": "(no name)"
+    "no_name": "(no name)",
+    "check_update": "Check for updates"
   },
   "archiv": {
     "title": "Archive & Management",
