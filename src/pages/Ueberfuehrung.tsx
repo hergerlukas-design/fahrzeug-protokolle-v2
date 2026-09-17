@@ -21,6 +21,7 @@ import {
 } from '../lib/protocols'
 import { errorText } from '../lib/supabase'
 import { OFFLINE_SAVED_EVENT } from '../components/OfflineIndicator'
+import PageHeader from '../components/PageHeader'
 import PdfButton from '../components/PdfButton'
 import CarDamageSelector from '../components/CarDamageSelector'
 import SignatureCanvas from '../components/SignatureCanvas'
@@ -734,25 +735,17 @@ export default function Ueberfuehrung() {
   return (
     <div className="block min-h-full bg-gray-50 pb-[calc(1rem+4rem+env(safe-area-inset-bottom))]">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10">
-        <div className="flex items-center gap-2 mb-2">
-          <button
-            type="button"
-            onClick={goBack}
-            className="p-1 -ml-1 text-gray-500 hover:text-gray-800 flex-shrink-0"
-          >
-            <ArrowLeft size={20} />
-          </button>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-base font-bold text-gray-900 truncate flex items-center gap-1.5">
-              <Car size={16} className="text-gray-400 flex-shrink-0" /> {ed ? t('ueberfuehrung.edit_title') : t('ueberfuehrung.title')}
-            </h1>
-            <p className="text-xs text-gray-500 truncate">{prefill.license_plate}</p>
-          </div>
+      <PageHeader
+        onBack={goBack}
+        icon={<Car size={16} className="text-gray-400 flex-shrink-0" />}
+        title={ed ? t('ueberfuehrung.edit_title') : t('ueberfuehrung.title')}
+        subtitle={prefill.license_plate}
+        right={
           <span className="text-xs font-medium text-gray-400 flex-shrink-0">
             {t('common.step_of', { current: step + 1, total: totalSteps })}
           </span>
-        </div>
+        }
+      >
         <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
           <div
             className="h-full bg-green-600 rounded-full transition-all duration-300"
@@ -760,7 +753,7 @@ export default function Ueberfuehrung() {
           />
         </div>
         <p className="text-sm font-semibold text-gray-700 mt-2">{stepTitles[step]}</p>
-      </div>
+      </PageHeader>
 
       {/* Error */}
       {error && (

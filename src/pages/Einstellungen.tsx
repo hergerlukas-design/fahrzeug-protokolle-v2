@@ -9,6 +9,7 @@ import {
 import { logout, changePin } from '../lib/auth'
 import { supabase, errorText } from '../lib/supabase'
 import { syncOffline, getPendingOffline } from '../lib/protocols'
+import PageHeader from '../components/PageHeader'
 import { TUTORIAL_EVENT } from '../components/OnboardingOverlay'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -240,40 +241,36 @@ export default function Einstellungen() {
 
   return (
     <div className="block min-h-full bg-gray-50 pb-[calc(1rem+4rem+env(safe-area-inset-bottom))]">
-      <div className="sticky top-0 z-10 bg-white">
-        {/* Header */}
-        <div className="border-b border-gray-200 px-4 pt-4 pb-3">
-          <div className="flex items-center gap-2.5">
-            <img src="/logo.webp" alt="" className="w-6 h-6 object-contain flex-shrink-0" onError={(e) => (e.currentTarget.style.display = 'none')} />
-            <h1 className="text-lg font-bold text-gray-800">{t('nav.settings')}</h1>
+      <PageHeader
+        title={t('nav.settings')}
+        below={
+          /* Sub-Tab Bar – edge to edge, so it sits outside the padded block */
+          <div className="border-b border-gray-200 flex">
+            <button
+              type="button"
+              onClick={() => setActiveTab('einstellungen')}
+              className={`flex-1 py-3 text-sm font-semibold transition-colors border-b-2 ${
+                activeTab === 'einstellungen'
+                  ? 'text-brand-600 border-brand-600'
+                  : 'text-gray-500 border-transparent'
+              }`}
+            >
+              {t('settings.tab_settings')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('verwaltung')}
+              className={`flex-1 py-3 text-sm font-semibold transition-colors border-b-2 ${
+                activeTab === 'verwaltung'
+                  ? 'text-brand-600 border-brand-600'
+                  : 'text-gray-500 border-transparent'
+              }`}
+            >
+              {t('settings.tab_admin')}
+            </button>
           </div>
-        </div>
-        {/* Sub-Tab Bar */}
-        <div className="border-b border-gray-200 flex">
-        <button
-          type="button"
-          onClick={() => setActiveTab('einstellungen')}
-          className={`flex-1 py-3 text-sm font-semibold transition-colors border-b-2 ${
-            activeTab === 'einstellungen'
-              ? 'text-brand-600 border-brand-600'
-              : 'text-gray-500 border-transparent'
-          }`}
-        >
-          {t('settings.tab_settings')}
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('verwaltung')}
-          className={`flex-1 py-3 text-sm font-semibold transition-colors border-b-2 ${
-            activeTab === 'verwaltung'
-              ? 'text-brand-600 border-brand-600'
-              : 'text-gray-500 border-transparent'
-          }`}
-        >
-          {t('settings.tab_admin')}
-        </button>
-        </div>
-      </div>
+        }
+      />
 
       <div className="p-4 max-w-lg mx-auto w-full">
         {/* ── Tab: Einstellungen ── */}

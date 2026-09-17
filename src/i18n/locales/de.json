@@ -26,7 +26,9 @@
   "nav": {
     "projects": "Projekte",
     "create": "Erstellen",
-    "settings": "Einstellungen"
+    "settings": "Einstellungen",
+    "menu": "Menü",
+    "archive": "Archiv"
   },
   "login": {
     "subtitle": "Team-Login",

@@ -15,6 +15,10 @@ import { fetchVehicles, createVehicle, getVehiclePhotoUrl, type Vehicle } from '
 
 export const CREATE_EVENT = 'vp-open-create'
 
+/** Navigating to /fahrzeuge does not remount the page when it is already open,
+ *  so the project list has to be told that a new project exists. */
+export const PROJECT_CREATED_EVENT = 'vp-project-created'
+
 type Step = 'root' | 'protokoll' | 'new-vehicle' | 'existing-vehicle' | 'projekt'
 
 function VehicleAvatar({ vehicleId, size = 40 }: { vehicleId: string; size?: number }) {
@@ -354,6 +358,7 @@ function ProjektStep({ onBack, onClose }: { onBack: () => void; onClose: () => v
       await createProject({ name, description, color: color || undefined })
       onClose()
       navigate('/fahrzeuge')
+      window.dispatchEvent(new CustomEvent(PROJECT_CREATED_EVENT))
     } catch (err: unknown) {
       setError(errorText(err, t('create_wizard.save_failed')))
       setSaving(false)
