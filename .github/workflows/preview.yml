@@ -59,23 +59,15 @@ jobs:
             exit 1
           fi
 
-      # Die App wird einmalig von Hand angelegt, nicht vom Workflow:
+      # Bewusst keine eigene Vorprüfung, ob die App existiert: ein
+      # vorgeschaltetes "flyctl status" kann nicht unterscheiden, ob die App
+      # fehlt oder ob der Token sie nur nicht sehen darf, und verdeckt dabei
+      # die aussagekräftige Meldung von flyctl. Der Deploy sagt es selbst.
+      #
+      # Einmalige Einrichtung, falls die App noch nicht existiert:
       #   fly apps create fahrzeug-protokolle-v2-preview
       #   fly tokens create deploy -a fahrzeug-protokolle-v2-preview
-      - name: Vorschau-App vorhanden?
-        run: |
-          if ! flyctl status --app "$PREVIEW_APP" >/dev/null 2>&1; then
-            echo "Die App $PREVIEW_APP ist nicht erreichbar." >&2
-            echo "" >&2
-            echo "Einmalig anlegen und einen Deploy-Token dafür erzeugen:" >&2
-            echo "" >&2
-            echo "  fly apps create $PREVIEW_APP" >&2
-            echo "  fly tokens create deploy -a $PREVIEW_APP" >&2
-            echo "" >&2
-            echo "Den Token als Secret FLY_API_TOKEN_PREVIEW hinterlegen." >&2
-            exit 1
-          fi
-
+      #   -> Token als Secret FLY_API_TOKEN_PREVIEW hinterlegen
       - name: Deploy
         # Eine eigene PIN für die Vorschau ist optional: ist das Secret
         # VITE_APP_PASSWORD_PREVIEW nicht gesetzt, gilt die produktive.
