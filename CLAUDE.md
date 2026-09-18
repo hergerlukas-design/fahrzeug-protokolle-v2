@@ -71,32 +71,39 @@ Login nicht funktioniert.
 
 ## Vorschau-Umgebung für Pull Requests
 
-Jeder Pull Request bekommt über `.github/workflows/preview.yml` eine eigene
-Fly-App:
+Jeder Pull Request wird über `.github/workflows/preview.yml` auf **eine feste,
+gemeinsame** Fly-App deployt:
 
 ```
-https://fahrzeug-protokolle-v2-pr-<Nummer>.fly.dev
+https://fahrzeug-protokolle-v2-preview.fly.dev
 ```
 
 Die URL kommentiert die Action an den PR; bei jedem weiteren Push wird
-derselbe Kommentar aktualisiert. Beim Schließen des PR wird die App zerstört.
+derselbe Kommentar aktualisiert.
 
-Zu wissen:
+### Einmalige Einrichtung
 
+```bash
+fly apps create fahrzeug-protokolle-v2-preview
+fly tokens create deploy -a fahrzeug-protokolle-v2-preview
+```
+
+Den Token als Secret `FLY_API_TOKEN_PREVIEW` hinterlegen (Settings → Secrets
+and variables → Actions). Der produktive Deploy benutzt weiterhin
+`FLY_API_TOKEN`.
+
+### Zu wissen
+
+- **Eine App für alle PRs.** Bei mehreren gleichzeitig offenen PRs
+  überschreibt der neuere Push den älteren; der PR-Kommentar nennt den Stand.
+  Bewusst so: eine App pro PR müsste der Workflow selbst anlegen, und ein
+  Token mit dieser Berechtigung öffnet das gesamte Fly-Konto.
 - Die Vorschau nutzt **dieselbe Supabase-Datenbank** wie die produktive App.
   Dort angelegte Daten sind echt.
 - Sie läuft mit `min_machines_running = 0` (`fly.preview.toml`) und fährt nach
   einiger Zeit ohne Zugriff herunter. Der nächste Aufruf dauert dann länger.
-- **Nötig ist ein organisationsweiter Fly-Token.** Der vorhandene
-  `FLY_API_TOKEN` ist ein Deploy-Token und gilt nur für die App, für die er
-  erzeugt wurde — er darf keine neuen Apps anlegen. Einmalig erzeugen mit
-  `fly tokens create org` und als Secret `FLY_API_TOKEN_PREVIEW` hinterlegen.
-  Der produktive Deploy benutzt weiterhin `FLY_API_TOKEN`.
 - Optional lässt sich eine abweichende PIN als Secret
   `VITE_APP_PASSWORD_PREVIEW` hinterlegen; ohne das Secret gilt die produktive.
-- Die Organisation wird automatisch ermittelt. Nur falls das fehlschlägt, die
-  Repository-Variable `FLY_ORG` setzen (Settings → Secrets and variables →
-  Actions → Variables).
 - PRs aus Forks bekommen keine Vorschau — GitHub gibt dort keine Secrets frei.
 
 ## Datenbank-Migrationen

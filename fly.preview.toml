@@ -1,7 +1,8 @@
 # fly.preview.toml — Vorschau-Apps für Pull Requests
 #
-# Der App-Name hier ist nur ein Platzhalter: der Workflow überschreibt ihn je
-# PR mit --app fahrzeug-protokolle-v2-pr-<Nummer>.
+# Alle PRs teilen sich diese eine App. Sie wird einmalig von Hand angelegt:
+#
+#   fly apps create fahrzeug-protokolle-v2-preview
 #
 # Einziger echter Unterschied zur produktiven fly.toml ist
 # min_machines_running = 0. Eine Vorschau darf zwischen den Tests vollständig

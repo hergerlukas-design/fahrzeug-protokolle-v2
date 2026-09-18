@@ -1,16 +1,26 @@
 name: Vorschau-Deploy für Pull Requests
 
-# Jeder PR bekommt eine eigene Fly-App unter
-# https://fahrzeug-protokolle-v2-pr-<Nummer>.fly.dev
-# Beim Schließen des PR wird sie wieder zerstört.
+# Alle PRs teilen sich eine feste Vorschau-App:
+# https://fahrzeug-protokolle-v2-preview.fly.dev
+#
+# Bewusst nicht eine App pro PR: dafür müsste der Workflow Apps anlegen
+# dürfen, und ein Token mit dieser Berechtigung öffnet das ganze Fly-Konto.
+# Eine feste App kommt mit einem gewöhnlichen Deploy-Token aus – derselben
+# Rechtestufe wie der produktive Deploy.
+#
+# Preis: bei mehreren gleichzeitig offenen PRs überschreibt der neuere Push
+# den älteren. Welcher Stand gerade liegt, sagt der PR-Kommentar.
 on:
   pull_request:
-    types: [opened, synchronize, reopened, closed]
+    types: [opened, synchronize, reopened]
+
+env:
+  PREVIEW_APP: fahrzeug-protokolle-v2-preview
 
 # Mehrere Pushes auf denselben PR: der neueste gewinnt, ältere Läufe werden
 # abgebrochen. Anders als beim Produktiv-Deploy ist das hier erwünscht.
 concurrency:
-  group: fly-preview-${{ github.event.number }}
+  group: fly-preview
   cancel-in-progress: true
 
 permissions:
@@ -19,32 +29,20 @@ permissions:
 
 jobs:
   deploy:
-    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
-    # Vorschauen legen neue Apps an – dafür reicht ein auf eine App
-    # beschränkter Deploy-Token nicht. Liegt ein organisationsweiter Token als
-    # FLY_API_TOKEN_PREVIEW vor, wird er bevorzugt.
+    # Aus einem Fork heraus stellt GitHub keine Secrets bereit — ohne sie
+    # entstünde ein Bundle ohne Supabase-Zugang.
+    if: github.event.pull_request.head.repo.full_name == github.repository
     env:
       FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PREVIEW || secrets.FLY_API_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Aus einem Fork heraus stellt GitHub keine Secrets bereit — ohne sie
-      # entstünde ein Bundle ohne Supabase-Zugang. Lieber sauber aussteigen.
-      - name: Fork-PR überspringen
-        if: github.event.pull_request.head.repo.full_name != github.repository
-        run: |
-          echo "PR kommt aus einem Fork – ohne Secrets ist kein Vorschau-Deploy möglich." >> "$GITHUB_STEP_SUMMARY"
-          exit 0
-
       - name: Setup Fly.io CLI
-        if: github.event.pull_request.head.repo.full_name == github.repository
         uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Secrets prüfen
-        if: github.event.pull_request.head.repo.full_name == github.repository
-        # FLY_API_TOKEN kommt aus dem Job-env und ist damit der effektive Token
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
@@ -61,110 +59,53 @@ jobs:
             exit 1
           fi
 
-      - name: Vorschau-App anlegen, falls noch nicht vorhanden
-        if: github.event.pull_request.head.repo.full_name == github.repository
-        env:
-          # Nur nötig, wenn die Organisation nicht automatisch ermittelt werden
-          # kann (Settings -> Secrets and variables -> Actions -> Variables).
-          FLY_ORG: ${{ vars.FLY_ORG }}
+      # Die App wird einmalig von Hand angelegt, nicht vom Workflow:
+      #   fly apps create fahrzeug-protokolle-v2-preview
+      #   fly tokens create deploy -a fahrzeug-protokolle-v2-preview
+      - name: Vorschau-App vorhanden?
         run: |
-          APP="fahrzeug-protokolle-v2-pr-${{ github.event.number }}"
-
-          if flyctl status --app "$APP" >/dev/null 2>&1; then
-            echo "App $APP existiert bereits."
-            exit 0
-          fi
-
-          hinweis_token() {
+          if ! flyctl status --app "$PREVIEW_APP" >/dev/null 2>&1; then
+            echo "Die App $PREVIEW_APP ist nicht erreichbar." >&2
             echo "" >&2
-            echo "Der hinterlegte Fly-Token darf keine Apps anlegen." >&2
-            echo "Ein Deploy-Token gilt nur für die App, für die er erzeugt wurde." >&2
-            echo "Für Vorschauen wird ein organisationsweiter Token gebraucht:" >&2
+            echo "Einmalig anlegen und einen Deploy-Token dafür erzeugen:" >&2
             echo "" >&2
-            echo "  fly tokens create org" >&2
+            echo "  fly apps create $PREVIEW_APP" >&2
+            echo "  fly tokens create deploy -a $PREVIEW_APP" >&2
             echo "" >&2
-            echo "Ergebnis unter Settings -> Secrets and variables -> Actions" >&2
-            echo "als Secret FLY_API_TOKEN_PREVIEW hinterlegen." >&2
-          }
-
-          # Organisation ermitteln statt raten. Scheitert schon das, fehlt dem
-          # Token die Berechtigung auf Organisationsebene.
-          ORG="$FLY_ORG"
-          if [ -z "$ORG" ]; then
-            ORGS_JSON="$(flyctl orgs list --json 2>/dev/null || true)"
-            echo "Organisationen laut flyctl: $ORGS_JSON"
-            # Bevorzugt ein echtes Slug-Feld …
-            ORG="$(printf '%s' "$ORGS_JSON" | jq -r '[.. | objects | (.Slug? // .slug?) | strings] | .[0] // empty' 2>/dev/null || true)"
-            # … sonst die Objektform, bei der der Slug der Schlüssel ist und
-            # der Wert der Anzeigename (bei privaten Konten die E-Mail-Adresse).
-            if [ -z "$ORG" ]; then
-              ORG="$(printf '%s' "$ORGS_JSON" | jq -r 'if type == "object" then (keys_unsorted | .[0] // empty) else empty end' 2>/dev/null || true)"
-            fi
-          fi
-
-          if [ -z "$ORG" ]; then
-            echo "Die Fly-Organisation konnte nicht ermittelt werden." >&2
-            hinweis_token
-            exit 1
-          fi
-
-          echo "Lege App $APP in der Organisation $ORG an."
-          if ! flyctl apps create "$APP" --org "$ORG"; then
-            echo "Anlegen von $APP in '$ORG' fehlgeschlagen." >&2
-            hinweis_token
+            echo "Den Token als Secret FLY_API_TOKEN_PREVIEW hinterlegen." >&2
             exit 1
           fi
 
       - name: Deploy
-        if: github.event.pull_request.head.repo.full_name == github.repository
-        # Eine eigene PIN für Vorschauen ist optional: ist das Secret
+        # Eine eigene PIN für die Vorschau ist optional: ist das Secret
         # VITE_APP_PASSWORD_PREVIEW nicht gesetzt, gilt die produktive.
         run: >-
           flyctl deploy --remote-only
           --config fly.preview.toml
-          --app "fahrzeug-protokolle-v2-pr-${{ github.event.number }}"
+          --app "$PREVIEW_APP"
           --build-arg VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}
           --build-arg VITE_SUPABASE_KEY=${{ secrets.VITE_SUPABASE_KEY }}
           --build-arg VITE_APP_PASSWORD=${{ secrets.VITE_APP_PASSWORD_PREVIEW || secrets.VITE_APP_PASSWORD }}
 
       - name: URL an den PR schreiben
-        if: github.event.pull_request.head.repo.full_name == github.repository
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          URL="https://fahrzeug-protokolle-v2-pr-${{ github.event.number }}.fly.dev"
+          URL="https://${PREVIEW_APP}.fly.dev"
           echo "Vorschau: $URL" >> "$GITHUB_STEP_SUMMARY"
           BODY=$(printf '%s\n' \
             "**Vorschau bereit:** $URL" \
             "" \
-            "Stand: \`${{ github.event.pull_request.head.sha }}\`" \
+            "Aktuell liegt dort der Stand dieses PR (\`${{ github.event.pull_request.head.sha }}\`)." \
+            "Die Vorschau ist für alle PRs dieselbe App — ein Push auf einen" \
+            "anderen PR überschreibt sie." \
             "" \
-            "Die Vorschau greift auf **dieselbe Supabase-Datenbank** zu wie die" \
-            "produktive App — hier angelegte Daten sind echt. Nach ein paar" \
-            "Minuten ohne Zugriff fährt die App herunter, der nächste Aufruf" \
-            "dauert dann etwas länger." \
+            "Sie greift auf **dieselbe Supabase-Datenbank** zu wie die produktive" \
+            "App: hier angelegte Daten sind echt. Nach einiger Zeit ohne Zugriff" \
+            "fährt sie herunter, der nächste Aufruf dauert dann etwas länger." \
             "" \
             "---" \
             "_Generated by [Claude Code](https://claude.ai/code)_")
           # Bei jedem Push denselben Kommentar aktualisieren statt neue anzuhängen
           gh pr comment "${{ github.event.number }}" --body "$BODY" --edit-last \
             || gh pr comment "${{ github.event.number }}" --body "$BODY"
-
-  cleanup:
-    if: github.event.action == 'closed'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Setup Fly.io CLI
-        uses: superfly/flyctl-actions/setup-flyctl@master
-
-      - name: Vorschau-App zerstören
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PREVIEW || secrets.FLY_API_TOKEN }}
-        run: |
-          APP="fahrzeug-protokolle-v2-pr-${{ github.event.number }}"
-          if flyctl status --app "$APP" >/dev/null 2>&1; then
-            flyctl apps destroy "$APP" --yes
-            echo "App $APP zerstört." >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "Keine Vorschau-App $APP vorhanden." >> "$GITHUB_STEP_SUMMARY"
-          fi
