@@ -69,6 +69,31 @@ flyctl deploy --remote-only \
 Ohne die Build-Args entsteht ein Bundle ohne Supabase-Zugang, bei dem auch der
 Login nicht funktioniert.
 
+## Vorschau-Umgebung für Pull Requests
+
+Jeder Pull Request bekommt über `.github/workflows/preview.yml` eine eigene
+Fly-App:
+
+```
+https://fahrzeug-protokolle-v2-pr-<Nummer>.fly.dev
+```
+
+Die URL kommentiert die Action an den PR; bei jedem weiteren Push wird
+derselbe Kommentar aktualisiert. Beim Schließen des PR wird die App zerstört.
+
+Zu wissen:
+
+- Die Vorschau nutzt **dieselbe Supabase-Datenbank** wie die produktive App.
+  Dort angelegte Daten sind echt.
+- Sie läuft mit `min_machines_running = 0` (`fly.preview.toml`) und fährt nach
+  einiger Zeit ohne Zugriff herunter. Der nächste Aufruf dauert dann länger.
+- Optional lässt sich eine abweichende PIN als Secret
+  `VITE_APP_PASSWORD_PREVIEW` hinterlegen; ohne das Secret gilt die produktive.
+- Liegt die Fly-App nicht in der Organisation `personal`, muss die Repository-
+  Variable `FLY_ORG` gesetzt werden (Settings → Secrets and variables →
+  Actions → Variables).
+- PRs aus Forks bekommen keine Vorschau — GitHub gibt dort keine Secrets frei.
+
 ## Datenbank-Migrationen
 
 Neue Migrationen liegen unter `supabase/migrations/`. Nach einem neuen
