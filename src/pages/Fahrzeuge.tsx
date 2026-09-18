@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { supabase, errorText } from '../lib/supabase'
 import {
   Sparkles, Droplets, Fuel, Zap, CircleCheck, Navigation,
-  Folder, FolderOpen, Search, Plus, ChevronRight,
+  Folder, FolderOpen, Route as RouteIcon, Search, Plus, ChevronRight,
   Pencil, Archive, Trash2, AlertTriangle, Car, ClipboardList,
   MapPin, Wrench, Camera, Image, RefreshCw, FileText, BarChart3,
   Check, X, ChevronUp, ChevronDown,
@@ -47,6 +47,7 @@ import {
   type ProjectWithCount,
 } from '../lib/projects'
 import { DAMAGE_TYPES, DAMAGE_INTENSITIES } from '../lib/protocols'
+import { fetchTransfersForVehicle, type Transfer } from '../lib/transfers'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared UI helpers
@@ -1435,6 +1436,69 @@ function VehicleProjectSection({
 // Vehicle detail
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Transfers of a vehicle – read-only overview, managed on /ueberfuehrungen
+// ─────────────────────────────────────────────────────────────────────────────
+
+function VehicleTransferSection({ vehicleId }: { vehicleId: string }) {
+  const { t, i18n } = useTranslation()
+  const navigate = useNavigate()
+  const [transfers, setTransfers] = useState<Transfer[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    fetchTransfersForVehicle(vehicleId)
+      .then((rows) => { if (!cancelled) setTransfers(rows) })
+      .catch(() => { if (!cancelled) setTransfers([]) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [vehicleId])
+
+  if (loading || transfers.length === 0) return null
+
+  const locale = i18n.language.startsWith('en') ? 'en-GB' : 'de-DE'
+  const fmt = (d: string) =>
+    new Date(`${d}T00:00:00`).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' })
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <span className="flex items-center gap-1.5 font-semibold text-gray-800 text-sm">
+          <RouteIcon size={15} className="text-gray-400" /> {t('transfers.title')}
+        </span>
+        <button
+          onClick={() => navigate('/ueberfuehrungen')}
+          className="text-xs font-medium text-brand-600"
+        >
+          {t('vehicles.detail_open')}
+        </button>
+      </div>
+      <ul className="space-y-1.5">
+        {transfers.slice(0, 5).map((tr) => (
+          <li key={tr.id} className="flex items-center gap-2 text-sm">
+            <span
+              className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                tr.status === 'unterwegs' ? 'bg-amber-500'
+                  : tr.status === 'angekommen' ? 'bg-green-500'
+                  : tr.status === 'abgebrochen' ? 'bg-red-400'
+                  : 'bg-gray-300'
+              }`}
+            />
+            <span className="text-gray-700 flex-shrink-0">{fmt(tr.date_from)}</span>
+            <span className="text-gray-500 truncate flex-1 min-w-0">
+              {tr.location_to || t('transfers.no_route')}
+            </span>
+            <span className="text-xs text-gray-400 flex-shrink-0">
+              {t(`transfers.status_${tr.status}`)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 function VehicleDetail({
   vehicle,
   onBack,
@@ -1607,6 +1671,9 @@ function VehicleDetail({
           vehicleId={vehicle.id}
           allProjects={allProjects}
         />
+
+        {/* Transfers of this vehicle */}
+        <VehicleTransferSection vehicleId={vehicle.id} />
 
         {/* Action buttons */}
         <div className="grid grid-cols-2 gap-2">

@@ -47,6 +47,20 @@ export async function fetchVehicles(): Promise<Vehicle[]> {
   return (data ?? []) as Vehicle[]
 }
 
+/** Ein einzelnes Fahrzeug mit allen Feldern, die ein Protokollformular braucht
+ *  – vor allem VIN und die bekannten Vorschäden. */
+export async function fetchVehicleById(id: string): Promise<Vehicle | null> {
+  const { data, error } = await supabase
+    .from('vehicles')
+    .select(
+      'id, license_plate, license_plate_normalized, brand_model, vin, known_damages, cleanliness_interior, cleanliness_exterior, is_fueled, is_charged, availability, current_odometer'
+    )
+    .eq('id', id)
+    .maybeSingle()
+  if (error) throw error
+  return (data ?? null) as Vehicle | null
+}
+
 export async function createVehicle(values: {
   license_plate: string
   brand_model: string

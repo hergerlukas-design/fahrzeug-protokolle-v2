@@ -175,7 +175,10 @@ export async function updateProtocol(id: number, payload: ProtocolPayload): Prom
   if (error) throw error
 }
 
-export async function saveProtocol(payload: ProtocolPayload): Promise<number> {
+/** Liefert die id des neuen Protokolls. protocols.id ist eine uuid – die
+ *  übrigen number-Annotationen in diesem Projekt sind falsch, fallen aber nicht
+ *  auf, weil der Wert dort nur durchgereicht wird. */
+export async function saveProtocol(payload: ProtocolPayload): Promise<string> {
   requireOnline()
   const { data, error } = await supabase
     .from('protocols')
@@ -183,7 +186,7 @@ export async function saveProtocol(payload: ProtocolPayload): Promise<number> {
     .select('id')
     .single()
   if (error) throw error
-  return (data as { id: number }).id
+  return (data as { id: string }).id
 }
 
 /**

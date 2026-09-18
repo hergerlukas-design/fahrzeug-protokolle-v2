@@ -230,7 +230,8 @@
     "deleting": "Deleting …",
     "protocols_section": "Protocols ({{count}})",
     "no_protocols": "No protocols for this vehicle yet.",
-    "results_count": "{{count}} results"
+    "results_count": "{{count}} results",
+    "detail_open": "Open"
   },
   "protocol_type": {
     "transfer": "Transfer",
@@ -268,7 +269,11 @@
     "contact_phone": "Phone",
     "notes": "Notes",
     "overlap_title": "This vehicle is already scheduled in that period:",
-    "delete_title": "Delete transfer?"
+    "delete_title": "Delete transfer?",
+    "protocols": "Protocols",
+    "protocol_pickup": "Pickup protocol",
+    "protocol_dropoff": "Arrival protocol",
+    "create_protocol": "Create {{which}}"
   },
   "annahme": {
     "title": "Intake Protocol",
@@ -385,7 +390,9 @@
     "to_overview": "Overview",
     "receiver_sig_label": "Recipient signature",
     "creator_sig_label": "Inspector signature",
-    "privacy_link": "Privacy policy"
+    "privacy_link": "Privacy policy",
+    "link_failed": "The protocol was saved but could not be linked to the transfer.",
+    "link_offline": "Saved offline. The protocol will sync later, but the link to the transfer is not restored automatically."
   },
   "damage": {
     "remove": "Remove",

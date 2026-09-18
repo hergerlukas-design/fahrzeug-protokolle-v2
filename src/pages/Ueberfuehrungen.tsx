@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   Route as RouteIcon, ChevronDown, ChevronRight, MapPin, User, Phone, StickyNote,
   Car, Search, AlertTriangle, X, Pencil, Trash2, Truck, CheckCircle2, RotateCcw,
+  FileText, FilePlus,
   Sparkles, Droplets, Fuel, Zap, CircleCheck, Navigation,
 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { SkeletonList } from '../components/Skeleton'
 import { errorText } from '../lib/supabase'
-import { fetchVehicles, type Vehicle } from '../lib/vehicles'
+import { fetchVehicles, fetchVehicleById, type Vehicle } from '../lib/vehicles'
 import {
   fetchOpenTransfers,
   fetchClosedTransfers,
@@ -20,6 +21,7 @@ import {
   findOverlappingTransfers,
   type Transfer,
   type TransferStatus,
+  type ProtocolRole,
 } from '../lib/transfers'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -104,6 +106,8 @@ function TransferCard({
   expanded,
   onToggle,
   onStatus,
+  onCreateProtocol,
+  onOpenProtocol,
   onEdit,
   onDelete,
   busy,
@@ -112,6 +116,8 @@ function TransferCard({
   expanded: boolean
   onToggle: () => void
   onStatus: (status: TransferStatus) => void
+  onCreateProtocol: (role: ProtocolRole) => void
+  onOpenProtocol: (protocolId: string) => void
   onEdit: () => void
   onDelete: () => void
   busy: boolean
@@ -186,6 +192,53 @@ function TransferCard({
               <VehicleState vehicle={v} />
             </div>
           )}
+
+          {/* Protokolle dieser Überführung */}
+          <div className="pt-1">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
+              {t('transfers.protocols')}
+            </p>
+            <div className="space-y-1.5">
+              {(['pickup', 'dropoff'] as ProtocolRole[]).map((role) => {
+                const proto = role === 'pickup' ? transfer.pickup_protocol : transfer.dropoff_protocol
+                const label = t(`transfers.protocol_${role}`)
+                if (proto) {
+                  return (
+                    <button
+                      key={role}
+                      onClick={() => onOpenProtocol(proto.id)}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 text-left active:bg-gray-50"
+                    >
+                      <FileText size={15} className="text-gray-400 flex-shrink-0" />
+                      <span className="flex-1 min-w-0 text-sm text-gray-700 truncate">
+                        {label}
+                        <span className="text-gray-400"> · {formatDate(proto.created_at.slice(0, 10), i18n.language)}</span>
+                      </span>
+                      {proto.status === 'draft' && (
+                        <span className="text-[10px] font-semibold uppercase text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                          {t('archiv.draft')}
+                        </span>
+                      )}
+                      <ChevronRight size={15} className="text-gray-300 flex-shrink-0" />
+                    </button>
+                  )
+                }
+                return (
+                  <button
+                    key={role}
+                    onClick={() => onCreateProtocol(role)}
+                    disabled={!v}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-gray-300 text-left active:bg-gray-50 disabled:opacity-50"
+                  >
+                    <FilePlus size={15} className="text-gray-400 flex-shrink-0" />
+                    <span className="flex-1 min-w-0 text-sm text-gray-500 truncate">
+                      {t('transfers.create_protocol', { which: label })}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
 
           {/* Status actions */}
           <div className="flex flex-wrap gap-2 pt-1">
@@ -537,6 +590,7 @@ function DeleteConfirm({
 export default function Ueberfuehrungen() {
   const { t } = useTranslation()
   const loc = useLocation()
+  const navigate = useNavigate()
 
   const [open, setOpen] = useState<Transfer[]>([])
   const [closed, setClosed] = useState<Transfer[]>([])
@@ -590,6 +644,42 @@ export default function Ueberfuehrungen() {
     }
   }
 
+  /**
+   * Startet ein Protokoll für diese Überführung. Das Fahrzeug wird vorher
+   * vollständig nachgeladen: die eingebettete Kurzform trägt weder VIN noch
+   * bekannte Vorschäden, und ohne die verliert das Protokollformular genau die
+   * Vorbelegung, für die es sie sonst mitbringt.
+   */
+  async function handleCreateProtocol(transfer: Transfer, role: ProtocolRole) {
+    setBusyId(transfer.id)
+    setError(null)
+    try {
+      const vehicle = await fetchVehicleById(transfer.vehicle_id)
+      if (!vehicle) throw new Error(t('transfers.vehicle_missing'))
+      navigate('/ueberfuehrung', {
+        state: {
+          vehicle_id: vehicle.id,
+          license_plate: vehicle.license_plate,
+          brand_model: vehicle.brand_model ?? '',
+          vin: vehicle.vin ?? '',
+          known_damages: vehicle.known_damages ?? [],
+          transfer: {
+            id: transfer.id,
+            vehicle_id: transfer.vehicle_id,
+            status: transfer.status,
+            role,
+            driver_name: transfer.driver_name,
+            location_from: transfer.location_from,
+            location_to: transfer.location_to,
+          },
+        },
+      })
+    } catch (e) {
+      setError(errorText(e, t('common.error')))
+      setBusyId(null)
+    }
+  }
+
   async function handleDelete() {
     if (!deleteTarget) return
     setDeleting(true)
@@ -612,6 +702,8 @@ export default function Ueberfuehrungen() {
         expanded={expanded === transfer.id}
         onToggle={() => setExpanded((cur) => (cur === transfer.id ? null : transfer.id))}
         onStatus={(status) => handleStatus(transfer, status)}
+        onCreateProtocol={(role) => handleCreateProtocol(transfer, role)}
+        onOpenProtocol={(protocolId) => navigate('/archiv', { state: { protocol_id: protocolId } })}
         onEdit={() => { setEditTarget(transfer); setFormOpen(true) }}
         onDelete={() => setDeleteTarget(transfer)}
         busy={busyId === transfer.id}

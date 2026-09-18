@@ -230,7 +230,8 @@
     "deleting": "Löscht …",
     "protocols_section": "Protokolle ({{count}})",
     "no_protocols": "Noch keine Protokolle für dieses Fahrzeug.",
-    "results_count": "{{count}} Treffer"
+    "results_count": "{{count}} Treffer",
+    "detail_open": "Öffnen"
   },
   "protocol_type": {
     "transfer": "Überführung",
@@ -268,7 +269,11 @@
     "contact_phone": "Telefon",
     "notes": "Notizen",
     "overlap_title": "Dieses Fahrzeug ist im Zeitraum schon eingeplant:",
-    "delete_title": "Überführung löschen?"
+    "delete_title": "Überführung löschen?",
+    "protocols": "Protokolle",
+    "protocol_pickup": "Abholprotokoll",
+    "protocol_dropoff": "Ankunftsprotokoll",
+    "create_protocol": "{{which}} erstellen"
   },
   "annahme": {
     "title": "Annahmeprotokoll",
@@ -385,7 +390,9 @@
     "to_overview": "Zur Übersicht",
     "receiver_sig_label": "Empfänger-Unterschrift",
     "creator_sig_label": "Ersteller-Unterschrift",
-    "privacy_link": "Datenschutzerklärung"
+    "privacy_link": "Datenschutzerklärung",
+    "link_failed": "Das Protokoll ist gespeichert, konnte aber nicht mit der Überführung verknüpft werden.",
+    "link_offline": "Offline gespeichert. Das Protokoll wird später synchronisiert, die Verknüpfung mit der Überführung aber nicht automatisch nachgetragen."
   },
   "damage": {
     "remove": "Entfernen",

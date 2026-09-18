@@ -20,6 +20,17 @@ export interface TransferVehicle {
   current_odometer: number | null
 }
 
+/** Welche Hälfte der Fahrt ein Protokoll dokumentiert. */
+export type ProtocolRole = 'pickup' | 'dropoff'
+
+export interface LinkedProtocol {
+  id: string
+  created_at: string
+  status: string | null
+  protocol_type: string | null
+  inspector_name: string | null
+}
+
 export interface Transfer {
   id: string
   vehicle_id: string
@@ -40,6 +51,8 @@ export interface Transfer {
   dropoff_protocol_id: string | null
   created_at: string
   vehicle?: TransferVehicle | null
+  pickup_protocol?: LinkedProtocol | null
+  dropoff_protocol?: LinkedProtocol | null
 }
 
 export interface TransferInput {
@@ -54,19 +67,32 @@ export interface TransferInput {
   notes?: string | null
 }
 
+const PROTOCOL_FIELDS = 'id, created_at, status, protocol_type, inspector_name'
+
+// Beide Protokollspalten zeigen auf dieselbe Tabelle – PostgREST braucht
+// deshalb den Constraint-Namen, um die Einbettungen auseinanderzuhalten.
 const SELECT =
   'id, vehicle_id, date_from, date_to, location_from, location_to, status, picked_up_at, arrived_at, ' +
   'driver_name, contact_name, contact_phone, notes, pickup_protocol_id, dropoff_protocol_id, created_at, ' +
-  'vehicle:vehicles(id, license_plate, brand_model, availability, cleanliness_interior, cleanliness_exterior, is_fueled, is_charged, current_odometer)'
+  'vehicle:vehicles(id, license_plate, brand_model, availability, cleanliness_interior, cleanliness_exterior, is_fueled, is_charged, current_odometer), ' +
+  `pickup_protocol:protocols!transfers_pickup_protocol_id_fkey(${PROTOCOL_FIELDS}), ` +
+  `dropoff_protocol:protocols!transfers_dropoff_protocol_id_fkey(${PROTOCOL_FIELDS})`
 
-/**
- * Supabase liefert eine eingebettete 1:n-Beziehung je nach generierten Typen
- * als Objekt oder als einelementiges Array – beides auf ein Objekt bringen.
- */
+/** Eine eingebettete Beziehung kommt je nach generierten Typen als Objekt oder
+ *  als einelementiges Array zurück – beides auf ein Objekt bringen. */
+function one<T>(value: unknown): T | null {
+  if (Array.isArray(value)) return (value[0] ?? null) as T | null
+  return (value ?? null) as T | null
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normalize(row: any): Transfer {
-  const v = Array.isArray(row?.vehicle) ? row.vehicle[0] ?? null : row?.vehicle ?? null
-  return { ...row, vehicle: v } as Transfer
+  return {
+    ...row,
+    vehicle: one<TransferVehicle>(row?.vehicle),
+    pickup_protocol: one<LinkedProtocol>(row?.pickup_protocol),
+    dropoff_protocol: one<LinkedProtocol>(row?.dropoff_protocol),
+  } as Transfer
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -230,6 +256,46 @@ export async function setTransferStatus(
   // Form der PATCH-Antwort.
   await syncVehicleAvailability(vehicleId, status)
   return normalize(data)
+}
+
+/**
+ * Hängt ein frisch gespeichertes Protokoll an die Überführung und zieht den
+ * Status nach: ein Abholprotokoll heißt, die Fahrt läuft, ein Ankunftsprotokoll
+ * heißt, sie ist vorbei.
+ *
+ * Der Status wird dabei nur vorwärts bewegt. Wird ein Abholprotokoll
+ * nachgereicht, obwohl das Fahrzeug längst angekommen ist, bleibt der Status
+ * stehen – sonst würde das Nachtragen eines Belegs die Überführung zurückwerfen.
+ */
+export async function linkProtocolToTransfer(
+  transfer: Pick<Transfer, 'id' | 'vehicle_id' | 'status'>,
+  role: ProtocolRole,
+  protocolId: string
+): Promise<void> {
+  requireOnline()
+  const now = new Date().toISOString()
+  const patch: Record<string, unknown> = {}
+  let nextStatus: TransferStatus | null = null
+
+  if (role === 'pickup') {
+    patch.pickup_protocol_id = protocolId
+    if (transfer.status !== 'unterwegs' && transfer.status !== 'angekommen') {
+      nextStatus = 'unterwegs'
+      patch.picked_up_at = now
+    }
+  } else {
+    patch.dropoff_protocol_id = protocolId
+    if (transfer.status !== 'angekommen') {
+      nextStatus = 'angekommen'
+      patch.arrived_at = now
+    }
+  }
+  if (nextStatus) patch.status = nextStatus
+
+  const { error } = await supabase.from('transfers').update(patch).eq('id', transfer.id)
+  if (error) throw error
+
+  if (nextStatus) await syncVehicleAvailability(transfer.vehicle_id, nextStatus)
 }
 
 /** Verfügbarkeit des Fahrzeugs an den Überführungsstatus angleichen. */
