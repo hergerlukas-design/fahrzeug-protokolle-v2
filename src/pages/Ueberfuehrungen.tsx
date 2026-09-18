@@ -490,34 +490,42 @@ function TransferForm({
             )}
           </div>
 
-          {/* Dates */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+          {/* Zeitpunkte – je eine Zeile für Start und Ende. Datums- und Zeitfeld
+              sehen auf Android gleich aus, deshalb bekommt jedes eine sichtbare
+              Beschriftung statt nur einer für Screenreader. */}
+          <div className="space-y-3">
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-1.5">
                 {t('transfers.date_from')} <span className="text-red-500">*</span>
-              </label>
-              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className={field} />
-              <input
-                type="time"
-                value={timeFrom}
-                onChange={(e) => setTimeFrom(e.target.value)}
-                aria-label={t('transfers.time_from')}
-                className={field}
-              />
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="block text-xs text-gray-400 mb-1">{t('transfers.date_label')}</span>
+                  <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className={field} />
+                </label>
+                <label className="block">
+                  <span className="block text-xs text-gray-400 mb-1">{t('transfers.time_label')}</span>
+                  <input type="time" value={timeFrom} onChange={(e) => setTimeFrom(e.target.value)} className={field} />
+                </label>
+              </div>
             </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('transfers.date_to')}</label>
-              <input type="date" value={dateTo} min={dateFrom} onChange={(e) => setDateTo(e.target.value)} className={field} />
-              <input
-                type="time"
-                value={timeTo}
-                onChange={(e) => setTimeTo(e.target.value)}
-                aria-label={t('transfers.time_to')}
-                className={field}
-              />
+
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-1.5">{t('transfers.date_to')}</p>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="block text-xs text-gray-400 mb-1">{t('transfers.date_label')}</span>
+                  <input type="date" value={dateTo} min={dateFrom} onChange={(e) => setDateTo(e.target.value)} className={field} />
+                </label>
+                <label className="block">
+                  <span className="block text-xs text-gray-400 mb-1">{t('transfers.time_label')}</span>
+                  <input type="time" value={timeTo} onChange={(e) => setTimeTo(e.target.value)} className={field} />
+                </label>
+              </div>
             </div>
+
+            <p className="text-xs text-gray-400">{t('transfers.time_hint')}</p>
           </div>
-          <p className="-mt-2 text-xs text-gray-400">{t('transfers.time_hint')}</p>
 
           {overlaps.length > 0 && (
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm flex items-start gap-2">

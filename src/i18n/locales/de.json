@@ -274,9 +274,9 @@
     "protocol_pickup": "Abholprotokoll",
     "protocol_dropoff": "Ankunftsprotokoll",
     "create_protocol": "{{which}} erstellen",
-    "time_from": "Startzeit",
-    "time_to": "Endzeit",
-    "time_hint": "Uhrzeiten sind optional."
+    "time_hint": "Uhrzeit ist optional – das Datum genügt.",
+    "date_label": "Datum",
+    "time_label": "Uhrzeit"
   },
   "annahme": {
     "title": "Annahmeprotokoll",
