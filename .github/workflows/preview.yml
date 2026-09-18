@@ -92,9 +92,13 @@ jobs:
           ORG="$FLY_ORG"
           if [ -z "$ORG" ]; then
             ORGS_JSON="$(flyctl orgs list --json 2>/dev/null || true)"
-            ORG="$(printf '%s' "$ORGS_JSON" | jq -r '[.. | objects | .Slug? // empty] | .[0] // empty' 2>/dev/null || true)"
+            echo "Organisationen laut flyctl: $ORGS_JSON"
+            # Bevorzugt ein echtes Slug-Feld …
+            ORG="$(printf '%s' "$ORGS_JSON" | jq -r '[.. | objects | (.Slug? // .slug?) | strings] | .[0] // empty' 2>/dev/null || true)"
+            # … sonst die Objektform, bei der der Slug der Schlüssel ist und
+            # der Wert der Anzeigename (bei privaten Konten die E-Mail-Adresse).
             if [ -z "$ORG" ]; then
-              ORG="$(printf '%s' "$ORGS_JSON" | jq -r 'if type == "object" then (to_entries | map(.value) | .[0] // empty) else empty end' 2>/dev/null || true)"
+              ORG="$(printf '%s' "$ORGS_JSON" | jq -r 'if type == "object" then (keys_unsorted | .[0] // empty) else empty end' 2>/dev/null || true)"
             fi
           fi
 
