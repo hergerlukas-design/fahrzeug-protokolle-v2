@@ -59,10 +59,23 @@ jobs:
             exit 1
           fi
 
-      # Bewusst keine eigene Vorprüfung, ob die App existiert: ein
-      # vorgeschaltetes "flyctl status" kann nicht unterscheiden, ob die App
-      # fehlt oder ob der Token sie nur nicht sehen darf, und verdeckt dabei
-      # die aussagekräftige Meldung von flyctl. Der Deploy sagt es selbst.
+      # Rein lesend, bricht nie ab: zeigt, als wer der Token auftritt und was
+      # er sehen darf. Ohne das lässt sich flyctls "unauthorized" nicht
+      # zuordnen – es kann App, Organisation oder Remote-Builder meinen.
+      - name: Diagnose
+        continue-on-error: true
+        run: |
+          echo "== whoami =="
+          flyctl auth whoami || true
+          echo "== apps list =="
+          flyctl apps list || true
+          echo "== status $PREVIEW_APP =="
+          flyctl status --app "$PREVIEW_APP" || true
+
+      # Keine eigene Vorprüfung, ob die App existiert: ein vorgeschaltetes
+      # "flyctl status" kann nicht unterscheiden, ob die App fehlt oder ob der
+      # Token sie nur nicht sehen darf, und verdeckt dabei die aussagekräftige
+      # Meldung von flyctl. Der Deploy sagt es selbst.
       #
       # Einmalige Einrichtung, falls die App noch nicht existiert:
       #   fly apps create fahrzeug-protokolle-v2-preview
@@ -72,7 +85,7 @@ jobs:
         # Eine eigene PIN für die Vorschau ist optional: ist das Secret
         # VITE_APP_PASSWORD_PREVIEW nicht gesetzt, gilt die produktive.
         run: >-
-          flyctl deploy --remote-only
+          flyctl deploy --remote-only --verbose
           --config fly.preview.toml
           --app "$PREVIEW_APP"
           --build-arg VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}
