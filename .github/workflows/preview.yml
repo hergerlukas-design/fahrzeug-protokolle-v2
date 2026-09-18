@@ -21,6 +21,11 @@ jobs:
   deploy:
     if: github.event.action != 'closed'
     runs-on: ubuntu-latest
+    # Vorschauen legen neue Apps an – dafür reicht ein auf eine App
+    # beschränkter Deploy-Token nicht. Liegt ein organisationsweiter Token als
+    # FLY_API_TOKEN_PREVIEW vor, wird er bevorzugt.
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PREVIEW || secrets.FLY_API_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,8 +44,8 @@ jobs:
 
       - name: Secrets prüfen
         if: github.event.pull_request.head.repo.full_name == github.repository
+        # FLY_API_TOKEN kommt aus dem Job-env und ist damit der effektive Token
         env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
           VITE_APP_PASSWORD: ${{ secrets.VITE_APP_PASSWORD }}
@@ -59,28 +64,55 @@ jobs:
       - name: Vorschau-App anlegen, falls noch nicht vorhanden
         if: github.event.pull_request.head.repo.full_name == github.repository
         env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-          # Abweichende Fly-Organisation als Repository-Variable hinterlegen
-          # (Settings -> Secrets and variables -> Actions -> Variables).
+          # Nur nötig, wenn die Organisation nicht automatisch ermittelt werden
+          # kann (Settings -> Secrets and variables -> Actions -> Variables).
           FLY_ORG: ${{ vars.FLY_ORG }}
         run: |
           APP="fahrzeug-protokolle-v2-pr-${{ github.event.number }}"
-          ORG="${FLY_ORG:-personal}"
+
           if flyctl status --app "$APP" >/dev/null 2>&1; then
             echo "App $APP existiert bereits."
-          else
-            echo "Lege App $APP in der Organisation $ORG an."
-            if ! flyctl apps create "$APP" --org "$ORG"; then
-              echo "Anlegen fehlgeschlagen. Stimmt die Organisation '$ORG'?" >&2
-              echo "Falls nicht, unter Settings -> Variables die Variable FLY_ORG setzen." >&2
-              exit 1
+            exit 0
+          fi
+
+          hinweis_token() {
+            echo "" >&2
+            echo "Der hinterlegte Fly-Token darf keine Apps anlegen." >&2
+            echo "Ein Deploy-Token gilt nur für die App, für die er erzeugt wurde." >&2
+            echo "Für Vorschauen wird ein organisationsweiter Token gebraucht:" >&2
+            echo "" >&2
+            echo "  fly tokens create org" >&2
+            echo "" >&2
+            echo "Ergebnis unter Settings -> Secrets and variables -> Actions" >&2
+            echo "als Secret FLY_API_TOKEN_PREVIEW hinterlegen." >&2
+          }
+
+          # Organisation ermitteln statt raten. Scheitert schon das, fehlt dem
+          # Token die Berechtigung auf Organisationsebene.
+          ORG="$FLY_ORG"
+          if [ -z "$ORG" ]; then
+            ORGS_JSON="$(flyctl orgs list --json 2>/dev/null || true)"
+            ORG="$(printf '%s' "$ORGS_JSON" | jq -r '[.. | objects | .Slug? // empty] | .[0] // empty' 2>/dev/null || true)"
+            if [ -z "$ORG" ]; then
+              ORG="$(printf '%s' "$ORGS_JSON" | jq -r 'if type == "object" then (to_entries | map(.value) | .[0] // empty) else empty end' 2>/dev/null || true)"
             fi
+          fi
+
+          if [ -z "$ORG" ]; then
+            echo "Die Fly-Organisation konnte nicht ermittelt werden." >&2
+            hinweis_token
+            exit 1
+          fi
+
+          echo "Lege App $APP in der Organisation $ORG an."
+          if ! flyctl apps create "$APP" --org "$ORG"; then
+            echo "Anlegen von $APP in '$ORG' fehlgeschlagen." >&2
+            hinweis_token
+            exit 1
           fi
 
       - name: Deploy
         if: github.event.pull_request.head.repo.full_name == github.repository
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         # Eine eigene PIN für Vorschauen ist optional: ist das Secret
         # VITE_APP_PASSWORD_PREVIEW nicht gesetzt, gilt die produktive.
         run: >-
@@ -123,7 +155,7 @@ jobs:
 
       - name: Vorschau-App zerstören
         env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PREVIEW || secrets.FLY_API_TOKEN }}
         run: |
           APP="fahrzeug-protokolle-v2-pr-${{ github.event.number }}"
           if flyctl status --app "$APP" >/dev/null 2>&1; then

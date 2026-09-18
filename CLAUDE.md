@@ -87,10 +87,15 @@ Zu wissen:
   Dort angelegte Daten sind echt.
 - Sie läuft mit `min_machines_running = 0` (`fly.preview.toml`) und fährt nach
   einiger Zeit ohne Zugriff herunter. Der nächste Aufruf dauert dann länger.
+- **Nötig ist ein organisationsweiter Fly-Token.** Der vorhandene
+  `FLY_API_TOKEN` ist ein Deploy-Token und gilt nur für die App, für die er
+  erzeugt wurde — er darf keine neuen Apps anlegen. Einmalig erzeugen mit
+  `fly tokens create org` und als Secret `FLY_API_TOKEN_PREVIEW` hinterlegen.
+  Der produktive Deploy benutzt weiterhin `FLY_API_TOKEN`.
 - Optional lässt sich eine abweichende PIN als Secret
   `VITE_APP_PASSWORD_PREVIEW` hinterlegen; ohne das Secret gilt die produktive.
-- Liegt die Fly-App nicht in der Organisation `personal`, muss die Repository-
-  Variable `FLY_ORG` gesetzt werden (Settings → Secrets and variables →
+- Die Organisation wird automatisch ermittelt. Nur falls das fehlschlägt, die
+  Repository-Variable `FLY_ORG` setzen (Settings → Secrets and variables →
   Actions → Variables).
 - PRs aus Forks bekommen keine Vorschau — GitHub gibt dort keine Secrets frei.
 
