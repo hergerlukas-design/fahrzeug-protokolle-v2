@@ -4,11 +4,13 @@ import { useTranslation } from 'react-i18next'
 import { supabase, errorText } from '../lib/supabase'
 import {
   Sparkles, Droplets, Fuel, Zap, CircleCheck, Navigation,
-  Folder, FolderOpen, Search, Plus, ChevronRight, ArrowLeft,
+  Folder, FolderOpen, Route as RouteIcon, Search, Plus, ChevronRight,
   Pencil, Archive, Trash2, AlertTriangle, Car, ClipboardList,
   MapPin, Wrench, Camera, Image, RefreshCw, FileText, BarChart3,
   Check, X, ChevronUp, ChevronDown,
 } from 'lucide-react'
+import PageHeader from '../components/PageHeader'
+import { PROJECT_CREATED_EVENT } from '../components/CreateWizard'
 import { SkeletonList } from '../components/Skeleton'
 import CarDamageSelector from '../components/CarDamageSelector'
 import {
@@ -45,6 +47,7 @@ import {
   type ProjectWithCount,
 } from '../lib/projects'
 import { DAMAGE_TYPES, DAMAGE_INTENSITIES } from '../lib/protocols'
+import { fetchTransfersForVehicle, type Transfer } from '../lib/transfers'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared UI helpers
@@ -458,7 +461,6 @@ function ProjectKartei({
   loading,
   onSelectProject,
   onSelectNone,
-  onNewProject,
   onEditProject,
   onArchiveProject,
   onDeleteProject,
@@ -471,7 +473,6 @@ function ProjectKartei({
   loading: boolean
   onSelectProject: (p: ProjectWithCount) => void
   onSelectNone: () => void
-  onNewProject: () => void
   onEditProject: (p: Project) => void
   onArchiveProject: (p: Project) => void
   onDeleteProject: (p: Project) => void
@@ -523,20 +524,7 @@ function ProjectKartei({
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10">
-        <div className="flex items-center justify-between mb-3 gap-3">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <img src="/logo.webp" alt="" className="w-7 h-7 object-contain flex-shrink-0" onError={(e) => (e.currentTarget.style.display = 'none')} />
-            <h1 className="text-xl font-bold text-gray-900 truncate">{t('projects.title')}</h1>
-          </div>
-          <button
-            onClick={onNewProject}
-            className="flex items-center gap-1.5 py-2 px-3 rounded-xl bg-brand-600 text-white text-sm font-semibold active:bg-brand-700 flex-shrink-0"
-          >
-            <Plus size={16} />
-            <span>{t('projects.new_button')}</span>
-          </button>
-        </div>
+      <PageHeader title={t('projects.title')} size="lg">
         <div className="relative">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
@@ -547,7 +535,7 @@ function ProjectKartei({
             className="w-full border border-gray-300 rounded-xl pl-9 pr-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
-      </div>
+      </PageHeader>
 
       {/* While searching, the results replace the project cards – the search
           field above stays mounted so typing (and the keyboard) is never
@@ -1043,44 +1031,45 @@ function VehicleList({
   return (
     <div className="block min-h-full bg-gray-50">
       {/* Header – sticky relative to <main> scroll container */}
-      <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10">
-        <div className="flex items-center gap-2 mb-3">
-          <button onClick={onBack} className="p-1 -ml-1 text-gray-500 hover:text-gray-800 flex-shrink-0">
-            <ArrowLeft size={20} />
-          </button>
-          <h1 className="text-lg font-bold text-gray-900 flex-1 truncate flex items-center gap-1.5">
-            {projectName === null ? <FolderOpen size={17} className="text-gray-400 flex-shrink-0" /> : <Folder size={17} className="text-gray-400 flex-shrink-0" />}
-            <span className="truncate">{projectName === null ? t('projects.no_project') : projectName}</span>
-          </h1>
+      <PageHeader
+        onBack={onBack}
+        icon={
+          projectName === null
+            ? <FolderOpen size={17} className="text-gray-400 flex-shrink-0" />
+            : <Folder size={17} className="text-gray-400 flex-shrink-0" />
+        }
+        title={projectName === null ? t('projects.no_project') : projectName}
+      >
+        <div className="space-y-3">
+          {/* Protocol entry buttons */}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={onNewWithProtocol}
+              className="flex flex-col items-center gap-1 py-3 px-2 rounded-xl bg-brand-600 text-white text-center active:bg-brand-700 shadow-sm"
+            >
+              <Plus size={20} />
+              <span className="text-xs font-semibold leading-tight">{t('vehicles.new_vehicle_and_protocol')}</span>
+            </button>
+            <button
+              onClick={onExistingProtocol}
+              className="flex flex-col items-center gap-1 py-3 px-2 rounded-xl bg-green-600 text-white text-center active:bg-green-700 shadow-sm"
+            >
+              <Car size={20} />
+              <span className="text-xs font-semibold leading-tight">{t('vehicles.existing_protocol_btn')}</span>
+            </button>
+          </div>
+          <div className="relative">
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder={t('vehicles.search_placeholder')}
+              className="w-full border border-gray-300 rounded-xl pl-9 pr-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-400"
+            />
+          </div>
         </div>
-        {/* Protocol entry buttons */}
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          <button
-            onClick={onNewWithProtocol}
-            className="flex flex-col items-center gap-1 py-3 px-2 rounded-xl bg-brand-600 text-white text-center active:bg-brand-700 shadow-sm"
-          >
-            <Plus size={20} />
-            <span className="text-xs font-semibold leading-tight">{t('vehicles.new_vehicle_and_protocol')}</span>
-          </button>
-          <button
-            onClick={onExistingProtocol}
-            className="flex flex-col items-center gap-1 py-3 px-2 rounded-xl bg-green-600 text-white text-center active:bg-green-700 shadow-sm"
-          >
-            <Car size={20} />
-            <span className="text-xs font-semibold leading-tight">{t('vehicles.existing_protocol_btn')}</span>
-          </button>
-        </div>
-        <div className="relative">
-          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder={t('vehicles.search_placeholder')}
-            className="w-full border border-gray-300 rounded-xl pl-9 pr-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-400"
-          />
-        </div>
-      </div>
+      </PageHeader>
 
       {/* List – no overflow, <main> handles scrolling */}
       <div className="pb-[calc(1rem+4rem+env(safe-area-inset-bottom))]">
@@ -1447,6 +1436,69 @@ function VehicleProjectSection({
 // Vehicle detail
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Transfers of a vehicle – read-only overview, managed on /ueberfuehrungen
+// ─────────────────────────────────────────────────────────────────────────────
+
+function VehicleTransferSection({ vehicleId }: { vehicleId: string }) {
+  const { t, i18n } = useTranslation()
+  const navigate = useNavigate()
+  const [transfers, setTransfers] = useState<Transfer[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    fetchTransfersForVehicle(vehicleId)
+      .then((rows) => { if (!cancelled) setTransfers(rows) })
+      .catch(() => { if (!cancelled) setTransfers([]) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [vehicleId])
+
+  if (loading || transfers.length === 0) return null
+
+  const locale = i18n.language.startsWith('en') ? 'en-GB' : 'de-DE'
+  const fmt = (d: string) =>
+    new Date(`${d}T00:00:00`).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' })
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <span className="flex items-center gap-1.5 font-semibold text-gray-800 text-sm">
+          <RouteIcon size={15} className="text-gray-400" /> {t('transfers.title')}
+        </span>
+        <button
+          onClick={() => navigate('/ueberfuehrungen')}
+          className="text-xs font-medium text-brand-600"
+        >
+          {t('vehicles.detail_open')}
+        </button>
+      </div>
+      <ul className="space-y-1.5">
+        {transfers.slice(0, 5).map((tr) => (
+          <li key={tr.id} className="flex items-center gap-2 text-sm">
+            <span
+              className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                tr.status === 'unterwegs' ? 'bg-amber-500'
+                  : tr.status === 'angekommen' ? 'bg-green-500'
+                  : tr.status === 'abgebrochen' ? 'bg-red-400'
+                  : 'bg-gray-300'
+              }`}
+            />
+            <span className="text-gray-700 flex-shrink-0">{fmt(tr.date_from)}</span>
+            <span className="text-gray-500 truncate flex-1 min-w-0">
+              {tr.location_to || t('transfers.no_route')}
+            </span>
+            <span className="text-xs text-gray-400 flex-shrink-0">
+              {t(`transfers.status_${tr.status}`)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 function VehicleDetail({
   vehicle,
   onBack,
@@ -1580,12 +1632,7 @@ function VehicleDetail({
   return (
     <div className="flex flex-col">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10 flex items-center gap-3">
-        <button onClick={onBack} className="p-1 -ml-1 text-gray-500 hover:text-gray-800 flex-shrink-0">
-          <ArrowLeft size={20} />
-        </button>
-        <h1 className="text-lg font-bold text-gray-900 flex-1 truncate">{vehicle.license_plate}</h1>
-      </div>
+      <PageHeader onBack={onBack} title={vehicle.license_plate} />
 
       <div className="px-4 pt-4 pb-[calc(1.5rem+4rem+env(safe-area-inset-bottom))] space-y-4">
         {/* Vehicle card */}
@@ -1624,6 +1671,9 @@ function VehicleDetail({
           vehicleId={vehicle.id}
           allProjects={allProjects}
         />
+
+        {/* Transfers of this vehicle */}
+        <VehicleTransferSection vehicleId={vehicle.id} />
 
         {/* Action buttons */}
         <div className="grid grid-cols-2 gap-2">
@@ -2054,6 +2104,15 @@ export default function Fahrzeuge() {
 
   useEffect(() => { loadProjects() }, [])
 
+  // The create wizard is the only way to add a project, and it cannot remount
+  // this page — so it announces a new project instead.
+  useEffect(() => {
+    function handler() { loadProjects() }
+    window.addEventListener(PROJECT_CREATED_EVENT, handler)
+    return () => window.removeEventListener(PROJECT_CREATED_EVENT, handler)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   function handleSelectProject(p: ProjectWithCount) {
     setActiveProject(p)
     setSearch('')
@@ -2186,7 +2245,6 @@ export default function Fahrzeuge() {
           loading={projectsLoading}
           onSelectProject={handleSelectProject}
           onSelectNone={handleSelectNone}
-          onNewProject={() => { setEditProjectTarget(null); setShowProjectForm(true) }}
           onEditProject={(p) => { setEditProjectTarget(p); setShowProjectForm(true) }}
           onArchiveProject={(p) => setProjectArchiveTarget(p)}
           onDeleteProject={(p) => setProjectDeleteTarget(p)}
@@ -2199,9 +2257,7 @@ export default function Fahrzeuge() {
       {view === 'list' && (
         vehiclesLoading ? (
           <div className="block min-h-full bg-gray-50">
-            <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10">
-              <button onClick={handleBackToProjects} className="flex items-center gap-1.5 text-brand-600 text-sm font-medium mb-1"><ArrowLeft size={16} /> {t('projects.title')}</button>
-            </div>
+            <PageHeader onBack={handleBackToProjects} title={t('projects.title')} />
             <div className="pb-[calc(1rem+4rem+env(safe-area-inset-bottom))]">
               <SkeletonList count={5} />
             </div>

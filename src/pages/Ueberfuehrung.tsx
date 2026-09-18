@@ -21,11 +21,13 @@ import {
 } from '../lib/protocols'
 import { errorText } from '../lib/supabase'
 import { OFFLINE_SAVED_EVENT } from '../components/OfflineIndicator'
+import PageHeader from '../components/PageHeader'
 import PdfButton from '../components/PdfButton'
 import CarDamageSelector from '../components/CarDamageSelector'
 import SignatureCanvas from '../components/SignatureCanvas'
 import type { PdfData } from '../lib/generatePdf'
 import { updateVehicle, updateVehicleKnownDamages, type DamageRecord } from '../lib/vehicles'
+import { linkProtocolToTransfer, type ProtocolRole, type TransferStatus } from '../lib/transfers'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Edit-mode data (passed via location.state when opening an existing protocol)
@@ -50,6 +52,18 @@ export interface ProtocolEditData {
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Aus einer Überführungskarte heraus gestartet: Werte vorbefüllen und das
+ *  gespeicherte Protokoll anschließend an die Überführung hängen. */
+export interface TransferContext {
+  id: string
+  vehicle_id: string
+  status: TransferStatus
+  role: ProtocolRole
+  driver_name?: string | null
+  location_from?: string | null
+  location_to?: string | null
+}
+
 interface PrefillState {
   vehicle_id: string
   license_plate: string
@@ -57,6 +71,7 @@ interface PrefillState {
   vin: string
   known_damages: DamageRecord[]
   edit?: ProtocolEditData
+  transfer?: TransferContext
 }
 
 interface DamageFormItem extends DamageItem {
@@ -337,17 +352,22 @@ export default function Ueberfuehrung() {
 
   // ── Form state ─────────────────────────────────────────────────────────────
   const ed = prefill?.edit
-  const [fahrer, setFahrer] = useState(ed?.inspector_name ?? '')
+  const tr = prefill?.transfer
+  const [fahrer, setFahrer] = useState(ed?.inspector_name ?? tr?.driver_name ?? '')
   const [abholort, setAbholort] = useState(() => {
     const loc = ed?.location ?? ''
-    return loc.includes(' → ') ? loc.split(' → ')[0] : loc
+    if (loc) return loc.includes(' → ') ? loc.split(' → ')[0] : loc
+    return tr?.location_from ?? ''
   })
   const [zielort, setZielort] = useState(() => {
     const loc = ed?.location ?? ''
-    return loc.includes(' → ') ? (loc.split(' → ')[1] ?? '') : ''
+    if (loc) return loc.includes(' → ') ? (loc.split(' → ')[1] ?? '') : ''
+    return tr?.location_to ?? ''
   })
   const [vin, setVin] = useState(prefill?.vin ?? '')
-  const [transferType, setTransferType] = useState<string>(ed?.transfer_type ?? 'Hinbringen')
+  const [transferType, setTransferType] = useState<string>(
+    ed?.transfer_type ?? (tr?.role === 'dropoff' ? 'Rücknahme' : 'Hinbringen')
+  )
   const [conditions, setConditions] = useState<string[]>(ed?.conditions ?? [])
   const [fuel, setFuel] = useState(ed?.fuel ?? 100)
   const [battery, setBattery] = useState(ed?.battery ?? 100)
@@ -407,6 +427,10 @@ export default function Ueberfuehrung() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [savedPdfData, setSavedPdfData] = useState<PdfData | null>(null)
+  // Das Protokoll ist gespeichert, aber die Verknüpfung mit der Überführung
+  // kam nicht zustande – das muss der Erfolgsbildschirm sagen, sonst hält
+  // man die Überführung für aktualisiert, obwohl sie es nicht ist.
+  const [linkWarning, setLinkWarning] = useState<string | null>(null)
 
   // ── Step wizard ────────────────────────────────────────────────────────────
   const [step, setStep] = useState(0)
@@ -577,7 +601,17 @@ export default function Ueberfuehrung() {
         if (ed) {
           await updateProtocol(ed.protocol_id, basePayload)
         } else {
-          await saveProtocol(basePayload)
+          const protocolId = await saveProtocol(basePayload)
+          // Aus einer Überführung heraus gestartet: Protokoll anhängen und den
+          // Status nachziehen. Scheitert das, ist das Protokoll trotzdem
+          // gespeichert – deshalb nur melden, nicht den Speichervorgang kippen.
+          if (tr) {
+            try {
+              await linkProtocolToTransfer(tr, tr.role, protocolId)
+            } catch (linkErr) {
+              setLinkWarning(errorText(linkErr, t('ueberfuehrung.link_failed')))
+            }
+          }
         }
         if (damageRecords.length > 0) {
           const damageRecordsWithPhotos: DamageRecord[] = damages
@@ -619,6 +653,9 @@ export default function Ueberfuehrung() {
         }
         await saveOffline(offlineEntry)
         window.dispatchEvent(new CustomEvent(OFFLINE_SAVED_EVENT))
+        // Die Offline-Warteschlange kennt keine Überführungen: das Protokoll
+        // wird später synchronisiert, die Verknüpfung aber nicht nachgetragen.
+        if (tr) setLinkWarning(t('ueberfuehrung.link_offline'))
         // Build local photo URLs so offline PDF can embed them
         const localPhotos: Record<string, string> = {}
         for (const pk of PHOTO_KEYS) {
@@ -663,6 +700,7 @@ export default function Ueberfuehrung() {
 
   function resetForm() {
     setSuccess(false)
+    setLinkWarning(null)
     setFahrer('')
     setAbholort('')
     setZielort('')
@@ -693,6 +731,12 @@ export default function Ueberfuehrung() {
             {navigator.onLine ? t('ueberfuehrung.success_online') : t('ueberfuehrung.success_offline')}
           </p>
         </div>
+        {linkWarning && (
+          <div className="w-full max-w-xs p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm flex items-start gap-2 text-left">
+            <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
+            <span>{linkWarning}</span>
+          </div>
+        )}
         {savedPdfData && <PdfButton data={savedPdfData} accent="green" />}
         <div className="flex gap-3 w-full max-w-xs">
           <button
@@ -734,25 +778,17 @@ export default function Ueberfuehrung() {
   return (
     <div className="block min-h-full bg-gray-50 pb-[calc(1rem+4rem+env(safe-area-inset-bottom))]">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10">
-        <div className="flex items-center gap-2 mb-2">
-          <button
-            type="button"
-            onClick={goBack}
-            className="p-1 -ml-1 text-gray-500 hover:text-gray-800 flex-shrink-0"
-          >
-            <ArrowLeft size={20} />
-          </button>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-base font-bold text-gray-900 truncate flex items-center gap-1.5">
-              <Car size={16} className="text-gray-400 flex-shrink-0" /> {ed ? t('ueberfuehrung.edit_title') : t('ueberfuehrung.title')}
-            </h1>
-            <p className="text-xs text-gray-500 truncate">{prefill.license_plate}</p>
-          </div>
+      <PageHeader
+        onBack={goBack}
+        icon={<Car size={16} className="text-gray-400 flex-shrink-0" />}
+        title={ed ? t('ueberfuehrung.edit_title') : t('ueberfuehrung.title')}
+        subtitle={prefill.license_plate}
+        right={
           <span className="text-xs font-medium text-gray-400 flex-shrink-0">
             {t('common.step_of', { current: step + 1, total: totalSteps })}
           </span>
-        </div>
+        }
+      >
         <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
           <div
             className="h-full bg-green-600 rounded-full transition-all duration-300"
@@ -760,7 +796,7 @@ export default function Ueberfuehrung() {
           />
         </div>
         <p className="text-sm font-semibold text-gray-700 mt-2">{stepTitles[step]}</p>
-      </div>
+      </PageHeader>
 
       {/* Error */}
       {error && (

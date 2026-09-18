@@ -26,7 +26,10 @@
   "nav": {
     "projects": "Projects",
     "create": "Create",
-    "settings": "Settings"
+    "settings": "Settings",
+    "menu": "Menu",
+    "archive": "Archive",
+    "transfers": "Transfers"
   },
   "login": {
     "subtitle": "Team Login",
@@ -122,7 +125,9 @@
     "create_project": "Create",
     "new_project_title": "New project",
     "start_transfer": "Start transfer for {{plate}} →",
-    "search_placeholder": "Licence plate, make …"
+    "search_placeholder": "Licence plate, make …",
+    "transfer": "Transfer",
+    "transfer_desc": "Schedule a vehicle"
   },
   "projects": {
     "title": "Projects",
@@ -225,11 +230,53 @@
     "deleting": "Deleting …",
     "protocols_section": "Protocols ({{count}})",
     "no_protocols": "No protocols for this vehicle yet.",
-    "results_count": "{{count}} results"
+    "results_count": "{{count}} results",
+    "detail_open": "Open"
   },
   "protocol_type": {
     "transfer": "Transfer",
     "intake": "Intake"
+  },
+  "transfers": {
+    "title": "Transfers",
+    "section_open": "Upcoming transfers",
+    "section_closed": "Completed",
+    "empty": "No open transfers",
+    "empty_hint": "Create a new transfer with the + button.",
+    "vehicle_missing": "Vehicle deleted",
+    "vehicle_state": "Vehicle status",
+    "no_route": "No location set",
+    "status_geplant": "Planned",
+    "status_unterwegs": "In transit",
+    "status_angekommen": "Arrived",
+    "status_abgebrochen": "Cancelled",
+    "action_pickup": "Picked up",
+    "action_arrive": "Arrived",
+    "action_cancel": "Cancel",
+    "action_reset": "Reset",
+    "form_title_new": "New transfer",
+    "form_title_edit": "Edit transfer",
+    "vehicle_label": "Vehicle",
+    "vehicle_placeholder": "Search licence plate or model …",
+    "vehicle_required": "Please select a vehicle.",
+    "date_from": "Start",
+    "date_to": "End",
+    "date_invalid": "The end date cannot be before the start.",
+    "location_from": "Pickup location",
+    "location_to": "Destination",
+    "driver": "Driver",
+    "contact_name": "Contact",
+    "contact_phone": "Phone",
+    "notes": "Notes",
+    "overlap_title": "This vehicle is already scheduled in that period:",
+    "delete_title": "Delete transfer?",
+    "protocols": "Protocols",
+    "protocol_pickup": "Pickup protocol",
+    "protocol_dropoff": "Arrival protocol",
+    "create_protocol": "Create {{which}}",
+    "time_hint": "Time is optional — the date is enough.",
+    "date_label": "Date",
+    "time_label": "Time"
   },
   "annahme": {
     "title": "Intake Protocol",
@@ -346,7 +393,9 @@
     "to_overview": "Overview",
     "receiver_sig_label": "Recipient signature",
     "creator_sig_label": "Inspector signature",
-    "privacy_link": "Privacy policy"
+    "privacy_link": "Privacy policy",
+    "link_failed": "The protocol was saved but could not be linked to the transfer.",
+    "link_offline": "Saved offline. The protocol will sync later, but the link to the transfer is not restored automatically."
   },
   "damage": {
     "remove": "Remove",

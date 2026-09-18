@@ -6,6 +6,7 @@ import {
   RotateCcw, Folder, Pencil, ClipboardList, Car, FileSignature,
 } from 'lucide-react'
 import { supabase, errorText } from '../lib/supabase'
+import PageHeader from '../components/PageHeader'
 import PdfButton from '../components/PdfButton'
 import SignatureCanvas from '../components/SignatureCanvas'
 import type { PdfData } from '../lib/generatePdf'
@@ -238,12 +239,7 @@ export default function Archiv() {
       )}
 
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 sticky top-0 z-10">
-        <div className="flex items-center gap-2.5 mb-3">
-          <img src="/logo.webp" alt="" className="w-6 h-6 object-contain flex-shrink-0" onError={(e) => (e.currentTarget.style.display = 'none')} />
-          <h1 className="text-lg font-bold text-gray-800">{t('archiv.title')}</h1>
-        </div>
-
+      <PageHeader title={t('archiv.title')}>
         {/* Tab switcher */}
         <div className="flex gap-1 mb-3 bg-gray-100 p-1 rounded-xl">
           <button
@@ -327,7 +323,7 @@ export default function Archiv() {
             </div>
           </>
         )}
-      </div>
+      </PageHeader>
 
       {/* Archived projects tab */}
       {tab === 'projekte' && (

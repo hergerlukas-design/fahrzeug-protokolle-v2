@@ -1,0 +1,123 @@
+name: Vorschau-Deploy für Pull Requests
+
+# Alle PRs teilen sich eine feste Vorschau-App:
+# https://fahrzeug-protokolle-v2-preview.fly.dev
+#
+# Bewusst nicht eine App pro PR: dafür müsste der Workflow Apps anlegen
+# dürfen, und ein Token mit dieser Berechtigung öffnet das ganze Fly-Konto.
+# Eine feste App kommt mit einem gewöhnlichen Deploy-Token aus – derselben
+# Rechtestufe wie der produktive Deploy.
+#
+# Preis: bei mehreren gleichzeitig offenen PRs überschreibt der neuere Push
+# den älteren. Welcher Stand gerade liegt, sagt der PR-Kommentar.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+env:
+  PREVIEW_APP: fahrzeug-protokolle-v2-preview
+
+# Mehrere Pushes auf denselben PR: der neueste gewinnt, ältere Läufe werden
+# abgebrochen. Anders als beim Produktiv-Deploy ist das hier erwünscht.
+concurrency:
+  group: fly-preview
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Aus einem Fork heraus stellt GitHub keine Secrets bereit — ohne sie
+    # entstünde ein Bundle ohne Supabase-Zugang.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PREVIEW || secrets.FLY_API_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Fly.io CLI
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Secrets prüfen
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
+          VITE_APP_PASSWORD: ${{ secrets.VITE_APP_PASSWORD }}
+        run: |
+          missing=""
+          for name in FLY_API_TOKEN VITE_SUPABASE_URL VITE_SUPABASE_KEY VITE_APP_PASSWORD; do
+            eval "value=\$$name"
+            [ -n "$value" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "Fehlende Repository-Secrets:$missing" >&2
+            echo "Anlegen unter Settings -> Secrets and variables -> Actions" >&2
+            exit 1
+          fi
+
+      # Eine von Hand mit "fly apps create" angelegte App bekommt keine
+      # IP-Adresse zugewiesen – das macht sonst "fly launch". Ohne IP gibt es
+      # keinen DNS-Eintrag, und die Vorschau-URL löst nicht auf
+      # (ERR_NAME_NOT_RESOLVED), obwohl der Deploy erfolgreich war.
+      # Die gemeinsame IPv4 kostet nichts.
+      - name: IP-Adressen sicherstellen
+        run: |
+          IPS="$(flyctl ips list --app "$PREVIEW_APP" 2>/dev/null || true)"
+          echo "$IPS"
+          if ! printf '%s' "$IPS" | grep -qw 'v4'; then
+            echo "Keine IPv4 vorhanden – lege eine gemeinsame an."
+            flyctl ips allocate-v4 --shared --app "$PREVIEW_APP" || true
+          fi
+          if ! printf '%s' "$IPS" | grep -qw 'v6'; then
+            echo "Keine IPv6 vorhanden – lege eine an."
+            flyctl ips allocate-v6 --app "$PREVIEW_APP" || true
+          fi
+          echo "== Stand danach =="
+          flyctl ips list --app "$PREVIEW_APP" || true
+
+      # Keine eigene Vorprüfung, ob die App existiert: ein vorgeschaltetes
+      # "flyctl status" kann nicht unterscheiden, ob die App fehlt oder ob der
+      # Token sie nur nicht sehen darf, und verdeckt dabei die aussagekräftige
+      # Meldung von flyctl. Der Deploy sagt es selbst.
+      #
+      # Einmalige Einrichtung, falls die App noch nicht existiert:
+      #   fly apps create fahrzeug-protokolle-v2-preview
+      #   fly tokens create deploy -a fahrzeug-protokolle-v2-preview
+      #   -> Token als Secret FLY_API_TOKEN_PREVIEW hinterlegen
+      - name: Deploy
+        # Eine eigene PIN für die Vorschau ist optional: ist das Secret
+        # VITE_APP_PASSWORD_PREVIEW nicht gesetzt, gilt die produktive.
+        run: >-
+          flyctl deploy --remote-only
+          --config fly.preview.toml
+          --app "$PREVIEW_APP"
+          --build-arg VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}
+          --build-arg VITE_SUPABASE_KEY=${{ secrets.VITE_SUPABASE_KEY }}
+          --build-arg VITE_APP_PASSWORD=${{ secrets.VITE_APP_PASSWORD_PREVIEW || secrets.VITE_APP_PASSWORD }}
+
+      - name: URL an den PR schreiben
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          URL="https://${PREVIEW_APP}.fly.dev"
+          echo "Vorschau: $URL" >> "$GITHUB_STEP_SUMMARY"
+          BODY=$(printf '%s\n' \
+            "**Vorschau bereit:** $URL" \
+            "" \
+            "Aktuell liegt dort der Stand dieses PR (\`${{ github.event.pull_request.head.sha }}\`)." \
+            "Die Vorschau ist für alle PRs dieselbe App — ein Push auf einen" \
+            "anderen PR überschreibt sie." \
+            "" \
+            "Sie greift auf **dieselbe Supabase-Datenbank** zu wie die produktive" \
+            "App: hier angelegte Daten sind echt. Nach einiger Zeit ohne Zugriff" \
+            "fährt sie herunter, der nächste Aufruf dauert dann etwas länger." \
+            "" \
+            "---" \
+            "_Generated by [Claude Code](https://claude.ai/code)_")
+          # Bei jedem Push denselben Kommentar aktualisieren statt neue anzuhängen
+          gh pr comment "${{ github.event.number }}" --body "$BODY" --edit-last \
+            || gh pr comment "${{ github.event.number }}" --body "$BODY"

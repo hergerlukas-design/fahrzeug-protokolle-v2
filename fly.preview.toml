@@ -1,0 +1,30 @@
+# fly.preview.toml — gemeinsame Vorschau-App für Pull Requests
+#
+# Alle PRs teilen sich diese eine App. Sie wird einmalig von Hand angelegt:
+#
+#   fly apps create fahrzeug-protokolle-v2-preview
+#
+# Einziger echter Unterschied zur produktiven fly.toml ist
+# min_machines_running = 0. Eine Vorschau darf zwischen den Tests vollständig
+# herunterfahren; der erste Aufruf danach dauert ein paar Sekunden länger,
+# dafür kostet eine ungenutzte Vorschau nichts.
+
+app = 'fahrzeug-protokolle-v2-preview'
+primary_region = 'fra'
+
+[build]
+  # Die VITE_*-Werte kommen als --build-arg aus den Actions-Secrets,
+  # genau wie beim produktiven Deploy.
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+[[vm]]
+  memory = '256mb'
+  cpu_kind = 'shared'
+  cpus = 1

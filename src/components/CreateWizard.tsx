@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
-  X, ClipboardList, Folder, Search, Car, AlertTriangle, ArrowLeft, Check,
+  X, ClipboardList, Folder, Route as RouteIcon, Search, Car, AlertTriangle, ArrowLeft, Check,
 } from 'lucide-react'
 import {
   createProject,
@@ -14,6 +14,10 @@ import { errorText } from '../lib/supabase'
 import { fetchVehicles, createVehicle, getVehiclePhotoUrl, type Vehicle } from '../lib/vehicles'
 
 export const CREATE_EVENT = 'vp-open-create'
+
+/** Navigating to /fahrzeuge does not remount the page when it is already open,
+ *  so the project list has to be told that a new project exists. */
+export const PROJECT_CREATED_EVENT = 'vp-project-created'
 
 type Step = 'root' | 'protokoll' | 'new-vehicle' | 'existing-vehicle' | 'projekt'
 
@@ -44,10 +48,12 @@ function VehicleAvatar({ vehicleId, size = 40 }: { vehicleId: string; size?: num
 function RootStep({
   onProtokoll,
   onProjekt,
+  onUeberfuehrung,
   onClose,
 }: {
   onProtokoll: () => void
   onProjekt: () => void
+  onUeberfuehrung: () => void
   onClose: () => void
 }) {
   const { t } = useTranslation()
@@ -76,6 +82,16 @@ function RootStep({
           <div className="text-center">
             <p className="font-bold text-gray-800 text-base">{t('create_wizard.project')}</p>
             <p className="text-xs text-gray-500 mt-0.5 leading-tight">{t('create_wizard.project_desc')}</p>
+          </div>
+        </button>
+        <button
+          onClick={onUeberfuehrung}
+          className="col-span-2 flex items-center gap-4 rounded-2xl bg-gray-50 border-2 border-gray-200 px-4 py-4 text-left active:bg-gray-100 active:scale-95 transition-transform"
+        >
+          <RouteIcon size={30} className="text-gray-500 flex-shrink-0" />
+          <div>
+            <p className="font-bold text-gray-800 text-base">{t('create_wizard.transfer')}</p>
+            <p className="text-xs text-gray-500 mt-0.5 leading-tight">{t('create_wizard.transfer_desc')}</p>
           </div>
         </button>
       </div>
@@ -354,6 +370,7 @@ function ProjektStep({ onBack, onClose }: { onBack: () => void; onClose: () => v
       await createProject({ name, description, color: color || undefined })
       onClose()
       navigate('/fahrzeuge')
+      window.dispatchEvent(new CustomEvent(PROJECT_CREATED_EVENT))
     } catch (err: unknown) {
       setError(errorText(err, t('create_wizard.save_failed')))
       setSaving(false)
@@ -447,6 +464,7 @@ function ProjektStep({ onBack, onClose }: { onBack: () => void; onClose: () => v
 }
 
 export default function CreateWizard() {
+  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [step, setStep] = useState<Step>('root')
 
@@ -457,6 +475,14 @@ export default function CreateWizard() {
   }, [])
 
   function handleClose() { setOpen(false); setStep('root') }
+
+  /** Der Zeitstempel im State sorgt dafür, dass das Formular auch dann aufgeht,
+   *  wenn die Überführungsseite bereits offen ist – dann navigiert React Router
+   *  auf dieselbe Route und nur der State ändert sich. */
+  function handleUeberfuehrung() {
+    handleClose()
+    navigate('/ueberfuehrungen', { state: { createTransfer: Date.now() } })
+  }
 
   if (!open) return null
 
@@ -478,6 +504,7 @@ export default function CreateWizard() {
           <RootStep
             onProtokoll={() => setStep('protokoll')}
             onProjekt={() => setStep('projekt')}
+            onUeberfuehrung={handleUeberfuehrung}
             onClose={handleClose}
           />
         )}

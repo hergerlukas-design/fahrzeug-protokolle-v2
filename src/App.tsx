@@ -3,6 +3,7 @@ import { isAuthenticated } from './lib/auth'
 import Login from './pages/Login'
 import Layout from './components/Layout'
 import Ueberfuehrung from './pages/Ueberfuehrung'
+import Ueberfuehrungen from './pages/Ueberfuehrungen'
 import Annahme from './pages/Annahme'
 import Fahrzeuge from './pages/Fahrzeuge'
 import Archiv from './pages/Archiv'
@@ -31,6 +32,7 @@ export default function App() {
           }
         >
           <Route path="/ueberfuehrung" element={<Ueberfuehrung />} />
+          <Route path="/ueberfuehrungen" element={<Ueberfuehrungen />} />
           <Route path="/annahme" element={<Annahme />} />
           <Route path="/fahrzeuge" element={<Fahrzeuge />} />
           <Route path="/archiv" element={<Archiv />} />

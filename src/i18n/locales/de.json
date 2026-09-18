@@ -26,7 +26,10 @@
   "nav": {
     "projects": "Projekte",
     "create": "Erstellen",
-    "settings": "Einstellungen"
+    "settings": "Einstellungen",
+    "menu": "Menü",
+    "archive": "Archiv",
+    "transfers": "Überführungen"
   },
   "login": {
     "subtitle": "Team-Login",
@@ -122,7 +125,9 @@
     "create_project": "Erstellen",
     "new_project_title": "Neues Projekt",
     "start_transfer": "Überführung für {{plate}} starten",
-    "search_placeholder": "Kennzeichen, Marke …"
+    "search_placeholder": "Kennzeichen, Marke …",
+    "transfer": "Überführung",
+    "transfer_desc": "Fahrzeug einplanen"
   },
   "projects": {
     "title": "Projekte",
@@ -225,11 +230,53 @@
     "deleting": "Löscht …",
     "protocols_section": "Protokolle ({{count}})",
     "no_protocols": "Noch keine Protokolle für dieses Fahrzeug.",
-    "results_count": "{{count}} Treffer"
+    "results_count": "{{count}} Treffer",
+    "detail_open": "Öffnen"
   },
   "protocol_type": {
     "transfer": "Überführung",
     "intake": "Annahme"
+  },
+  "transfers": {
+    "title": "Überführungen",
+    "section_open": "Nächste Überführungen",
+    "section_closed": "Abgeschlossen",
+    "empty": "Keine offenen Überführungen",
+    "empty_hint": "Neue Überführung über den Plus-Button anlegen.",
+    "vehicle_missing": "Fahrzeug gelöscht",
+    "vehicle_state": "Fahrzeugstatus",
+    "no_route": "Kein Ort hinterlegt",
+    "status_geplant": "Geplant",
+    "status_unterwegs": "Unterwegs",
+    "status_angekommen": "Angekommen",
+    "status_abgebrochen": "Abgebrochen",
+    "action_pickup": "Abgeholt",
+    "action_arrive": "Angekommen",
+    "action_cancel": "Abbrechen",
+    "action_reset": "Zurücksetzen",
+    "form_title_new": "Neue Überführung",
+    "form_title_edit": "Überführung bearbeiten",
+    "vehicle_label": "Fahrzeug",
+    "vehicle_placeholder": "Kennzeichen oder Modell suchen …",
+    "vehicle_required": "Bitte ein Fahrzeug auswählen.",
+    "date_from": "Start",
+    "date_to": "Ende",
+    "date_invalid": "Das Enddatum darf nicht vor dem Start liegen.",
+    "location_from": "Startort",
+    "location_to": "Zielort",
+    "driver": "Fahrer",
+    "contact_name": "Ansprechpartner",
+    "contact_phone": "Telefon",
+    "notes": "Notizen",
+    "overlap_title": "Dieses Fahrzeug ist im Zeitraum schon eingeplant:",
+    "delete_title": "Überführung löschen?",
+    "protocols": "Protokolle",
+    "protocol_pickup": "Abholprotokoll",
+    "protocol_dropoff": "Ankunftsprotokoll",
+    "create_protocol": "{{which}} erstellen",
+    "time_hint": "Uhrzeit ist optional – das Datum genügt.",
+    "date_label": "Datum",
+    "time_label": "Uhrzeit"
   },
   "annahme": {
     "title": "Annahmeprotokoll",
@@ -346,7 +393,9 @@
     "to_overview": "Zur Übersicht",
     "receiver_sig_label": "Empfänger-Unterschrift",
     "creator_sig_label": "Ersteller-Unterschrift",
-    "privacy_link": "Datenschutzerklärung"
+    "privacy_link": "Datenschutzerklärung",
+    "link_failed": "Das Protokoll ist gespeichert, konnte aber nicht mit der Überführung verknüpft werden.",
+    "link_offline": "Offline gespeichert. Das Protokoll wird später synchronisiert, die Verknüpfung mit der Überführung aber nicht automatisch nachgetragen."
   },
   "damage": {
     "remove": "Entfernen",
