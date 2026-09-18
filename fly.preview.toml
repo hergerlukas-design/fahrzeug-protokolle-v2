@@ -1,4 +1,4 @@
-# fly.preview.toml — Vorschau-Apps für Pull Requests
+# fly.preview.toml — gemeinsame Vorschau-App für Pull Requests
 #
 # Alle PRs teilen sich diese eine App. Sie wird einmalig von Hand angelegt:
 #
