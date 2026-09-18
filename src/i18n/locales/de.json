@@ -273,7 +273,10 @@
     "protocols": "Protokolle",
     "protocol_pickup": "Abholprotokoll",
     "protocol_dropoff": "Ankunftsprotokoll",
-    "create_protocol": "{{which}} erstellen"
+    "create_protocol": "{{which}} erstellen",
+    "time_from": "Startzeit",
+    "time_to": "Endzeit",
+    "time_hint": "Uhrzeiten sind optional."
   },
   "annahme": {
     "title": "Annahmeprotokoll",

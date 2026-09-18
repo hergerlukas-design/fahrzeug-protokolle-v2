@@ -36,10 +36,26 @@ function formatDate(value: string, lang: string): string {
   })
 }
 
+/** Postgres liefert "08:30:00" – für die Anzeige reichen Stunde und Minute. */
+function formatTime(value: string | null): string {
+  return value ? value.slice(0, 5) : ''
+}
+
+function withTime(date: string, time: string | null, lang: string): string {
+  const t = formatTime(time)
+  return t ? `${formatDate(date, lang)}, ${t}` : formatDate(date, lang)
+}
+
 function dateRange(tr: Transfer, lang: string): string {
-  const from = formatDate(tr.date_from, lang)
-  if (!tr.date_to || tr.date_to === tr.date_from) return from
-  return `${from} – ${formatDate(tr.date_to, lang)}`
+  const from = withTime(tr.date_from, tr.time_from, lang)
+  const sameDay = !tr.date_to || tr.date_to === tr.date_from
+
+  if (sameDay) {
+    // Am selben Tag genügt die zweite Uhrzeit ohne Datumswiederholung.
+    const end = formatTime(tr.time_to)
+    return end ? `${from} – ${end}` : from
+  }
+  return `${from} – ${withTime(tr.date_to!, tr.time_to, lang)}`
 }
 
 const STATUS_STYLES: Record<TransferStatus, string> = {
@@ -320,6 +336,8 @@ function TransferForm({
   const [vehicleSearch, setVehicleSearch] = useState('')
   const [dateFrom, setDateFrom] = useState(target?.date_from ?? '')
   const [dateTo, setDateTo] = useState(target?.date_to ?? '')
+  const [timeFrom, setTimeFrom] = useState(target?.time_from?.slice(0, 5) ?? '')
+  const [timeTo, setTimeTo] = useState(target?.time_to?.slice(0, 5) ?? '')
   const [locationFrom, setLocationFrom] = useState(target?.location_from ?? '')
   const [locationTo, setLocationTo] = useState(target?.location_to ?? '')
   const [driver, setDriver] = useState(target?.driver_name ?? '')
@@ -379,6 +397,8 @@ function TransferForm({
         vehicle_id: vehicleId,
         date_from: dateFrom,
         date_to: dateTo || null,
+        time_from: timeFrom || null,
+        time_to: timeTo || null,
         location_from: locationFrom,
         location_to: locationTo,
         driver_name: driver,
@@ -472,17 +492,32 @@ function TransferForm({
 
           {/* Dates */}
           <div className="grid grid-cols-2 gap-3">
-            <div>
+            <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 {t('transfers.date_from')} <span className="text-red-500">*</span>
               </label>
               <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className={field} />
+              <input
+                type="time"
+                value={timeFrom}
+                onChange={(e) => setTimeFrom(e.target.value)}
+                aria-label={t('transfers.time_from')}
+                className={field}
+              />
             </div>
-            <div>
+            <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">{t('transfers.date_to')}</label>
               <input type="date" value={dateTo} min={dateFrom} onChange={(e) => setDateTo(e.target.value)} className={field} />
+              <input
+                type="time"
+                value={timeTo}
+                onChange={(e) => setTimeTo(e.target.value)}
+                aria-label={t('transfers.time_to')}
+                className={field}
+              />
             </div>
           </div>
+          <p className="-mt-2 text-xs text-gray-400">{t('transfers.time_hint')}</p>
 
           {overlaps.length > 0 && (
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm flex items-start gap-2">

@@ -273,7 +273,10 @@
     "protocols": "Protocols",
     "protocol_pickup": "Pickup protocol",
     "protocol_dropoff": "Arrival protocol",
-    "create_protocol": "Create {{which}}"
+    "create_protocol": "Create {{which}}",
+    "time_from": "Start time",
+    "time_to": "End time",
+    "time_hint": "Times are optional."
   },
   "annahme": {
     "title": "Intake Protocol",

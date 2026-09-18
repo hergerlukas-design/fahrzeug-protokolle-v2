@@ -59,19 +59,6 @@ jobs:
             exit 1
           fi
 
-      # Rein lesend, bricht nie ab: zeigt, als wer der Token auftritt und was
-      # er sehen darf. Ohne das lässt sich flyctls "unauthorized" nicht
-      # zuordnen – es kann App, Organisation oder Remote-Builder meinen.
-      - name: Diagnose
-        continue-on-error: true
-        run: |
-          echo "== whoami =="
-          flyctl auth whoami || true
-          echo "== apps list =="
-          flyctl apps list || true
-          echo "== status $PREVIEW_APP =="
-          flyctl status --app "$PREVIEW_APP" || true
-
       # Eine von Hand mit "fly apps create" angelegte App bekommt keine
       # IP-Adresse zugewiesen – das macht sonst "fly launch". Ohne IP gibt es
       # keinen DNS-Eintrag, und die Vorschau-URL löst nicht auf
@@ -105,7 +92,7 @@ jobs:
         # Eine eigene PIN für die Vorschau ist optional: ist das Secret
         # VITE_APP_PASSWORD_PREVIEW nicht gesetzt, gilt die produktive.
         run: >-
-          flyctl deploy --remote-only --verbose
+          flyctl deploy --remote-only
           --config fly.preview.toml
           --app "$PREVIEW_APP"
           --build-arg VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}
