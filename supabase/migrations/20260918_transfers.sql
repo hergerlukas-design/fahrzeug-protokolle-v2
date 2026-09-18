@@ -89,10 +89,10 @@ END $$;
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Verknüpfung zu den Protokollen
 --
--- Der Typ von protocols.id wird zur Laufzeit ausgelesen statt geraten: je nach
--- Stand des Projekts ist das eine bigint-Sequenz oder eine uuid, und eine
--- falsch geratene Spalte scheitert erst beim Anlegen des Fremdschlüssels mit
--- einer schwer lesbaren Meldung.
+-- protocols.id ist uuid (gen_random_uuid()), nicht die Integer-Sequenz, die der
+-- TypeScript-Typ Protocol.id nahelegt. Der Check unten bricht sauber ab, falls
+-- das in einer anderen Umgebung abweicht – sonst scheitert erst der
+-- Fremdschlüssel mit einer schwer lesbaren Meldung.
 -- ─────────────────────────────────────────────────────────────────────────────
 
 DO $$
@@ -106,16 +106,19 @@ BEGIN
      AND a.attname  = 'id'
      AND NOT a.attisdropped;
 
-  IF proto_type IS NULL THEN
-    RAISE EXCEPTION 'Tabelle protocols oder deren Spalte id nicht gefunden – bitte zuerst das Grundschema anlegen.';
+  IF proto_type IS DISTINCT FROM 'uuid' THEN
+    RAISE EXCEPTION 'protocols.id hat den Typ % statt uuid – Migration bitte anpassen.', COALESCE(proto_type, '<nicht gefunden>');
   END IF;
+END $$;
 
+DO $$
+BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='transfers' AND column_name='pickup_protocol_id') THEN
-    EXECUTE format('ALTER TABLE transfers ADD COLUMN pickup_protocol_id %s REFERENCES protocols(id) ON DELETE SET NULL', proto_type);
+    ALTER TABLE transfers ADD COLUMN pickup_protocol_id uuid REFERENCES protocols(id) ON DELETE SET NULL;
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='transfers' AND column_name='dropoff_protocol_id') THEN
-    EXECUTE format('ALTER TABLE transfers ADD COLUMN dropoff_protocol_id %s REFERENCES protocols(id) ON DELETE SET NULL', proto_type);
+    ALTER TABLE transfers ADD COLUMN dropoff_protocol_id uuid REFERENCES protocols(id) ON DELETE SET NULL;
   END IF;
 END $$;
 

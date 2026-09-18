@@ -34,8 +34,10 @@ export interface Transfer {
   contact_name: string | null
   contact_phone: string | null
   notes: string | null
-  pickup_protocol_id: number | null
-  dropoff_protocol_id: number | null
+  // protocols.id ist uuid – der Typ Protocol.id in lib/vehicles.ts sagt number,
+  // was nur deshalb nie aufgefallen ist, weil der Wert dort bloß durchgereicht wird.
+  pickup_protocol_id: string | null
+  dropoff_protocol_id: string | null
   created_at: string
   vehicle?: TransferVehicle | null
 }
