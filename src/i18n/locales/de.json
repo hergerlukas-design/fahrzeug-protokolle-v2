@@ -28,7 +28,8 @@
     "create": "Erstellen",
     "settings": "Einstellungen",
     "menu": "Menü",
-    "archive": "Archiv"
+    "archive": "Archiv",
+    "transfers": "Überführungen"
   },
   "login": {
     "subtitle": "Team-Login",
@@ -124,7 +125,9 @@
     "create_project": "Erstellen",
     "new_project_title": "Neues Projekt",
     "start_transfer": "Überführung für {{plate}} starten",
-    "search_placeholder": "Kennzeichen, Marke …"
+    "search_placeholder": "Kennzeichen, Marke …",
+    "transfer": "Überführung",
+    "transfer_desc": "Fahrzeug einplanen"
   },
   "projects": {
     "title": "Projekte",
@@ -232,6 +235,40 @@
   "protocol_type": {
     "transfer": "Überführung",
     "intake": "Annahme"
+  },
+  "transfers": {
+    "title": "Überführungen",
+    "section_open": "Nächste Überführungen",
+    "section_closed": "Abgeschlossen",
+    "empty": "Keine offenen Überführungen",
+    "empty_hint": "Neue Überführung über den Plus-Button anlegen.",
+    "vehicle_missing": "Fahrzeug gelöscht",
+    "vehicle_state": "Fahrzeugstatus",
+    "no_route": "Kein Ort hinterlegt",
+    "status_geplant": "Geplant",
+    "status_unterwegs": "Unterwegs",
+    "status_angekommen": "Angekommen",
+    "status_abgebrochen": "Abgebrochen",
+    "action_pickup": "Abgeholt",
+    "action_arrive": "Angekommen",
+    "action_cancel": "Abbrechen",
+    "action_reset": "Zurücksetzen",
+    "form_title_new": "Neue Überführung",
+    "form_title_edit": "Überführung bearbeiten",
+    "vehicle_label": "Fahrzeug",
+    "vehicle_placeholder": "Kennzeichen oder Modell suchen …",
+    "vehicle_required": "Bitte ein Fahrzeug auswählen.",
+    "date_from": "Start",
+    "date_to": "Ende",
+    "date_invalid": "Das Enddatum darf nicht vor dem Start liegen.",
+    "location_from": "Startort",
+    "location_to": "Zielort",
+    "driver": "Fahrer",
+    "contact_name": "Ansprechpartner",
+    "contact_phone": "Telefon",
+    "notes": "Notizen",
+    "overlap_title": "Dieses Fahrzeug ist im Zeitraum schon eingeplant:",
+    "delete_title": "Überführung löschen?"
   },
   "annahme": {
     "title": "Annahmeprotokoll",

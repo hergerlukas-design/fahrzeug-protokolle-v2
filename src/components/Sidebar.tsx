@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Folder, Archive, Settings, X } from 'lucide-react'
+import { Folder, Route as RouteIcon, Archive, Settings, X } from 'lucide-react'
 
 /** Dispatched by the hamburger in PageHeader — same event idiom as
  *  CREATE_EVENT, so no state has to be threaded through the page components. */
@@ -9,6 +9,7 @@ export const SIDEBAR_EVENT = 'vp-open-sidebar'
 
 const ITEMS = [
   { to: '/fahrzeuge', icon: Folder, labelKey: 'nav.projects' },
+  { to: '/ueberfuehrungen', icon: RouteIcon, labelKey: 'nav.transfers' },
   { to: '/archiv', icon: Archive, labelKey: 'nav.archive' },
   { to: '/einstellungen', icon: Settings, labelKey: 'nav.settings' },
 ]

@@ -28,7 +28,8 @@
     "create": "Create",
     "settings": "Settings",
     "menu": "Menu",
-    "archive": "Archive"
+    "archive": "Archive",
+    "transfers": "Transfers"
   },
   "login": {
     "subtitle": "Team Login",
@@ -124,7 +125,9 @@
     "create_project": "Create",
     "new_project_title": "New project",
     "start_transfer": "Start transfer for {{plate}} →",
-    "search_placeholder": "Licence plate, make …"
+    "search_placeholder": "Licence plate, make …",
+    "transfer": "Transfer",
+    "transfer_desc": "Schedule a vehicle"
   },
   "projects": {
     "title": "Projects",
@@ -232,6 +235,40 @@
   "protocol_type": {
     "transfer": "Transfer",
     "intake": "Intake"
+  },
+  "transfers": {
+    "title": "Transfers",
+    "section_open": "Upcoming transfers",
+    "section_closed": "Completed",
+    "empty": "No open transfers",
+    "empty_hint": "Create a new transfer with the + button.",
+    "vehicle_missing": "Vehicle deleted",
+    "vehicle_state": "Vehicle status",
+    "no_route": "No location set",
+    "status_geplant": "Planned",
+    "status_unterwegs": "In transit",
+    "status_angekommen": "Arrived",
+    "status_abgebrochen": "Cancelled",
+    "action_pickup": "Picked up",
+    "action_arrive": "Arrived",
+    "action_cancel": "Cancel",
+    "action_reset": "Reset",
+    "form_title_new": "New transfer",
+    "form_title_edit": "Edit transfer",
+    "vehicle_label": "Vehicle",
+    "vehicle_placeholder": "Search licence plate or model …",
+    "vehicle_required": "Please select a vehicle.",
+    "date_from": "Start",
+    "date_to": "End",
+    "date_invalid": "The end date cannot be before the start.",
+    "location_from": "Pickup location",
+    "location_to": "Destination",
+    "driver": "Driver",
+    "contact_name": "Contact",
+    "contact_phone": "Phone",
+    "notes": "Notes",
+    "overlap_title": "This vehicle is already scheduled in that period:",
+    "delete_title": "Delete transfer?"
   },
   "annahme": {
     "title": "Intake Protocol",
