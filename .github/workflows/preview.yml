@@ -72,6 +72,26 @@ jobs:
           echo "== status $PREVIEW_APP =="
           flyctl status --app "$PREVIEW_APP" || true
 
+      # Eine von Hand mit "fly apps create" angelegte App bekommt keine
+      # IP-Adresse zugewiesen – das macht sonst "fly launch". Ohne IP gibt es
+      # keinen DNS-Eintrag, und die Vorschau-URL löst nicht auf
+      # (ERR_NAME_NOT_RESOLVED), obwohl der Deploy erfolgreich war.
+      # Die gemeinsame IPv4 kostet nichts.
+      - name: IP-Adressen sicherstellen
+        run: |
+          IPS="$(flyctl ips list --app "$PREVIEW_APP" 2>/dev/null || true)"
+          echo "$IPS"
+          if ! printf '%s' "$IPS" | grep -qw 'v4'; then
+            echo "Keine IPv4 vorhanden – lege eine gemeinsame an."
+            flyctl ips allocate-v4 --shared --app "$PREVIEW_APP" || true
+          fi
+          if ! printf '%s' "$IPS" | grep -qw 'v6'; then
+            echo "Keine IPv6 vorhanden – lege eine an."
+            flyctl ips allocate-v6 --app "$PREVIEW_APP" || true
+          fi
+          echo "== Stand danach =="
+          flyctl ips list --app "$PREVIEW_APP" || true
+
       # Keine eigene Vorprüfung, ob die App existiert: ein vorgeschaltetes
       # "flyctl status" kann nicht unterscheiden, ob die App fehlt oder ob der
       # Token sie nur nicht sehen darf, und verdeckt dabei die aussagekräftige

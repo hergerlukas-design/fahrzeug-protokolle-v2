@@ -92,6 +92,11 @@ Den Token als Secret `FLY_API_TOKEN_PREVIEW` hinterlegen (Settings → Secrets
 and variables → Actions). Der produktive Deploy benutzt weiterhin
 `FLY_API_TOKEN`.
 
+Eine so angelegte App hat noch **keine IP-Adresse** — anders als bei
+`fly launch`. Ohne IP existiert kein DNS-Eintrag und die URL löst nicht auf,
+obwohl der Deploy durchläuft. Der Workflow legt die Adressen deshalb selbst
+an, falls sie fehlen (die gemeinsame IPv4 ist kostenlos).
+
 ### Zu wissen
 
 - **Eine App für alle PRs.** Bei mehreren gleichzeitig offenen PRs
