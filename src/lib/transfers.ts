@@ -1,4 +1,5 @@
 import { supabase, requireOnline } from './supabase'
+import { normalizeKennzeichen } from './vehicles'
 
 export type TransferStatus = 'geplant' | 'unterwegs' | 'angekommen' | 'abgebrochen'
 
@@ -52,6 +53,8 @@ export interface Transfer {
   // was nur deshalb nie aufgefallen ist, weil der Wert dort bloß durchgereicht wird.
   pickup_protocol_id: string | null
   dropoff_protocol_id: string | null
+  /** UID des Kalendertermins, aus dem die Überführung übernommen wurde. */
+  calendar_uid: string | null
   created_at: string
   vehicle?: TransferVehicle | null
   pickup_protocol?: LinkedProtocol | null
@@ -70,6 +73,7 @@ export interface TransferInput {
   contact_name?: string | null
   contact_phone?: string | null
   notes?: string | null
+  calendar_uid?: string | null
 }
 
 const PROTOCOL_FIELDS = 'id, created_at, status, protocol_type, inspector_name'
@@ -78,7 +82,7 @@ const PROTOCOL_FIELDS = 'id, created_at, status, protocol_type, inspector_name'
 // deshalb den Constraint-Namen, um die Einbettungen auseinanderzuhalten.
 const SELECT =
   'id, vehicle_id, date_from, date_to, time_from, time_to, location_from, location_to, status, picked_up_at, arrived_at, ' +
-  'driver_name, contact_name, contact_phone, notes, pickup_protocol_id, dropoff_protocol_id, created_at, ' +
+  'driver_name, contact_name, contact_phone, notes, pickup_protocol_id, dropoff_protocol_id, calendar_uid, created_at, ' +
   'vehicle:vehicles(id, license_plate, brand_model, availability, cleanliness_interior, cleanliness_exterior, is_fueled, is_charged, current_odometer), ' +
   `pickup_protocol:protocols!transfers_pickup_protocol_id_fkey(${PROTOCOL_FIELDS}), ` +
   `dropoff_protocol:protocols!transfers_dropoff_protocol_id_fkey(${PROTOCOL_FIELDS})`
@@ -184,6 +188,7 @@ function clean(values: TransferInput) {
     contact_name: values.contact_name?.trim() || null,
     contact_phone: values.contact_phone?.trim() || null,
     notes: values.notes?.trim() || null,
+    calendar_uid: values.calendar_uid || null,
   }
 }
 
@@ -320,4 +325,82 @@ export async function syncVehicleAvailability(
     // Bewusst nicht weiterwerfen: der Statuswechsel selbst ist schon gespeichert.
     console.warn('Verfügbarkeit konnte nicht angeglichen werden:', error.message)
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Kalender
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Ein Termin aus dem veröffentlichten Kalender, wie ihn die Edge Function liefert. */
+export interface CalendarEvent {
+  uid: string
+  summary: string
+  description: string | null
+  location: string | null
+  date_from: string
+  date_to: string | null
+  time_from: string | null
+  time_to: string | null
+  all_day: boolean
+  /** Serientermine liefert die Function unaufgelöst – sie werden nur markiert. */
+  recurring: boolean
+}
+
+/**
+ * Termine aus dem Kalender holen.
+ *
+ * Der Aufruf geht über eine Edge Function, weil die Feed-URL ein Geheimnis ist
+ * und iCloud keine CORS-Header liefert – direkt aus dem Browser ginge beides
+ * nicht.
+ */
+export async function fetchCalendarEvents(): Promise<CalendarEvent[]> {
+  requireOnline()
+  const { data, error } = await supabase.functions.invoke('transfer-calendar', { method: 'GET' })
+  if (error) throw error
+  // Die Function meldet eigene Fehler als JSON mit "error" statt als Ausnahme.
+  if (data && typeof data === 'object' && 'error' in data) {
+    const d = data as { error: string; hint?: string }
+    throw new Error(d.hint ? `${d.error} ${d.hint}` : d.error)
+  }
+  return ((data as { events?: CalendarEvent[] })?.events ?? [])
+}
+
+/** UIDs der Termine, aus denen schon eine Überführung entstanden ist. */
+export async function fetchImportedCalendarUids(): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from('transfers')
+    .select('calendar_uid')
+    .not('calendar_uid', 'is', null)
+  if (error) throw error
+  return new Set((data ?? []).map((r: { calendar_uid: string }) => r.calendar_uid))
+}
+
+/**
+ * Sucht im Termintitel nach einem Kennzeichen aus der Fahrzeugliste.
+ *
+ * Verglichen wird normalisiert, damit "M-AB 1234", "M AB 1234" und "MAB1234"
+ * zusammenfinden. Bei mehreren Treffern gewinnt das längste Kennzeichen: kurze
+ * Flottennummern wie "2843" stecken leicht zufällig in längeren Zeichenfolgen.
+ *
+ * Bewusst nur ein Vorschlag – die Zuordnung landet im Formular und wird dort
+ * bestätigt, nie ungeprüft gespeichert.
+ */
+export function matchVehicleByPlate<T extends { license_plate: string }>(
+  summary: string,
+  vehicles: T[]
+): T | null {
+  const haystack = normalizeKennzeichen(summary)
+  if (!haystack) return null
+
+  let best: T | null = null
+  let bestLen = 0
+  for (const v of vehicles) {
+    const plate = normalizeKennzeichen(v.license_plate ?? '')
+    if (plate.length < 3) continue
+    if (haystack.includes(plate) && plate.length > bestLen) {
+      best = v
+      bestLen = plate.length
+    }
+  }
+  return best
 }

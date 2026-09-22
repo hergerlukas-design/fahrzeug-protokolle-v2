@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import {
   Route as RouteIcon, ChevronDown, ChevronRight, MapPin, User, Phone, StickyNote,
   Car, Search, AlertTriangle, X, Pencil, Trash2, Truck, CheckCircle2, RotateCcw,
-  FileText, FilePlus,
+  FileText, FilePlus, CalendarDays, RefreshCw, Download,
   Sparkles, Droplets, Fuel, Zap, CircleCheck, Navigation,
 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
@@ -19,9 +19,14 @@ import {
   deleteTransfer,
   setTransferStatus,
   findOverlappingTransfers,
+  fetchCalendarEvents,
+  fetchImportedCalendarUids,
+  matchVehicleByPlate,
   type Transfer,
+  type TransferInput,
   type TransferStatus,
   type ProtocolRole,
+  type CalendarEvent,
 } from '../lib/transfers'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -322,28 +327,33 @@ function TransferCard({
 
 function TransferForm({
   target,
+  preset,
   onSaved,
   onCancel,
 }: {
   target: Transfer | null
+  /** Vorbelegung für eine neue Überführung, etwa aus einem Kalendertermin. */
+  preset?: TransferInput | null
   onSaved: () => void
   onCancel: () => void
 }) {
   const { t, i18n } = useTranslation()
+  // Beim Bearbeiten gewinnt der Datensatz, sonst die Vorbelegung.
+  const init = target ?? preset ?? null
 
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
-  const [vehicleId, setVehicleId] = useState(target?.vehicle_id ?? '')
+  const [vehicleId, setVehicleId] = useState(init?.vehicle_id ?? '')
   const [vehicleSearch, setVehicleSearch] = useState('')
-  const [dateFrom, setDateFrom] = useState(target?.date_from ?? '')
-  const [dateTo, setDateTo] = useState(target?.date_to ?? '')
-  const [timeFrom, setTimeFrom] = useState(target?.time_from?.slice(0, 5) ?? '')
-  const [timeTo, setTimeTo] = useState(target?.time_to?.slice(0, 5) ?? '')
-  const [locationFrom, setLocationFrom] = useState(target?.location_from ?? '')
-  const [locationTo, setLocationTo] = useState(target?.location_to ?? '')
-  const [driver, setDriver] = useState(target?.driver_name ?? '')
-  const [contactName, setContactName] = useState(target?.contact_name ?? '')
-  const [contactPhone, setContactPhone] = useState(target?.contact_phone ?? '')
-  const [notes, setNotes] = useState(target?.notes ?? '')
+  const [dateFrom, setDateFrom] = useState(init?.date_from ?? '')
+  const [dateTo, setDateTo] = useState(init?.date_to ?? '')
+  const [timeFrom, setTimeFrom] = useState(init?.time_from?.slice(0, 5) ?? '')
+  const [timeTo, setTimeTo] = useState(init?.time_to?.slice(0, 5) ?? '')
+  const [locationFrom, setLocationFrom] = useState(init?.location_from ?? '')
+  const [locationTo, setLocationTo] = useState(init?.location_to ?? '')
+  const [driver, setDriver] = useState(init?.driver_name ?? '')
+  const [contactName, setContactName] = useState(init?.contact_name ?? '')
+  const [contactPhone, setContactPhone] = useState(init?.contact_phone ?? '')
+  const [notes, setNotes] = useState(init?.notes ?? '')
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -405,6 +415,9 @@ function TransferForm({
         contact_name: contactName,
         contact_phone: contactPhone,
         notes,
+        // Bleibt beim Bearbeiten erhalten, damit derselbe Termin nicht
+        // ein zweites Mal als neu erscheint.
+        calendar_uid: target?.calendar_uid ?? preset?.calendar_uid ?? null,
       }
       if (target) await updateTransfer(target.id, values)
       else await createTransfer(values)
@@ -426,7 +439,11 @@ function TransferForm({
         </div>
         <form onSubmit={handleSubmit} className="px-4 pb-[calc(4rem+env(safe-area-inset-bottom))] space-y-4">
           <h2 className="text-lg font-bold text-gray-900">
-            {target ? t('transfers.form_title_edit') : t('transfers.form_title_new')}
+            {target
+              ? t('transfers.form_title_edit')
+              : preset?.calendar_uid
+                ? t('transfers.form_title_import')
+                : t('transfers.form_title_new')}
           </h2>
 
           {error && (
@@ -627,6 +644,108 @@ function DeleteConfirm({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Kalender – Termine, aus denen noch keine Überführung entstanden ist
+// ─────────────────────────────────────────────────────────────────────────────
+
+function CalendarSection({
+  events,
+  loading,
+  error,
+  vehicles,
+  onImport,
+  onReload,
+}: {
+  events: CalendarEvent[]
+  loading: boolean
+  error: string | null
+  vehicles: Vehicle[]
+  onImport: (event: CalendarEvent, vehicle: Vehicle | null) => void
+  onReload: () => void
+}) {
+  const { t, i18n } = useTranslation()
+  const [open, setOpen] = useState(true)
+
+  // Nichts anzuzeigen und nichts zu melden: die Sektion bleibt ganz weg,
+  // statt einen leeren Kasten zu hinterlassen.
+  if (!loading && !error && events.length === 0) return null
+
+  return (
+    <section>
+      <div className="flex items-center gap-2 mb-2">
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wide active:text-gray-600"
+        >
+          <CalendarDays size={14} />
+          <span>{t('transfers.calendar_section')} ({events.length})</span>
+          {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        </button>
+        <button
+          onClick={onReload}
+          disabled={loading}
+          className="ml-auto text-gray-400 active:text-gray-600 disabled:opacity-50"
+          aria-label={t('transfers.calendar_reload')}
+        >
+          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+        </button>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm flex items-start gap-2">
+          <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {open && !error && (
+        <div className="space-y-2">
+          {events.map((ev) => {
+            const vehicle = matchVehicleByPlate(ev.summary, vehicles)
+            return (
+              <div key={ev.uid} className="bg-white rounded-2xl border border-dashed border-gray-300 shadow-sm px-4 py-3">
+                <p className="font-semibold text-gray-900 text-sm">{ev.summary || t('transfers.calendar_untitled')}</p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {withTime(ev.date_from, ev.time_from, i18n.language)}
+                  {ev.date_to && ` – ${withTime(ev.date_to, ev.time_to, i18n.language)}`}
+                </p>
+                {ev.location && (
+                  <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                    <MapPin size={12} className="text-gray-400 flex-shrink-0" /> {ev.location}
+                  </p>
+                )}
+
+                <div className="flex items-center gap-2 mt-2">
+                  {vehicle ? (
+                    <span className="text-[10px] font-semibold uppercase tracking-wide bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                      {vehicle.license_plate}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-semibold uppercase tracking-wide bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+                      {t('transfers.calendar_no_match')}
+                    </span>
+                  )}
+                  {ev.recurring && (
+                    <span className="text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                      {t('transfers.calendar_recurring')}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => onImport(ev, vehicle)}
+                    className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-600 text-white text-xs font-semibold active:bg-brand-700"
+                  >
+                    <Download size={13} /> {t('transfers.calendar_import')}
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </section>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Page
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -645,6 +764,13 @@ export default function Ueberfuehrungen() {
 
   const [formOpen, setFormOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<Transfer | null>(null)
+  const [formPreset, setFormPreset] = useState<TransferInput | null>(null)
+
+  // Kalender
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([])
+  const [calendarLoading, setCalendarLoading] = useState(false)
+  const [calendarError, setCalendarError] = useState<string | null>(null)
+  const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [deleteTarget, setDeleteTarget] = useState<Transfer | null>(null)
   const [deleting, setDeleting] = useState(false)
 
@@ -664,12 +790,41 @@ export default function Ueberfuehrungen() {
 
   useEffect(() => { load() }, [load])
 
+  /**
+   * Kalendertermine holen und die bereits übernommenen herausfiltern.
+   *
+   * Fehler hier landen bewusst nicht im Seitenbanner: ein nicht eingerichteter
+   * oder gerade nicht erreichbarer Kalender darf die Überführungsliste nicht
+   * als kaputt erscheinen lassen.
+   */
+  const loadCalendar = useCallback(async () => {
+    setCalendarLoading(true)
+    try {
+      const [events, imported, vehicleList] = await Promise.all([
+        fetchCalendarEvents(),
+        fetchImportedCalendarUids(),
+        fetchVehicles(),
+      ])
+      setVehicles(vehicleList)
+      setCalendarEvents(events.filter((e) => !imported.has(e.uid)))
+      setCalendarError(null)
+    } catch (e) {
+      setCalendarEvents([])
+      setCalendarError(errorText(e, t('transfers.calendar_error')))
+    } finally {
+      setCalendarLoading(false)
+    }
+  }, [t])
+
+  useEffect(() => { loadCalendar() }, [loadCalendar])
+
   // Der Wizard hinter dem Plus-Button öffnet das Formular über den
   // Navigations-State – auch dann, wenn diese Seite schon offen ist.
   useEffect(() => {
     const state = loc.state as { createTransfer?: number } | null
     if (state?.createTransfer) {
       setEditTarget(null)
+      setFormPreset(null)
       setFormOpen(true)
     }
   }, [loc.state])
@@ -723,6 +878,23 @@ export default function Ueberfuehrungen() {
     }
   }
 
+  /** Termin ins Formular übernehmen – gespeichert wird erst nach Bestätigung. */
+  function handleImportEvent(event: CalendarEvent, vehicle: Vehicle | null) {
+    setEditTarget(null)
+    setFormPreset({
+      vehicle_id: vehicle?.id ?? '',
+      date_from: event.date_from,
+      date_to: event.date_to,
+      time_from: event.time_from,
+      time_to: event.time_to,
+      // Der Ort im Termin ist das Ziel der Fahrt, nicht der Start.
+      location_to: event.location,
+      notes: [event.summary, event.description].filter(Boolean).join('\n'),
+      calendar_uid: event.uid,
+    })
+    setFormOpen(true)
+  }
+
   async function handleDelete() {
     if (!deleteTarget) return
     setDeleting(true)
@@ -747,7 +919,7 @@ export default function Ueberfuehrungen() {
         onStatus={(status) => handleStatus(transfer, status)}
         onCreateProtocol={(role) => handleCreateProtocol(transfer, role)}
         onOpenProtocol={(protocolId) => navigate('/archiv', { state: { protocol_id: protocolId } })}
-        onEdit={() => { setEditTarget(transfer); setFormOpen(true) }}
+        onEdit={() => { setEditTarget(transfer); setFormPreset(null); setFormOpen(true) }}
         onDelete={() => setDeleteTarget(transfer)}
         busy={busyId === transfer.id}
       />
@@ -771,6 +943,15 @@ export default function Ueberfuehrungen() {
           <SkeletonList count={3} />
         ) : (
           <>
+            <CalendarSection
+              events={calendarEvents}
+              loading={calendarLoading}
+              error={calendarError}
+              vehicles={vehicles}
+              onImport={handleImportEvent}
+              onReload={loadCalendar}
+            />
+
             <section>
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
                 {t('transfers.section_open')}
@@ -805,8 +986,12 @@ export default function Ueberfuehrungen() {
       {formOpen && (
         <TransferForm
           target={editTarget}
-          onSaved={() => { setFormOpen(false); setEditTarget(null); load() }}
-          onCancel={() => { setFormOpen(false); setEditTarget(null) }}
+          preset={formPreset}
+          onSaved={() => {
+            setFormOpen(false); setEditTarget(null); setFormPreset(null)
+            load(); loadCalendar()
+          }}
+          onCancel={() => { setFormOpen(false); setEditTarget(null); setFormPreset(null) }}
         />
       )}
 

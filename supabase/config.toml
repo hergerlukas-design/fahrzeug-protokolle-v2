@@ -1,0 +1,8 @@
+project_id = "zhsqcrmdqxfnupmuqaya"
+
+# Die Function gibt fremde Kalenderdaten aus. Ohne JWT-Prüfung könnte sie
+# jeder abrufen, der die URL errät. Der Anon-Key ist zwar im Client-Bundle
+# öffentlich, aber er ist immerhin eine Hürde gegenüber der blanken URL –
+# deshalb hier anders als bei rein internen Functions.
+[functions.transfer-calendar]
+verify_jwt = true
