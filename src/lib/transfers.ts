@@ -35,6 +35,8 @@ export interface LinkedProtocol {
 export interface Transfer {
   id: string
   vehicle_id: string
+  /** Beschriftung der Fahrt – bei Kalenderübernahmen der Termintitel. */
+  title: string | null
   date_from: string
   date_to: string | null
   /** Optionale Uhrzeiten (HH:MM). Das Datum steht oft früher fest als die Stunde. */
@@ -63,6 +65,7 @@ export interface Transfer {
 
 export interface TransferInput {
   vehicle_id: string
+  title?: string | null
   date_from: string
   date_to?: string | null
   time_from?: string | null
@@ -81,7 +84,7 @@ const PROTOCOL_FIELDS = 'id, created_at, status, protocol_type, inspector_name'
 // Beide Protokollspalten zeigen auf dieselbe Tabelle – PostgREST braucht
 // deshalb den Constraint-Namen, um die Einbettungen auseinanderzuhalten.
 const SELECT =
-  'id, vehicle_id, date_from, date_to, time_from, time_to, location_from, location_to, status, picked_up_at, arrived_at, ' +
+  'id, vehicle_id, title, date_from, date_to, time_from, time_to, location_from, location_to, status, picked_up_at, arrived_at, ' +
   'driver_name, contact_name, contact_phone, notes, pickup_protocol_id, dropoff_protocol_id, calendar_uid, created_at, ' +
   'vehicle:vehicles(id, license_plate, brand_model, availability, cleanliness_interior, cleanliness_exterior, is_fueled, is_charged, current_odometer), ' +
   `pickup_protocol:protocols!transfers_pickup_protocol_id_fkey(${PROTOCOL_FIELDS}), ` +
@@ -178,6 +181,7 @@ export async function findOverlappingTransfers(
 function clean(values: TransferInput) {
   return {
     vehicle_id: values.vehicle_id,
+    title: values.title?.trim() || null,
     date_from: values.date_from,
     date_to: values.date_to || null,
     time_from: values.time_from || null,

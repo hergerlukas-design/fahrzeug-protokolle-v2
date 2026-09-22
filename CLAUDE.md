@@ -141,6 +141,18 @@ sich in `transfers.calendar_uid`, welcher Termin schon übernommen wurde.
 Gespeichert wird erst nach Bestätigung im Formular — die Zuordnung ist ein
 Vorschlag, keine Automatik.
 
+Der Termintitel wird als `transfers.title` übernommen und steht im Kopf der
+Karte, das Kennzeichen eine Zeile darunter. Aus den Notizen des Termins liest
+`src/lib/calendarContact.ts` zusätzlich Ansprechpartner und Telefonnummer
+(`Ansprechpartner: …`, `Tel: …`, sonst die erste Zeichenfolge, die wie eine
+Rufnummer aussieht). Datumsangaben und Auftragsnummern werden dabei bewusst
+aussortiert. Auch das ist ein Vorschlag: beides landet im Formular und ist dort
+änderbar.
+
+Die Liste der Termine zeigt voreingestellt alles ab heute — der Feed liefert
+den ganzen Kalender samt Vergangenheit. Über die Felder **Von**/**Bis** lässt
+sich der Zeitraum ändern, **Alle** hebt den Filter auf.
+
 Function deployen:
 
 ```bash

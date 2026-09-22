@@ -28,6 +28,7 @@ import {
   type ProtocolRole,
   type CalendarEvent,
 } from '../lib/transfers'
+import { extractContact } from '../lib/calendarContact'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -39,6 +40,13 @@ function formatDate(value: string, lang: string): string {
   return d.toLocaleDateString(lang.startsWith('en') ? 'en-GB' : 'de-DE', {
     day: '2-digit', month: '2-digit', year: 'numeric',
   })
+}
+
+/** Heutiges Datum als YYYY-MM-DD in Ortszeit – toISOString() läge in UTC. */
+function todayISO(): string {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
 /** Postgres liefert "08:30:00" – für die Anzeige reichen Stunde und Minute. */
@@ -145,6 +153,11 @@ function TransferCard({
 }) {
   const { t, i18n } = useTranslation()
   const v = transfer.vehicle
+  // Aus dem Kalender übernommene Fahrten tragen den Termintitel; er ist die
+  // Beschriftung, unter der sie bekannt sind. Das Kennzeichen rückt dann eine
+  // Zeile nach unten, statt zu verschwinden.
+  const title = transfer.title?.trim() || null
+  const plate = v?.license_plate ?? t('transfers.vehicle_missing')
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -154,14 +167,19 @@ function TransferCard({
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <p className="font-bold text-gray-900 truncate">
-              {v?.license_plate ?? t('transfers.vehicle_missing')}
-            </p>
+            <p className="font-bold text-gray-900 truncate">{title ?? plate}</p>
             <StatusBadge status={transfer.status} />
           </div>
-          <p className="text-sm text-gray-500 truncate">
-            {v?.brand_model || <span className="italic text-gray-300">{t('vehicles.brand_unknown')}</span>}
-          </p>
+          {title ? (
+            <p className="text-sm text-gray-600 truncate">
+              <span className="font-semibold">{plate}</span>
+              {v?.brand_model && <span className="text-gray-400"> · {v.brand_model}</span>}
+            </p>
+          ) : (
+            <p className="text-sm text-gray-500 truncate">
+              {v?.brand_model || <span className="italic text-gray-300">{t('vehicles.brand_unknown')}</span>}
+            </p>
+          )}
           <p className="text-xs text-gray-400 mt-0.5">{dateRange(transfer, i18n.language)}</p>
         </div>
         {expanded
@@ -344,6 +362,7 @@ function TransferForm({
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [vehicleId, setVehicleId] = useState(init?.vehicle_id ?? '')
   const [vehicleSearch, setVehicleSearch] = useState('')
+  const [title, setTitle] = useState(init?.title ?? '')
   const [dateFrom, setDateFrom] = useState(init?.date_from ?? '')
   const [dateTo, setDateTo] = useState(init?.date_to ?? '')
   const [timeFrom, setTimeFrom] = useState(init?.time_from?.slice(0, 5) ?? '')
@@ -405,6 +424,7 @@ function TransferForm({
     try {
       const values = {
         vehicle_id: vehicleId,
+        title,
         date_from: dateFrom,
         date_to: dateTo || null,
         time_from: timeFrom || null,
@@ -451,6 +471,20 @@ function TransferForm({
               <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" /> {error}
             </div>
           )}
+
+          {/* Titel – bei einer Kalenderübernahme der Termintitel */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {t('transfers.title_label')}
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder={t('transfers.title_placeholder')}
+              className={field}
+            />
+          </div>
 
           {/* Vehicle */}
           <div>
@@ -665,9 +699,30 @@ function CalendarSection({
   const { t, i18n } = useTranslation()
   const [open, setOpen] = useState(true)
 
+  // Der Feed liefert den ganzen Kalender, also auch alles Vergangene.
+  // Voreingestellt ist deshalb "ab heute"; beide Grenzen lassen sich ändern
+  // oder ganz aufheben, wenn ein älterer Termin nachgetragen werden soll.
+  const [from, setFrom] = useState(todayISO)
+  const [to, setTo] = useState('')
+
+  const visible = useMemo(
+    () =>
+      events.filter((ev) => {
+        // Ein mehrtägiger Termin zählt, solange er nicht komplett vorbei ist.
+        const end = ev.date_to || ev.date_from
+        if (from && end < from) return false
+        if (to && ev.date_from > to) return false
+        return true
+      }),
+    [events, from, to]
+  )
+
   // Nichts anzuzeigen und nichts zu melden: die Sektion bleibt ganz weg,
-  // statt einen leeren Kasten zu hinterlassen.
+  // statt einen leeren Kasten zu hinterlassen. Ein leerer Filter reicht dafür
+  // nicht – sonst verschwände mit dem letzten Treffer auch der Filter selbst.
   if (!loading && !error && events.length === 0) return null
+
+  const filtered = visible.length !== events.length
 
   return (
     <section>
@@ -677,7 +732,9 @@ function CalendarSection({
           className="flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wide active:text-gray-600"
         >
           <CalendarDays size={14} />
-          <span>{t('transfers.calendar_section')} ({events.length})</span>
+          <span>
+            {t('transfers.calendar_section')} ({filtered ? `${visible.length}/${events.length}` : events.length})
+          </span>
           {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </button>
         <button
@@ -698,9 +755,50 @@ function CalendarSection({
       )}
 
       {open && !error && (
+        <div className="flex items-end gap-2 mb-2">
+          <label className="flex-1 min-w-0">
+            <span className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
+              {t('transfers.calendar_filter_from')}
+            </span>
+            <input
+              type="date"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
+            />
+          </label>
+          <label className="flex-1 min-w-0">
+            <span className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
+              {t('transfers.calendar_filter_to')}
+            </span>
+            <input
+              type="date"
+              value={to}
+              min={from || undefined}
+              onChange={(e) => setTo(e.target.value)}
+              className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
+            />
+          </label>
+          {(from || to) && (
+            <button
+              onClick={() => { setFrom(''); setTo('') }}
+              className="px-2 py-2 text-xs font-semibold text-gray-500 active:text-gray-700 whitespace-nowrap"
+            >
+              {t('transfers.calendar_filter_reset')}
+            </button>
+          )}
+        </div>
+      )}
+
+      {open && !error && visible.length === 0 && (
+        <p className="text-sm text-gray-400 py-2">{t('transfers.calendar_filter_empty')}</p>
+      )}
+
+      {open && !error && (
         <div className="space-y-2">
-          {events.map((ev) => {
+          {visible.map((ev) => {
             const vehicle = matchVehicleByPlate(ev.summary, vehicles)
+            const contact = extractContact(ev.description)
             return (
               <div key={ev.uid} className="bg-white rounded-2xl border border-dashed border-gray-300 shadow-sm px-4 py-3">
                 <p className="font-semibold text-gray-900 text-sm">{ev.summary || t('transfers.calendar_untitled')}</p>
@@ -711,6 +809,21 @@ function CalendarSection({
                 {ev.location && (
                   <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
                     <MapPin size={12} className="text-gray-400 flex-shrink-0" /> {ev.location}
+                  </p>
+                )}
+                {/* Aus den Notizen gelesen – wird beim Übernehmen vorgeschlagen. */}
+                {(contact.name || contact.phone) && (
+                  <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-x-3 gap-y-0.5 flex-wrap">
+                    {contact.name && (
+                      <span className="flex items-center gap-1">
+                        <User size={12} className="text-gray-400 flex-shrink-0" /> {contact.name}
+                      </span>
+                    )}
+                    {contact.phone && (
+                      <span className="flex items-center gap-1">
+                        <Phone size={12} className="text-gray-400 flex-shrink-0" /> {contact.phone}
+                      </span>
+                    )}
                   </p>
                 )}
 
@@ -880,16 +993,24 @@ export default function Ueberfuehrungen() {
 
   /** Termin ins Formular übernehmen – gespeichert wird erst nach Bestätigung. */
   function handleImportEvent(event: CalendarEvent, vehicle: Vehicle | null) {
+    // Ansprechpartner und Telefon stehen, wenn überhaupt, in den Notizen –
+    // der Titel trägt das Kennzeichen und sonst nichts Verlässliches.
+    const contact = extractContact(event.description)
     setEditTarget(null)
     setFormPreset({
       vehicle_id: vehicle?.id ?? '',
+      // Der Termintitel bleibt der Titel der Überführung – in den Notizen wäre
+      // er in der Liste nicht mehr zu sehen.
+      title: event.summary || null,
       date_from: event.date_from,
       date_to: event.date_to,
       time_from: event.time_from,
       time_to: event.time_to,
       // Der Ort im Termin ist das Ziel der Fahrt, nicht der Start.
       location_to: event.location,
-      notes: [event.summary, event.description].filter(Boolean).join('\n'),
+      contact_name: contact.name,
+      contact_phone: contact.phone,
+      notes: event.description,
       calendar_uid: event.uid,
     })
     setFormOpen(true)
