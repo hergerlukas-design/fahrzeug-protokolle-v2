@@ -181,6 +181,22 @@ Erstellen aus der Überführung heraus. Das Lösen einer Verknüpfung lässt den
 Status dagegen stehen: er kann von Hand gesetzt worden sein, und ein
 versehentlich angehängtes Protokoll soll die Fahrt nicht zurückwerfen.
 
+## Fahrten untereinander verbinden
+
+Hin mit dem einen Fahrzeug, zurück mit dem anderen, oder mehrere Etappen an
+einem Tag: solche Überführungen gehören zusammen, bleiben aber eigene Fahrten
+mit eigenem Status und eigenen Protokollen. In der aufgeklappten Überführung
+steht dafür **Verbundene Fahrten** — verknüpfte Fahrten sind dort anzutippen
+(die Karte klappt auf und wird angesprungen), und "Fahrt verknüpfen" öffnet die
+Auswahl.
+
+Technisch ist das kein Paar, sondern eine gemeinsame `transfers.group_id`:
+damit passt auch die dritte Fahrt noch dazu. Wird eine Fahrt aus einer Gruppe
+mit einer anderen Gruppe verknüpft, werden beide Gruppen zusammengeführt.
+Bleibt beim Lösen nur eine Fahrt übrig, verliert auch sie die Gruppe — eine
+Gruppe aus einer einzigen Fahrt ist keine. Das Fahrzeug spielt dabei keine
+Rolle: die Rückfahrt mit einem anderen Auto ist der Normalfall.
+
 ## Datenbank-Migrationen
 
 Neue Migrationen liegen unter `supabase/migrations/`. Nach einem neuen

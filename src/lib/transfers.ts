@@ -57,6 +57,8 @@ export interface Transfer {
   dropoff_protocol_id: string | null
   /** UID des Kalendertermins, aus dem die Überführung übernommen wurde. */
   calendar_uid: string | null
+  /** Fahrten mit derselben group_id gehören zusammen (Hin- und Rückfahrt, Etappen). */
+  group_id: string | null
   created_at: string
   vehicle?: TransferVehicle | null
   pickup_protocol?: LinkedProtocol | null
@@ -85,7 +87,7 @@ const PROTOCOL_FIELDS = 'id, created_at, status, protocol_type, inspector_name'
 // deshalb den Constraint-Namen, um die Einbettungen auseinanderzuhalten.
 const SELECT =
   'id, vehicle_id, title, date_from, date_to, time_from, time_to, location_from, location_to, status, picked_up_at, arrived_at, ' +
-  'driver_name, contact_name, contact_phone, notes, pickup_protocol_id, dropoff_protocol_id, calendar_uid, created_at, ' +
+  'driver_name, contact_name, contact_phone, notes, pickup_protocol_id, dropoff_protocol_id, calendar_uid, group_id, created_at, ' +
   'vehicle:vehicles(id, license_plate, brand_model, availability, cleanliness_interior, cleanliness_exterior, is_fueled, is_charged, current_odometer), ' +
   `pickup_protocol:protocols!transfers_pickup_protocol_id_fkey(${PROTOCOL_FIELDS}), ` +
   `dropoff_protocol:protocols!transfers_dropoff_protocol_id_fkey(${PROTOCOL_FIELDS})`
@@ -347,6 +349,70 @@ export async function syncVehicleAvailability(
   if (error) {
     // Bewusst nicht weiterwerfen: der Statuswechsel selbst ist schon gespeichert.
     console.warn('Verfügbarkeit konnte nicht angeglichen werden:', error.message)
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Verbundene Fahrten
+//
+// Hin mit dem einen Fahrzeug, zurück mit dem anderen, oder mehrere Etappen an
+// einem Tag: solche Fahrten gehören zusammen, bleiben aber eigene
+// Überführungen mit eigenem Status und eigenen Protokollen. Verbunden werden
+// sie über eine gemeinsame group_id – kein Paar, damit auch die dritte Fahrt
+// noch dazupasst.
+// ─────────────────────────────────────────────────────────────────────────────
+
+type GroupMember = Pick<Transfer, 'id' | 'group_id'>
+
+/**
+ * Zwei Fahrten verbinden.
+ *
+ * Hat eine von beiden schon eine Gruppe, wird die andere dort aufgenommen;
+ * haben beide eine, werden die Gruppen zusammengeführt. Das Umhängen läuft
+ * über `eq('group_id', …)` und erwischt damit auch Fahrten, die gerade nicht
+ * auf dem Bildschirm stehen – sonst bliebe die halbe Gruppe zurück.
+ */
+export async function linkTransfers(a: GroupMember, b: GroupMember): Promise<void> {
+  requireOnline()
+  if (a.id === b.id) return
+  if (a.group_id && a.group_id === b.group_id) return
+
+  const group = a.group_id ?? b.group_id ?? crypto.randomUUID()
+
+  for (const t of [a, b]) {
+    if (t.group_id === group) continue
+    const query = supabase.from('transfers').update({ group_id: group })
+    const { error } = t.group_id
+      ? await query.eq('group_id', t.group_id)
+      : await query.eq('id', t.id)
+    if (error) throw error
+  }
+}
+
+/**
+ * Eine Fahrt aus ihrer Gruppe lösen.
+ *
+ * Bleibt danach nur noch eine übrig, wird auch die gelöst: eine Gruppe aus
+ * einer einzigen Fahrt ist keine.
+ */
+export async function unlinkTransfer(id: string, groupId: string | null): Promise<void> {
+  requireOnline()
+  const { error } = await supabase.from('transfers').update({ group_id: null }).eq('id', id)
+  if (error) throw error
+  if (!groupId) return
+
+  const { data, error: countErr } = await supabase
+    .from('transfers')
+    .select('id')
+    .eq('group_id', groupId)
+  if (countErr) throw countErr
+
+  if ((data ?? []).length === 1) {
+    const { error: lastErr } = await supabase
+      .from('transfers')
+      .update({ group_id: null })
+      .eq('group_id', groupId)
+    if (lastErr) throw lastErr
   }
 }
 
