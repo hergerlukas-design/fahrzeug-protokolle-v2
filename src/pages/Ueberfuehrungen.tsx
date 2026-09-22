@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import {
   Route as RouteIcon, ChevronDown, ChevronRight, MapPin, User, Phone, StickyNote,
   Car, Search, AlertTriangle, X, Pencil, Trash2, Truck, CheckCircle2, RotateCcw,
-  FileText, FilePlus, CalendarDays, RefreshCw, Download,
+  FileText, FilePlus, CalendarDays, RefreshCw, Download, Link2, Unlink,
   Sparkles, Droplets, Fuel, Zap, CircleCheck, Navigation,
 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
@@ -21,12 +21,16 @@ import {
   findOverlappingTransfers,
   fetchCalendarEvents,
   fetchImportedCalendarUids,
+  fetchUnlinkedProtocols,
+  linkProtocolToTransfer,
+  detachProtocolFromTransfer,
   matchVehicleByPlate,
   type Transfer,
   type TransferInput,
   type TransferStatus,
   type ProtocolRole,
   type CalendarEvent,
+  type LinkableProtocol,
 } from '../lib/transfers'
 import { extractContact } from '../lib/calendarContact'
 
@@ -136,6 +140,8 @@ function TransferCard({
   onToggle,
   onStatus,
   onCreateProtocol,
+  onLinkProtocol,
+  onUnlinkProtocol,
   onOpenProtocol,
   onEdit,
   onDelete,
@@ -146,6 +152,8 @@ function TransferCard({
   onToggle: () => void
   onStatus: (status: TransferStatus) => void
   onCreateProtocol: (role: ProtocolRole) => void
+  onLinkProtocol: (role: ProtocolRole) => void
+  onUnlinkProtocol: (role: ProtocolRole) => void
   onOpenProtocol: (protocolId: string) => void
   onEdit: () => void
   onDelete: () => void
@@ -242,38 +250,68 @@ function TransferCard({
                 const proto = role === 'pickup' ? transfer.pickup_protocol : transfer.dropoff_protocol
                 const label = t(`transfers.protocol_${role}`)
                 if (proto) {
+                  // Zeile mit zwei Zielen: öffnen und wieder lösen. Deshalb ein
+                  // div mit zwei Schaltflächen statt einer verschachtelten.
                   return (
-                    <button
+                    <div
                       key={role}
-                      onClick={() => onOpenProtocol(proto.id)}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 text-left active:bg-gray-50"
+                      className="flex items-center gap-1 pr-1 rounded-xl border border-gray-200"
                     >
-                      <FileText size={15} className="text-gray-400 flex-shrink-0" />
-                      <span className="flex-1 min-w-0 text-sm text-gray-700 truncate">
-                        {label}
-                        <span className="text-gray-400"> · {formatDate(proto.created_at.slice(0, 10), i18n.language)}</span>
-                      </span>
-                      {proto.status === 'draft' && (
-                        <span className="text-[10px] font-semibold uppercase text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full flex-shrink-0">
-                          {t('archiv.draft')}
+                      <button
+                        onClick={() => onOpenProtocol(proto.id)}
+                        className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 text-left active:bg-gray-50 rounded-l-xl"
+                      >
+                        <FileText size={15} className="text-gray-400 flex-shrink-0" />
+                        <span className="flex-1 min-w-0 text-sm text-gray-700 truncate">
+                          {label}
+                          <span className="text-gray-400"> · {formatDate(proto.created_at.slice(0, 10), i18n.language)}</span>
                         </span>
-                      )}
-                      <ChevronRight size={15} className="text-gray-300 flex-shrink-0" />
-                    </button>
+                        {proto.status === 'draft' && (
+                          <span className="text-[10px] font-semibold uppercase text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                            {t('archiv.draft')}
+                          </span>
+                        )}
+                        <ChevronRight size={15} className="text-gray-300 flex-shrink-0" />
+                      </button>
+                      <button
+                        onClick={() => onUnlinkProtocol(role)}
+                        disabled={busy}
+                        aria-label={t('transfers.unlink_protocol')}
+                        className="p-2 text-gray-300 active:text-gray-600 disabled:opacity-50 flex-shrink-0"
+                      >
+                        <Unlink size={15} />
+                      </button>
+                    </div>
                   )
                 }
                 return (
-                  <button
+                  // Wie die verknüpfte Zeile: Hauptweg links, die zweite
+                  // Möglichkeit als Symbol rechts. So bleibt für die
+                  // Beschriftung genug Platz.
+                  <div
                     key={role}
-                    onClick={() => onCreateProtocol(role)}
-                    disabled={!v}
-                    className="w-full flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-gray-300 text-left active:bg-gray-50 disabled:opacity-50"
+                    className="flex items-center gap-1 pr-1 rounded-xl border border-dashed border-gray-300"
                   >
-                    <FilePlus size={15} className="text-gray-400 flex-shrink-0" />
-                    <span className="flex-1 min-w-0 text-sm text-gray-500 truncate">
-                      {t('transfers.create_protocol', { which: label })}
-                    </span>
-                  </button>
+                    <button
+                      onClick={() => onCreateProtocol(role)}
+                      disabled={!v}
+                      className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 text-left active:bg-gray-50 disabled:opacity-50 rounded-l-xl"
+                    >
+                      <FilePlus size={15} className="text-gray-400 flex-shrink-0" />
+                      <span className="flex-1 min-w-0 text-sm text-gray-500 truncate">
+                        {t('transfers.create_protocol', { which: label })}
+                      </span>
+                    </button>
+                    {/* Für Protokolle, die es schon gibt – etwa unterwegs angelegt. */}
+                    <button
+                      onClick={() => onLinkProtocol(role)}
+                      disabled={!v}
+                      aria-label={t('transfers.link_protocol')}
+                      className="p-2 text-gray-400 active:text-gray-700 disabled:opacity-50 flex-shrink-0"
+                    >
+                      <Link2 size={15} />
+                    </button>
+                  </div>
                 )
               })}
             </div>
@@ -678,6 +716,106 @@ function DeleteConfirm({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Vorhandenes Protokoll anhängen
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ProtocolPicker({
+  transfer,
+  role,
+  onPick,
+  onCancel,
+  linking,
+}: {
+  transfer: Transfer
+  role: ProtocolRole
+  onPick: (protocolId: string) => void
+  onCancel: () => void
+  linking: boolean
+}) {
+  const { t, i18n } = useTranslation()
+  const [rows, setRows] = useState<LinkableProtocol[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    fetchUnlinkedProtocols(transfer.vehicle_id)
+      .then((r) => { if (!cancelled) setRows(r) })
+      .catch((e) => {
+        if (cancelled) return
+        setRows([])
+        setError(errorText(e, t('common.error')))
+      })
+    return () => { cancelled = true }
+  }, [transfer.vehicle_id, t])
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-30" onClick={onCancel} />
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white rounded-t-2xl shadow-2xl px-6 pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] max-w-2xl mx-auto max-h-[80vh] overflow-y-auto">
+        <h2 className="text-lg font-bold text-gray-900 mb-1">
+          {t('transfers.link_title', { which: t(`transfers.protocol_${role}`) })}
+        </h2>
+        <p className="text-sm text-gray-400 mb-4">
+          {transfer.vehicle?.license_plate} · {dateRange(transfer, i18n.language)}
+        </p>
+
+        {error && (
+          <div className="p-3 mb-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-start gap-2">
+            <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" /> {error}
+          </div>
+        )}
+
+        {rows === null ? (
+          <SkeletonList count={2} />
+        ) : rows.length === 0 ? (
+          <p className="text-sm text-gray-400 py-4">{t('transfers.link_empty')}</p>
+        ) : (
+          <div className="space-y-1.5">
+            {rows.map((p) => {
+              const day = (p.inspection_date ?? p.created_at).slice(0, 10)
+              const kind = p.protocol_type === 'annahme' ? t('archiv.intake') : t('archiv.transfer')
+              const route = [p.start_location, p.end_location].filter(Boolean).join(' → ')
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => onPick(p.id)}
+                  disabled={linking}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border border-gray-200 text-left active:bg-gray-50 disabled:opacity-50"
+                >
+                  <FileText size={15} className="text-gray-400 flex-shrink-0" />
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm text-gray-800 truncate">
+                      {formatDate(day, i18n.language)}
+                      <span className="text-gray-400"> · {kind}</span>
+                      {p.transfer_type && <span className="text-gray-400"> · {p.transfer_type}</span>}
+                    </span>
+                    <span className="block text-xs text-gray-400 truncate">
+                      {route || p.location || p.inspector_name || '—'}
+                    </span>
+                  </span>
+                  {p.status === 'draft' && (
+                    <span className="text-[10px] font-semibold uppercase text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                      {t('archiv.draft')}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        <button
+          onClick={onCancel}
+          className="w-full mt-4 py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm"
+        >
+          {t('common.cancel')}
+        </button>
+      </div>
+    </>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Kalender – Termine, aus denen noch keine Überführung entstanden ist
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -887,6 +1025,10 @@ export default function Ueberfuehrungen() {
   const [deleteTarget, setDeleteTarget] = useState<Transfer | null>(null)
   const [deleting, setDeleting] = useState(false)
 
+  // Vorhandenes Protokoll anhängen
+  const [linkTarget, setLinkTarget] = useState<{ transfer: Transfer; role: ProtocolRole } | null>(null)
+  const [linking, setLinking] = useState(false)
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
@@ -1016,6 +1158,36 @@ export default function Ueberfuehrungen() {
     setFormOpen(true)
   }
 
+  /** Ein Protokoll, das es schon gibt, an die Überführung hängen. */
+  async function handleLink(protocolId: string) {
+    if (!linkTarget) return
+    const { transfer, role } = linkTarget
+    setLinking(true)
+    setError(null)
+    try {
+      await linkProtocolToTransfer(transfer, role, protocolId)
+      setLinkTarget(null)
+      await load()
+    } catch (e) {
+      setError(errorText(e, t('common.error')))
+    } finally {
+      setLinking(false)
+    }
+  }
+
+  async function handleUnlink(transfer: Transfer, role: ProtocolRole) {
+    setBusyId(transfer.id)
+    setError(null)
+    try {
+      await detachProtocolFromTransfer(transfer.id, role)
+      await load()
+    } catch (e) {
+      setError(errorText(e, t('common.error')))
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   async function handleDelete() {
     if (!deleteTarget) return
     setDeleting(true)
@@ -1039,6 +1211,8 @@ export default function Ueberfuehrungen() {
         onToggle={() => setExpanded((cur) => (cur === transfer.id ? null : transfer.id))}
         onStatus={(status) => handleStatus(transfer, status)}
         onCreateProtocol={(role) => handleCreateProtocol(transfer, role)}
+        onLinkProtocol={(role) => setLinkTarget({ transfer, role })}
+        onUnlinkProtocol={(role) => handleUnlink(transfer, role)}
         onOpenProtocol={(protocolId) => navigate('/archiv', { state: { protocol_id: protocolId } })}
         onEdit={() => { setEditTarget(transfer); setFormPreset(null); setFormOpen(true) }}
         onDelete={() => setDeleteTarget(transfer)}
@@ -1113,6 +1287,16 @@ export default function Ueberfuehrungen() {
             load(); loadCalendar()
           }}
           onCancel={() => { setFormOpen(false); setEditTarget(null); setFormPreset(null) }}
+        />
+      )}
+
+      {linkTarget && (
+        <ProtocolPicker
+          transfer={linkTarget.transfer}
+          role={linkTarget.role}
+          onPick={handleLink}
+          onCancel={() => setLinkTarget(null)}
+          linking={linking}
         />
       )}
 

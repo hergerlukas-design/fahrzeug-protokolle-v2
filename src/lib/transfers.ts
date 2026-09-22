@@ -314,6 +314,25 @@ export async function linkProtocolToTransfer(
   if (nextStatus) await syncVehicleAvailability(transfer.vehicle_id, nextStatus)
 }
 
+/**
+ * Ein Protokoll wieder von der Überführung lösen.
+ *
+ * Der Status bleibt, wo er ist: er kann von Hand gesetzt worden sein, und ein
+ * versehentlich verknüpftes Protokoll soll die Fahrt nicht zurückwerfen.
+ */
+export async function detachProtocolFromTransfer(
+  transferId: string,
+  role: ProtocolRole
+): Promise<void> {
+  requireOnline()
+  const column = role === 'pickup' ? 'pickup_protocol_id' : 'dropoff_protocol_id'
+  const { error } = await supabase
+    .from('transfers')
+    .update({ [column]: null })
+    .eq('id', transferId)
+  if (error) throw error
+}
+
 /** Verfügbarkeit des Fahrzeugs an den Überführungsstatus angleichen. */
 export async function syncVehicleAvailability(
   vehicleId: string,
@@ -329,6 +348,72 @@ export async function syncVehicleAvailability(
     // Bewusst nicht weiterwerfen: der Statuswechsel selbst ist schon gespeichert.
     console.warn('Verfügbarkeit konnte nicht angeglichen werden:', error.message)
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Freie Protokolle
+//
+// Ein Protokoll entsteht nicht immer aus einer Überführung heraus – oft ist es
+// zuerst da, weil unterwegs schnell dokumentiert wurde. Damit die beiden
+// zusammenfinden, lassen sich vorhandene Protokolle nachträglich anhängen.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Ein Protokoll, das an eine Überführung gehängt werden kann. */
+export interface LinkableProtocol {
+  id: string
+  created_at: string
+  inspection_date: string | null
+  status: string | null
+  protocol_type: string | null
+  inspector_name: string | null
+  location: string | null
+  start_location: string | null
+  end_location: string | null
+  /** "Hinbringen" oder "Rücknahme" – steckt im JSON der Zustandsdaten. */
+  transfer_type: string | null
+}
+
+// condition_data enthält auch die Fotos als Base64; deshalb wird aus dem JSON
+// nur das eine Feld geholt, statt die ganze Spalte zu laden.
+const LINKABLE_SELECT =
+  'id, created_at, inspection_date, status, protocol_type, inspector_name, location, ' +
+  'start_location, end_location, transfer_type:condition_data->>transfer_type'
+
+/** IDs aller Protokolle, die schon an einer Überführung hängen. */
+async function fetchLinkedProtocolIds(): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from('transfers')
+    .select('pickup_protocol_id, dropoff_protocol_id')
+  if (error) throw error
+
+  const ids = new Set<string>()
+  for (const row of (data ?? []) as { pickup_protocol_id: string | null; dropoff_protocol_id: string | null }[]) {
+    if (row.pickup_protocol_id) ids.add(row.pickup_protocol_id)
+    if (row.dropoff_protocol_id) ids.add(row.dropoff_protocol_id)
+  }
+  return ids
+}
+
+/**
+ * Protokolle dieses Fahrzeugs, die an keiner Überführung hängen – das jüngste
+ * zuerst.
+ *
+ * Die Fremdschlüssel zeigen von der Überführung zum Protokoll, eine
+ * Unterabfrage gibt es in PostgREST nicht. Die belegten IDs werden deshalb
+ * getrennt geholt und hier abgezogen; die Tabelle ist klein genug dafür.
+ */
+export async function fetchUnlinkedProtocols(vehicleId: string): Promise<LinkableProtocol[]> {
+  const [result, used] = await Promise.all([
+    supabase
+      .from('protocols')
+      .select(LINKABLE_SELECT)
+      .eq('vehicle_id', vehicleId)
+      .order('inspection_date', { ascending: false, nullsFirst: false })
+      .limit(50),
+    fetchLinkedProtocolIds(),
+  ])
+  if (result.error) throw result.error
+  return ((result.data ?? []) as unknown as LinkableProtocol[]).filter((p) => !used.has(p.id))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

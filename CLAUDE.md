@@ -167,6 +167,20 @@ supabase functions deploy transfer-calendar --project-ref zhsqcrmdqxfnupmuqaya
   der erste Eintrag.
 - Uhrzeiten werden in `Europe/Berlin` gelesen.
 
+## Protokolle und Überführungen verknüpfen
+
+Ein Protokoll entsteht nicht immer aus einer Überführung heraus — oft ist es
+zuerst da, weil unterwegs schnell dokumentiert wurde. In der aufgeklappten
+Überführung steht deshalb neben "Abholprotokoll erstellen" ein Kettensymbol:
+es listet alle Protokolle des Fahrzeugs auf, die an keiner Überführung hängen,
+und hängt das gewählte an.
+
+Verknüpfen zieht den Status mit (Abholprotokoll → unterwegs, Ankunftsprotokoll
+→ angekommen) und damit auch `vehicles.availability` — dieselbe Logik wie beim
+Erstellen aus der Überführung heraus. Das Lösen einer Verknüpfung lässt den
+Status dagegen stehen: er kann von Hand gesetzt worden sein, und ein
+versehentlich angehängtes Protokoll soll die Fahrt nicht zurückwerfen.
+
 ## Datenbank-Migrationen
 
 Neue Migrationen liegen unter `supabase/migrations/`. Nach einem neuen
