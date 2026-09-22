@@ -111,6 +111,50 @@ an, falls sie fehlen (die gemeinsame IPv4 ist kostenlos).
   `VITE_APP_PASSWORD_PREVIEW` hinterlegen; ohne das Secret gilt die produktive.
 - PRs aus Forks bekommen keine Vorschau — GitHub gibt dort keine Secrets frei.
 
+## Kalender-Import für Überführungen
+
+Termine aus einem veröffentlichten iCloud-Kalender lassen sich auf der Seite
+"Überführungen" als Überführung übernehmen.
+
+### Einrichtung
+
+1. Die Eigentümerin bzw. der Eigentümer des Kalenders aktiviert
+   **Kalender → Freigabe → Öffentlicher Kalender** und schickt den
+   `webcal://`-Link. Nur die Besitzerin kann das; eine Einladung an die eigene
+   Apple-ID erzeugt **keine** abrufbare URL.
+2. Den Link als Secret `TRANSFER_CALENDAR_URL` hinterlegen:
+   Dashboard → **Edge Functions → Secrets**. Ein erneutes Deployen ist nicht
+   nötig, der Wert steht sofort bereit.
+
+Der Link gehört **nicht** in die `.env` — alle `VITE_*`-Werte werden ins
+Client-Bundle kompiliert und sind im Browser lesbar. Und er ist wie ein
+Passwort zu behandeln: wer ihn hat, sieht alle Termine des Kalenders.
+
+### Wie es funktioniert
+
+Die Edge Function `transfer-calendar` liest den Feed serverseitig — nötig,
+weil die URL geheim ist und iCloud keine CORS-Header liefert. Sie gibt die
+Termine als JSON zurück und rührt die Datenbank nicht an.
+
+Die App ordnet das Fahrzeug über das Kennzeichen im Termintitel zu und merkt
+sich in `transfers.calendar_uid`, welcher Termin schon übernommen wurde.
+Gespeichert wird erst nach Bestätigung im Formular — die Zuordnung ist ein
+Vorschlag, keine Automatik.
+
+Function deployen:
+
+```bash
+supabase functions deploy transfer-calendar --project-ref zhsqcrmdqxfnupmuqaya
+```
+
+### Grenzen
+
+- **Einmalige Übernahme, keine Synchronisation.** Wird der Termin im Kalender
+  später geändert, zieht die Überführung nicht nach.
+- **Serientermine** werden markiert, aber nicht aufgelöst; übernommen wird nur
+  der erste Eintrag.
+- Uhrzeiten werden in `Europe/Berlin` gelesen.
+
 ## Datenbank-Migrationen
 
 Neue Migrationen liegen unter `supabase/migrations/`. Nach einem neuen

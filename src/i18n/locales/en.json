@@ -276,7 +276,15 @@
     "create_protocol": "Create {{which}}",
     "time_hint": "Time is optional — the date is enough.",
     "date_label": "Date",
-    "time_label": "Time"
+    "time_label": "Time",
+    "calendar_section": "From the calendar",
+    "calendar_import": "Import",
+    "calendar_reload": "Reload calendar",
+    "calendar_no_match": "Vehicle unset",
+    "calendar_recurring": "Recurring",
+    "calendar_untitled": "Untitled",
+    "calendar_error": "The calendar could not be read.",
+    "form_title_import": "Import event"
   },
   "annahme": {
     "title": "Intake Protocol",

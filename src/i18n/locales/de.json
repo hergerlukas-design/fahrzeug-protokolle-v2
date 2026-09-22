@@ -276,7 +276,15 @@
     "create_protocol": "{{which}} erstellen",
     "time_hint": "Uhrzeit ist optional – das Datum genügt.",
     "date_label": "Datum",
-    "time_label": "Uhrzeit"
+    "time_label": "Uhrzeit",
+    "calendar_section": "Aus dem Kalender",
+    "calendar_import": "Übernehmen",
+    "calendar_reload": "Kalender neu laden",
+    "calendar_no_match": "Fahrzeug offen",
+    "calendar_recurring": "Serientermin",
+    "calendar_untitled": "Ohne Titel",
+    "calendar_error": "Kalender konnte nicht gelesen werden.",
+    "form_title_import": "Termin übernehmen"
   },
   "annahme": {
     "title": "Annahmeprotokoll",
