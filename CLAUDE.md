@@ -245,7 +245,10 @@ Formular geht danach zweimal auf:
 Danach sind beide Fahrten über die `group_id` verbunden. Beide tragen denselben
 Kalendertermin — dafür liegt der Schlüssel von `transfer_calendar_links` auf
 `(calendar_uid, transfer_id)` und nicht mehr allein auf der UID
-(`20260923_calendar_link_per_transfer.sql`).
+(`20260923_calendar_link_per_transfer.sql`), und `transfers.calendar_uid` ist
+nicht mehr eindeutig (`20260923_transfer_calendar_uid_not_unique.sql`). Sonst
+scheitert die zweite Fahrt an `transfers_calendar_uid_key` (Fehler 23505).
+Welcher Termin schon übernommen ist, sagt ohnehin `transfer_calendar_links`.
 
 Geteilt wird nur, wenn **beide** Kennzeichen zu einem Fahrzeug in der Flotte
 passen. Sonst bleibt es bei einer Fahrt: zwei anzulegen, von denen eine kein
