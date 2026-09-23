@@ -141,10 +141,8 @@ sich in `transfers.calendar_uid`, welcher Termin schon übernommen wurde.
 Gespeichert wird erst nach Bestätigung im Formular — die Zuordnung ist ein
 Vorschlag, keine Automatik.
 
-Der Termintitel wird als `transfers.title` übernommen. In der Liste steht er
-unter dem Zeitraum — die Karte zeigt von oben nach unten Datum (fett, mit
-Status), Titel und zuletzt Kennzeichen mit Fahrzeug. Im laufenden Jahr steht
-das Datum ohne Jahreszahl, sonst mit. Aus den Notizen des Termins liest
+Der Termintitel wird als `transfers.title` übernommen und steht im Kopf der
+Karte, das Kennzeichen eine Zeile darunter. Aus den Notizen des Termins liest
 `src/lib/calendarContact.ts` zusätzlich Ansprechpartner und Telefonnummer
 (`Ansprechpartner: …`, `Tel: …`, sonst die erste Zeichenfolge, die wie eine
 Rufnummer aussieht). Datumsangaben und Auftragsnummern werden dabei bewusst

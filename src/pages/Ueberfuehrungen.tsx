@@ -56,27 +56,6 @@ function todayISO(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
-/** Tag und Monat ohne Jahr – "21.09." */
-function formatDayMonth(value: string, lang: string): string {
-  const d = new Date(`${value}T00:00:00`)
-  if (Number.isNaN(d.getTime())) return value
-  return d.toLocaleDateString(lang.startsWith('en') ? 'en-GB' : 'de-DE', {
-    day: '2-digit', month: '2-digit',
-  })
-}
-
-/**
- * Datum für die Liste: im laufenden Jahr ohne Jahreszahl.
- *
- * Der Zeitraum ist die Überschrift der Karte und hat neben dem Status wenig
- * Platz; in der Liste geht es fast immer um die nächsten Wochen. Was in einem
- * anderen Jahr liegt, trägt das Jahr weiterhin.
- */
-function dayLabel(value: string, lang: string): string {
-  const currentYear = String(new Date().getFullYear())
-  return value.slice(0, 4) === currentYear ? formatDayMonth(value, lang) : formatDate(value, lang)
-}
-
 /** Postgres liefert "08:30:00" – für die Anzeige reichen Stunde und Minute. */
 function formatTime(value: string | null): string {
   return value ? value.slice(0, 5) : ''
@@ -88,8 +67,7 @@ function withTime(date: string, time: string | null, lang: string): string {
 }
 
 function dateRange(tr: Transfer, lang: string): string {
-  const start = dayLabel(tr.date_from, lang)
-  const from = tr.time_from ? `${start}, ${formatTime(tr.time_from)}` : start
+  const from = withTime(tr.date_from, tr.time_from, lang)
   const sameDay = !tr.date_to || tr.date_to === tr.date_from
 
   if (sameDay) {
@@ -97,10 +75,7 @@ function dateRange(tr: Transfer, lang: string): string {
     const end = formatTime(tr.time_to)
     return end ? `${from} – ${end}` : from
   }
-
-  const endDay = dayLabel(tr.date_to!, lang)
-  const endTime = formatTime(tr.time_to)
-  return `${from} – ${endTime ? `${endDay}, ${endTime}` : endDay}`
+  return `${from} – ${withTime(tr.date_to!, tr.time_to, lang)}`
 }
 
 const STATUS_STYLES: Record<TransferStatus, string> = {
@@ -211,19 +186,21 @@ function TransferCard({
         className="w-full flex items-center gap-3 px-4 py-3 text-left active:bg-gray-50"
       >
         <div className="flex-1 min-w-0">
-          {/* Der Termin steht oben: danach wird in der Liste gesucht. Darunter
-              die Beschriftung der Fahrt, zuletzt Kennzeichen und Fahrzeug. */}
           <div className="flex items-center gap-2">
-            <p className="font-bold text-gray-900 truncate">{dateRange(transfer, i18n.language)}</p>
+            <p className="font-bold text-gray-900 truncate">{title ?? plate}</p>
             <StatusBadge status={transfer.status} />
           </div>
-          {title && <p className="text-sm text-gray-600 truncate">{title}</p>}
-          <p className="text-xs text-gray-400 mt-0.5 truncate">
-            <span className="font-semibold text-gray-500">{plate}</span>
-            {v?.brand_model
-              ? <span> · {v.brand_model}</span>
-              : <span className="italic text-gray-300"> · {t('vehicles.brand_unknown')}</span>}
-          </p>
+          {title ? (
+            <p className="text-sm text-gray-600 truncate">
+              <span className="font-semibold">{plate}</span>
+              {v?.brand_model && <span className="text-gray-400"> · {v.brand_model}</span>}
+            </p>
+          ) : (
+            <p className="text-sm text-gray-500 truncate">
+              {v?.brand_model || <span className="italic text-gray-300">{t('vehicles.brand_unknown')}</span>}
+            </p>
+          )}
+          <p className="text-xs text-gray-400 mt-0.5">{dateRange(transfer, i18n.language)}</p>
         </div>
         {expanded
           ? <ChevronDown size={18} className="text-gray-300 flex-shrink-0" />
