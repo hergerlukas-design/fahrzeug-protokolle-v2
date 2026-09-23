@@ -303,6 +303,8 @@
     "calendar_pair": "2 Termine · eine Fahrt",
     "calendar_import_pair": "Zusammen übernehmen",
     "calendar_import_single": "Nur diesen Termin übernehmen",
+    "calendar_swap": "Tausch",
+    "calendar_unconfirmed": "Unbestätigt",
     "calendar_error": "Kalender konnte nicht gelesen werden.",
     "form_title_import": "Termin übernehmen"
   },

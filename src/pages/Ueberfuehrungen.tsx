@@ -27,6 +27,7 @@ import {
   linkTransfers,
   unlinkTransfer,
   matchVehicleByPlate,
+  matchVehiclesByPlate,
   type Transfer,
   type TransferInput,
   type TransferStatus,
@@ -35,7 +36,7 @@ import {
   type LinkableProtocol,
 } from '../lib/transfers'
 import { extractContact } from '../lib/calendarContact'
-import { groupCalendarEvents, mergeEvents } from '../lib/calendarPairs'
+import { groupCalendarEvents, mergeEvents, classifyEvent, isUnconfirmed } from '../lib/calendarPairs'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -1212,6 +1213,11 @@ function CalendarSection({
             const contact = extractContact(merged.notes, { exclude: locationsOf(group.events) })
             const vehicle = group.vehicle
             const pair = group.events.length > 1
+            // Ein Tausch nennt zwei Fahrzeuge, ein Fragezeichen heißt: noch
+            // nicht vom Kunden bestätigt.
+            const plates = matchVehiclesByPlate(group.events.map((e) => e.summary).join(' '), vehicles)
+            const swap = group.events.some((e) => classifyEvent(e.summary) === 'tausch')
+            const unconfirmed = group.events.some((e) => isUnconfirmed(e.summary))
             return (
               <div key={group.key} className="bg-white rounded-2xl border border-dashed border-gray-300 shadow-sm px-4 py-3">
                 {group.events.map((ev, idx) => (
@@ -1264,10 +1270,13 @@ function CalendarSection({
                 )}
 
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
-                  {vehicle ? (
-                    <span className="text-[10px] font-semibold uppercase tracking-wide bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                      {vehicle.license_plate}
-                    </span>
+                  {/* Beim Tausch stehen zwei Kennzeichen im Titel – beide zeigen. */}
+                  {plates.length > 0 ? (
+                    plates.map((v) => (
+                      <span key={v.id} className="text-[10px] font-semibold uppercase tracking-wide bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                        {v.license_plate}
+                      </span>
+                    ))
                   ) : (
                     <span className="text-[10px] font-semibold uppercase tracking-wide bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
                       {t('transfers.calendar_no_match')}
@@ -1276,6 +1285,16 @@ function CalendarSection({
                   {pair && (
                     <span className="text-[10px] font-semibold uppercase tracking-wide bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full">
                       {t('transfers.calendar_pair')}
+                    </span>
+                  )}
+                  {swap && (
+                    <span className="text-[10px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                      {t('transfers.calendar_swap')}
+                    </span>
+                  )}
+                  {unconfirmed && (
+                    <span className="text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                      {t('transfers.calendar_unconfirmed')}
                     </span>
                   )}
                   {group.events.some((e) => e.recurring) && (

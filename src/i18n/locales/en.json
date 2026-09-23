@@ -303,6 +303,8 @@
     "calendar_pair": "2 events · one trip",
     "calendar_import_pair": "Import together",
     "calendar_import_single": "Import only this event",
+    "calendar_swap": "Swap",
+    "calendar_unconfirmed": "Unconfirmed",
     "calendar_error": "The calendar could not be read.",
     "form_title_import": "Import event"
   },

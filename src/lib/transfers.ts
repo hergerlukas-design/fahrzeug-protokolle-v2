@@ -629,18 +629,30 @@ export function matchVehicleByPlate<T extends { license_plate: string }>(
   summary: string,
   vehicles: T[]
 ): T | null {
-  const haystack = normalizeKennzeichen(summary)
-  if (!haystack) return null
+  return matchVehiclesByPlate(summary, vehicles)[0] ?? null
+}
 
-  let best: T | null = null
-  let bestLen = 0
-  for (const v of vehicles) {
-    const plate = normalizeKennzeichen(v.license_plate ?? '')
-    if (plate.length < 3) continue
-    if (haystack.includes(plate) && plate.length > bestLen) {
-      best = v
-      bestLen = plate.length
-    }
-  }
-  return best
+/**
+ * Alle Fahrzeuge, deren Kennzeichen im Titel vorkommen – das längste zuerst.
+ *
+ * Für den Tausch: dort stehen zwei Kennzeichen im Titel, eines kommt und eines
+ * geht. Steckt ein Treffer vollständig in einem längeren ("8957E" in
+ * "WI-L 8957E"), bleibt nur der längere übrig; es ist dasselbe Fahrzeug,
+ * einmal knapper geschrieben.
+ */
+export function matchVehiclesByPlate<T extends { license_plate: string }>(
+  summary: string,
+  vehicles: T[]
+): T[] {
+  const haystack = normalizeKennzeichen(summary)
+  if (!haystack) return []
+
+  const hits = vehicles
+    .map((v) => ({ v, plate: normalizeKennzeichen(v.license_plate ?? '') }))
+    .filter((x) => x.plate.length >= 3 && haystack.includes(x.plate))
+    .sort((a, b) => b.plate.length - a.plate.length)
+
+  return hits
+    .filter((x, i) => !hits.some((other, j) => j < i && other.plate.includes(x.plate)))
+    .map((x) => x.v)
 }

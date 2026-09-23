@@ -212,6 +212,26 @@ Function deployen:
 supabase functions deploy transfer-calendar --project-ref zhsqcrmdqxfnupmuqaya
 ```
 
+### Wie die Termine im Kalender heißen
+
+Die Titel folgen einem Muster, und die App liest es:
+
+| Muster | Beispiel | Erkennung |
+|--------|----------|-----------|
+| Überführung | `LYNK 02 DPG98A Emmering 21.09. - 09.10.` | beginnt mit Fahrzeug und Kennzeichen, kein Schlagwort |
+| Abholung | `Abholung LYNK 02 DPG98A in Emmering` | Wort "Abholung" |
+| Tausch | `Tausch Lynk 08 WI-L 8957E gegen WI-L 8958E` | Wort "Tausch"/"Wechsel"; **zwei** Kennzeichen |
+| Unbestätigt | `Lynk 08 WI-L 8957E in München ?` | Fragezeichen im Titel |
+
+Der **Tausch** bekommt ein blaues Kennzeichen-Paar und den Hinweis "Tausch";
+`matchVehiclesByPlate` liefert dafür alle Fahrzeuge aus dem Titel, nicht nur
+das erste. Übernommen wird er vorerst als **eine** Fahrt für das erste
+Fahrzeug — die zweite legt man von Hand an und verknüpft sie.
+
+Das **Fragezeichen** heißt: vom Kunden noch nicht bestätigt. Der Termin lässt
+sich trotzdem übernehmen, die Fahrt ist dann eben geplant; in der Terminkarte
+steht der Hinweis "Unbestätigt".
+
 ### Adressen und Telefonnummern
 
 Adressen sind Links in die Karten-App:

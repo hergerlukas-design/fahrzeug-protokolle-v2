@@ -20,7 +20,7 @@
 
 import type { CalendarEvent } from './transfers'
 
-export type EventKind = 'abholung' | 'ueberfuehrung' | 'unbekannt'
+export type EventKind = 'abholung' | 'ueberfuehrung' | 'tausch' | 'unbekannt'
 
 /**
  * Wie viele Tage zwischen zwei Zeiträumen liegen dürfen, damit sie noch als
@@ -29,6 +29,8 @@ export type EventKind = 'abholung' | 'ueberfuehrung' | 'unbekannt'
 export const PAIR_MAX_GAP_DAYS = 0
 
 const ABHOLUNG = ['abhol', 'ruckhol', 'pickup', 'pick up', 'collection']
+/** Beim Tausch kommt ein Fahrzeug und ein anderes geht – zwei Kennzeichen im Titel. */
+const TAUSCH = ['tausch', 'wechsel', 'swap']
 // Beide Schreibweisen von Ü und ü einzeln, weil nach dem Entfernen der
 // Umlaute aus "Überführung" ein "uberfuhrung" und aus "Ueberfuehrung" ein
 // "ueberfuehrung" wird – gemeint ist dasselbe.
@@ -51,15 +53,27 @@ function normalize(text: string): string {
     .replace(/ß/g, 'ss')
 }
 
-/** Was für ein Termin ist das – Abholung oder Überführung? */
+/** Was für ein Termin ist das – Abholung, Überführung oder Tausch? */
 export function classifyEvent(summary: string | null | undefined): EventKind {
   const text = normalize(summary ?? '')
+  // Der Tausch steht für sich: dort geht es um zwei Fahrzeuge, nicht um die
+  // eine Hälfte einer Fahrt.
+  if (TAUSCH.some((w) => text.includes(w))) return 'tausch'
+
   const abholung = ABHOLUNG.some((w) => text.includes(w))
   const ueberfuehrung = UEBERFUEHRUNG.some((w) => text.includes(w))
   // Steht beides drin ("Abholung zur Überführung"), sagt der Titel nichts
   // Eindeutiges – dann entscheidet allein die Reihenfolge der Termine.
   if (abholung === ueberfuehrung) return 'unbekannt'
   return abholung ? 'abholung' : 'ueberfuehrung'
+}
+
+/**
+ * Ein Fragezeichen im Titel heißt: der Kunde hat den Termin noch nicht
+ * bestätigt. Übernehmen kann man ihn trotzdem – er ist dann eben geplant.
+ */
+export function isUnconfirmed(summary: string | null | undefined): boolean {
+  return (summary ?? '').includes('?')
 }
 
 export interface CalendarGroup<V> {
