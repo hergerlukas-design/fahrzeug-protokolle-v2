@@ -295,17 +295,27 @@ zusätzlich die Karte auf.
 
 ## Protokolle und Überführungen verknüpfen
 
-Ein Protokoll entsteht nicht immer aus einer Überführung heraus — oft ist es
-zuerst da, weil unterwegs schnell dokumentiert wurde. In der aufgeklappten
-Überführung steht deshalb neben "Abholprotokoll erstellen" ein Kettensymbol:
-es listet alle Protokolle des Fahrzeugs auf, die an keiner Überführung hängen,
-und hängt das gewählte an.
+**Eine Fahrt, ein Protokoll.** Ob es ein Hinbringen oder eine Rücknahme
+dokumentiert, steht im Protokoll selbst ("Art der Überführung") — zwei Zeilen
+in der Karte, Abhol- und Ankunftsprotokoll, ließen aussehen, als brauchte jede
+Fahrt beide. Vorgeschlagen wird die Art aus dem Titel der Fahrt: was nach
+Abholung klingt, ist eine Rücknahme, alles andere ein Hinbringen
+(`protocolKindOf`); umstellen lässt es sich im Protokoll.
 
-Verknüpfen zieht den Status mit (Abholprotokoll → unterwegs, Ankunftsprotokoll
-→ angekommen) und damit auch `vehicles.availability` — dieselbe Logik wie beim
-Erstellen aus der Überführung heraus. Das Lösen einer Verknüpfung lässt den
-Status dagegen stehen: er kann von Hand gesetzt worden sein, und ein
-versehentlich angehängtes Protokoll soll die Fahrt nicht zurückwerfen.
+Gespeichert wird es in `transfers.pickup_protocol_id` — mit dem Protokoll ist
+die Fahrt unterwegs. Fahrten aus der Zeit davor, an denen zwei Protokolle
+hängen, zeigen weiterhin beide Zeilen.
+
+Ein Protokoll entsteht nicht immer aus einer Überführung heraus — oft ist es
+zuerst da, weil unterwegs schnell dokumentiert wurde. Neben "Protokoll
+erstellen" steht deshalb ein Kettensymbol: es listet alle Protokolle des
+Fahrzeugs auf, die an keiner Überführung hängen, und hängt das gewählte an.
+
+Verknüpfen zieht den Status mit (→ unterwegs) und damit auch
+`vehicles.availability` — dieselbe Logik wie beim Erstellen aus der Überführung
+heraus. Das Lösen einer Verknüpfung lässt den Status dagegen stehen: er kann
+von Hand gesetzt worden sein, und ein versehentlich angehängtes Protokoll soll
+die Fahrt nicht zurückwerfen.
 
 ## Fahrten untereinander verbinden
 

@@ -205,6 +205,18 @@ function VehicleState({ vehicle }: { vehicle: NonNullable<Transfer['vehicle']> }
 // Transfer card – collapsed shows plate and date, expanded the rest
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Hinbringen oder Rücknahme?
+ *
+ * Im Protokoll ist das die "Art der Überführung", und der Titel der Fahrt sagt
+ * es meist schon: "Abholung Lynk 02 DPG98A" ist eine Rücknahme, alles andere
+ * ein Hinbringen. Ein Vorschlag – im Protokoll selbst bleibt es umstellbar.
+ */
+function protocolKindOf(transfer: Transfer): string {
+  const texts = [transfer.title ?? '', ...(transfer.calendar_links ?? []).map((l) => l.summary ?? '')]
+  return texts.some((x) => classifyEvent(x) === 'abholung') ? 'Rücknahme' : 'Hinbringen'
+}
+
 interface CardBlock {
   key: string
   title: string
@@ -350,8 +362,8 @@ function TransferDetails({
   /** Die anderen Fahrten derselben Gruppe. */
   related: Transfer[]
   onStatus: (status: TransferStatus) => void
-  onCreateProtocol: (role: ProtocolRole) => void
-  onLinkProtocol: (role: ProtocolRole) => void
+  onCreateProtocol: () => void
+  onLinkProtocol: () => void
   onUnlinkProtocol: (role: ProtocolRole) => void
   onOpenProtocol: (protocolId: string) => void
   onLinkTransfer: () => void
@@ -363,6 +375,11 @@ function TransferDetails({
 }) {
   const { t, i18n } = useTranslation()
   const v = transfer.vehicle
+
+  // Was tatsächlich hängt – meist eines, an älteren Fahrten auch zwei.
+  const attached = (['pickup', 'dropoff'] as ProtocolRole[]).filter((role) =>
+    role === 'pickup' ? transfer.pickup_protocol : transfer.dropoff_protocol
+  )
 
   return (
       <div className="border-t border-gray-100 px-4 py-3 space-y-3">
@@ -427,15 +444,20 @@ function TransferDetails({
           </div>
         </div>
 
-        {/* Protokolle dieser Überführung */}
+        {/* Das Protokoll dieser Fahrt.
+
+            Eine Fahrt braucht eines – hin oder zurück steht im Protokoll selbst
+            ("Art der Überführung"). Zwei Zeilen, Abhol- und Ankunftsprotokoll,
+            ließen aussehen, als brauchte jede Fahrt beide. Ältere Fahrten, an
+            denen zwei hängen, zeigen weiter beide. */}
         <div className="pt-1">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
-            {t('transfers.protocols')}
+            {t(attached.length > 1 ? 'transfers.protocols' : 'transfers.protocol_single')}
           </p>
           <div className="space-y-1.5">
-            {(['pickup', 'dropoff'] as ProtocolRole[]).map((role) => {
+            {(attached.length > 0 ? attached : (['pickup'] as ProtocolRole[])).map((role) => {
               const proto = role === 'pickup' ? transfer.pickup_protocol : transfer.dropoff_protocol
-              const label = t(`transfers.protocol_${role}`)
+              const label = t('transfers.protocol_single')
               if (proto) {
                 // Zeile mit zwei Zielen: öffnen und wieder lösen. Deshalb ein
                 // div mit zwei Schaltflächen statt einer verschachtelten.
@@ -451,6 +473,7 @@ function TransferDetails({
                       <FileText size={15} className="text-gray-400 flex-shrink-0" />
                       <span className="flex-1 min-w-0 text-sm text-gray-700 truncate">
                         {label}
+                        {proto.transfer_type && <span className="text-gray-400"> · {proto.transfer_type}</span>}
                         <span className="text-gray-400"> · {formatDate(proto.created_at.slice(0, 10), i18n.language)}</span>
                       </span>
                       {proto.status === 'draft' && (
@@ -480,7 +503,7 @@ function TransferDetails({
                   className="flex items-center gap-1 pr-1 rounded-xl border border-dashed border-gray-300"
                 >
                   <button
-                    onClick={() => onCreateProtocol(role)}
+                    onClick={() => onCreateProtocol()}
                     disabled={!v}
                     className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 text-left active:bg-gray-50 disabled:opacity-50 rounded-l-xl"
                   >
@@ -491,7 +514,7 @@ function TransferDetails({
                   </button>
                   {/* Für Protokolle, die es schon gibt – etwa unterwegs angelegt. */}
                   <button
-                    onClick={() => onLinkProtocol(role)}
+                    onClick={() => onLinkProtocol()}
                     disabled={!v}
                     aria-label={t('transfers.link_protocol')}
                     className="p-2 text-gray-400 active:text-gray-700 disabled:opacity-50 flex-shrink-0"
@@ -601,8 +624,8 @@ function TransferCard({
   expandedId: string | null
   onToggle: (transferId: string) => void
   onStatus: (transfer: Transfer, status: TransferStatus) => void
-  onCreateProtocol: (transfer: Transfer, role: ProtocolRole) => void
-  onLinkProtocol: (transfer: Transfer, role: ProtocolRole) => void
+  onCreateProtocol: (transfer: Transfer) => void
+  onLinkProtocol: (transfer: Transfer) => void
   onUnlinkProtocol: (transfer: Transfer, role: ProtocolRole) => void
   onOpenProtocol: (protocolId: string) => void
   onLinkTransfer: (transfer: Transfer) => void
@@ -617,8 +640,8 @@ function TransferCard({
       transfer={x}
       related={relatedOf(x)}
       onStatus={(status) => onStatus(x, status)}
-      onCreateProtocol={(role) => onCreateProtocol(x, role)}
-      onLinkProtocol={(role) => onLinkProtocol(x, role)}
+      onCreateProtocol={() => onCreateProtocol(x)}
+      onLinkProtocol={() => onLinkProtocol(x)}
       onUnlinkProtocol={(role) => onUnlinkProtocol(x, role)}
       onOpenProtocol={onOpenProtocol}
       onLinkTransfer={() => onLinkTransfer(x)}
@@ -1305,13 +1328,11 @@ function TransferPicker({
 
 function ProtocolPicker({
   transfer,
-  role,
   onPick,
   onCancel,
   linking,
 }: {
   transfer: Transfer
-  role: ProtocolRole
   onPick: (protocolId: string) => void
   onCancel: () => void
   linking: boolean
@@ -1337,7 +1358,7 @@ function ProtocolPicker({
       <div className="fixed inset-0 bg-black/40 z-30" onClick={onCancel} />
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-white rounded-t-2xl shadow-2xl px-6 pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] max-w-2xl mx-auto max-h-[80vh] overflow-y-auto">
         <h2 className="text-lg font-bold text-gray-900 mb-1">
-          {t('transfers.link_title', { which: t(`transfers.protocol_${role}`) })}
+          {t('transfers.link_title', { which: t('transfers.protocol_single') })}
         </h2>
         <p className="text-sm text-gray-400 mb-4">
           {transfer.vehicle?.license_plate} · {dateRange(transfer, i18n.language)}
@@ -1798,7 +1819,15 @@ export default function Ueberfuehrungen() {
    * bekannte Vorschäden, und ohne die verliert das Protokollformular genau die
    * Vorbelegung, für die es sie sonst mitbringt.
    */
-  async function handleCreateProtocol(transfer: Transfer, role: ProtocolRole) {
+  /**
+   * Protokoll zu einer Fahrt anlegen.
+   *
+   * Es gibt eines je Fahrt; ob hin oder zurück, steht im Protokoll selbst und
+   * wird aus dem Titel vorgeschlagen. Gespeichert wird es in der Spalte für das
+   * Abholprotokoll – mit ihm ist die Fahrt unterwegs.
+   */
+  async function handleCreateProtocol(transfer: Transfer) {
+    const role: ProtocolRole = 'pickup'
     setBusyId(transfer.id)
     setError(null)
     try {
@@ -1816,6 +1845,7 @@ export default function Ueberfuehrungen() {
             vehicle_id: transfer.vehicle_id,
             status: transfer.status,
             role,
+            transfer_type: protocolKindOf(transfer),
             driver_name: transfer.driver_name,
             location_from: transfer.location_from,
             location_to: transfer.location_to,
@@ -2095,7 +2125,7 @@ export default function Ueberfuehrungen() {
         onLinkTransfer={(x) => setTransferLinkTarget(x)}
         onUnlinkTransfer={handleUnlinkTransfer}
         onOpenTransfer={handleOpenTransfer}
-        onLinkProtocol={(x, role) => setLinkTarget({ transfer: x, role })}
+        onLinkProtocol={(x) => setLinkTarget({ transfer: x, role: 'pickup' })}
         onUnlinkProtocol={handleUnlink}
         onOpenProtocol={(protocolId) => navigate('/archiv', { state: { protocol_id: protocolId } })}
         onEdit={(x) => openForm({ target: x })}
@@ -2200,7 +2230,6 @@ export default function Ueberfuehrungen() {
       {linkTarget && (
         <ProtocolPicker
           transfer={linkTarget.transfer}
-          role={linkTarget.role}
           onPick={handleLink}
           onCancel={() => setLinkTarget(null)}
           linking={linking}

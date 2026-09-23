@@ -60,6 +60,8 @@ export interface TransferContext {
   vehicle_id: string
   status: TransferStatus
   role: ProtocolRole
+  /** Vorschlag für die Art der Überführung – aus dem Titel der Fahrt gelesen. */
+  transfer_type?: string | null
   driver_name?: string | null
   location_from?: string | null
   location_to?: string | null
@@ -367,7 +369,7 @@ export default function Ueberfuehrung() {
   })
   const [vin, setVin] = useState(prefill?.vin ?? '')
   const [transferType, setTransferType] = useState<string>(
-    ed?.transfer_type ?? (tr?.role === 'dropoff' ? 'Rücknahme' : 'Hinbringen')
+    ed?.transfer_type ?? tr?.transfer_type ?? (tr?.role === 'dropoff' ? 'Rücknahme' : 'Hinbringen')
   )
   const [conditions, setConditions] = useState<string[]>(ed?.conditions ?? [])
   const [fuel, setFuel] = useState(ed?.fuel ?? 100)

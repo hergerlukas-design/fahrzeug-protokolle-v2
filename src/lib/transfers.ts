@@ -30,6 +30,8 @@ export interface LinkedProtocol {
   status: string | null
   protocol_type: string | null
   inspector_name: string | null
+  /** "Hinbringen" oder "Rücknahme" – im Protokoll selbst gewählt. */
+  transfer_type: string | null
 }
 
 /** Ein übernommener Kalendertermin, so wie er zum Zeitpunkt der Übernahme aussah. */
@@ -98,7 +100,10 @@ export interface TransferInput {
   calendar_events?: CalendarEvent[]
 }
 
-const PROTOCOL_FIELDS = 'id, created_at, status, protocol_type, inspector_name'
+// transfer_type steht in condition_data – PostgREST holt einzelne JSON-Felder
+// über den Pfeiloperator; so steht "Hinbringen" oder "Rücknahme" in der Zeile.
+const PROTOCOL_FIELDS =
+  'id, created_at, status, protocol_type, inspector_name, transfer_type:condition_data->>transfer_type'
 
 // Beide Protokollspalten zeigen auf dieselbe Tabelle – PostgREST braucht
 // deshalb den Constraint-Namen, um die Einbettungen auseinanderzuhalten.
