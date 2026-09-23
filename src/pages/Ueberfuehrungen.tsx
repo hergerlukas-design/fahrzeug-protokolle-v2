@@ -206,6 +206,7 @@ function VehicleState({ vehicle }: { vehicle: NonNullable<Transfer['vehicle']> }
 function TransferCard({
   transfer,
   related,
+  relatedOffList,
   expanded,
   onToggle,
   onStatus,
@@ -221,8 +222,13 @@ function TransferCard({
   busy,
 }: {
   transfer: Transfer
-  /** Die anderen Fahrten derselben Gruppe. */
+  /** Die anderen Fahrten derselben Gruppe – aufgeklappt zum Verwalten. */
   related: Transfer[]
+  /**
+   * Davon die, die gerade nicht als eigene Karte in der Liste stehen. Nur die
+   * bekommen einen Block: sonst stünde derselbe Termin zweimal untereinander.
+   */
+  relatedOffList: Transfer[]
   expanded: boolean
   onToggle: () => void
   onStatus: (status: TransferStatus) => void
@@ -313,8 +319,9 @@ function TransferCard({
 
         {/* Verbundene Fahrten stehen als weitere Blöcke darunter – wie ein
             zweiter Termin, nur mit Kette statt Trennstrich: es ist eine eigene
-            Fahrt mit eigenem Status. */}
-        {related.map((r) => {
+            Fahrt mit eigenem Status. Steht sie ohnehin als eigene Karte in der
+            Liste, bleibt der Block weg; sie wäre sonst doppelt zu sehen. */}
+        {relatedOffList.map((r) => {
           const rTitle = r.title?.trim() || r.vehicle?.license_plate || t('transfers.vehicle_missing')
           return (
             <div key={r.id} className="mt-2 pt-2 border-t border-dashed border-gray-200">
@@ -1508,6 +1515,16 @@ export default function Ueberfuehrungen() {
   // abgeschlossene Fahrten sind beide da, eine eigene Abfrage wäre überflüssig.
   const all = useMemo(() => [...open, ...closed], [open, closed])
 
+  /**
+   * Welche Fahrten gerade als eigene Karte in der Liste stehen. Die
+   * abgeschlossenen zählen nur mit, solange ihr Abschnitt aufgeklappt ist.
+   */
+  const visibleIds = useMemo(() => {
+    const ids = new Set(open.map((t) => t.id))
+    if (showClosed) for (const t of closed) ids.add(t.id)
+    return ids
+  }, [open, closed, showClosed])
+
   /** Die anderen Fahrten derselben Gruppe. */
   function relatedOf(transfer: Transfer): Transfer[] {
     if (!transfer.group_id) return []
@@ -1583,6 +1600,7 @@ export default function Ueberfuehrungen() {
         onStatus={(status) => handleStatus(transfer, status)}
         onCreateProtocol={(role) => handleCreateProtocol(transfer, role)}
         related={relatedOf(transfer)}
+        relatedOffList={relatedOf(transfer).filter((r) => !visibleIds.has(r.id))}
         onLinkTransfer={() => setTransferLinkTarget(transfer)}
         onUnlinkTransfer={(other) => handleUnlinkTransfer(transfer, other)}
         onOpenTransfer={handleOpenTransfer}

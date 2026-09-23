@@ -253,7 +253,10 @@ Hin mit dem einen Fahrzeug, zurück mit dem anderen, oder mehrere Etappen an
 einem Tag: solche Überführungen gehören zusammen, bleiben aber eigene Fahrten
 mit eigenem Status und eigenen Protokollen. Verknüpfte Fahrten stehen als eigener Block in der Karte — wie ein zweiter
 Termin, nur mit Kettensymbol statt Trennstrich und mit eigenem Status, denn es
-ist eine eigene Fahrt. Verwaltet werden sie aufgeklappt unter **Verbundene
+ist eine eigene Fahrt. **Aber nur, wenn sie nicht ohnehin als eigene Karte in
+der Liste steht**: sonst stünde derselbe Termin zweimal untereinander, einmal
+als Karte und einmal als Block der Partnerfahrt. Die abgeschlossenen Fahrten
+zählen dabei nur mit, solange ihr Abschnitt aufgeklappt ist. Verwaltet werden sie aufgeklappt unter **Verbundene
 Fahrten**: dort sind sie anzutippen (die Karte klappt auf und wird
 angesprungen), je Zeile löst ein Symbol die Verbindung, und "Fahrt verknüpfen"
 öffnet die Auswahl.
