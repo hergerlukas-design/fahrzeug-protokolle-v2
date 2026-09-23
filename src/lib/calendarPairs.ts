@@ -1,15 +1,18 @@
 /**
  * Zusammengehörende Kalendertermine erkennen.
  *
- * Im Kalender steht eine Fahrt meist als zwei Termine: einmal die Abholung,
- * einmal die Überführung desselben Fahrzeugs, ein paar Tage auseinander. In der
- * App ist das eine Überführung – mit Start beim früheren und Ziel beim späteren
- * Termin.
+ * Im Kalender steht eine Fahrt meist als zwei Termine: der Zeitraum der
+ * Überführung ("LYNK 02 MY27 in Seevetal", 02.11.–09.11.) und die Abholung
+ * darin ("Abholung LYNK 02 MY27 in Seevetal", 09.11. um 12:00). In der App ist
+ * das eine Überführung.
  *
- * Zusammengefunden wird über das Fahrzeug (Kennzeichen im Titel, vom Aufrufer
- * zugeordnet) und den Abstand der Daten. Die Art des Termins entscheidet mit:
- * zwei Abholungen desselben Fahrzeugs sind zwei Fahrten, keine Hin- und
- * Rückseite derselben.
+ * Zusammen gehören zwei Termine, wenn sie dasselbe Fahrzeug betreffen
+ * (Kennzeichen im Titel, vom Aufrufer zugeordnet) und ihre Zeiträume sich
+ * berühren – der Abholtermin also in den Zeitraum der Überführung fällt,
+ * typischerweise auf dessen letzten Tag. Ein bloß ähnliches Datum genügt
+ * nicht: zwei Fahrten desselben Fahrzeugs in derselben Woche sind zwei
+ * Fahrten. Die Art des Termins entscheidet mit, damit aus zwei Abholungen
+ * nicht eine Fahrt wird.
  *
  * Wie alles am Kalender ist das ein Vorschlag – das Ergebnis landet im Formular
  * und wird dort bestätigt.
@@ -19,8 +22,11 @@ import type { CalendarEvent } from './transfers'
 
 export type EventKind = 'abholung' | 'ueberfuehrung' | 'unbekannt'
 
-/** Wie weit zwei Termine auseinanderliegen dürfen, um als eine Fahrt zu gelten. */
-export const PAIR_MAX_DAYS = 3
+/**
+ * Wie viele Tage zwischen zwei Zeiträumen liegen dürfen, damit sie noch als
+ * eine Fahrt gelten. 0 heißt: sie müssen sich überschneiden oder berühren.
+ */
+export const PAIR_MAX_GAP_DAYS = 0
 
 const ABHOLUNG = ['abhol', 'ruckhol', 'pickup', 'pick up', 'collection']
 // Beide Schreibweisen von Ü und ü einzeln, weil nach dem Entfernen der
@@ -69,6 +75,26 @@ function dayNumber(date: string): number {
   return Number.isNaN(ms) ? NaN : Math.round(ms / 86_400_000)
 }
 
+/** Erster und letzter Tag eines Termins als Tageszahl. */
+function span(event: CalendarEvent): { start: number; end: number } {
+  const start = dayNumber(event.date_from)
+  const end = dayNumber(event.date_to || event.date_from)
+  return { start, end: Number.isNaN(end) ? start : Math.max(start, end) }
+}
+
+/**
+ * Berühren sich die Zeiträume – liegt der eine Termin also im anderen?
+ *
+ * `gap` erlaubt zusätzlich einen Abstand in Tagen; voreingestellt ist 0, es
+ * muss also wirklich eine Überschneidung sein.
+ */
+function connected(a: CalendarEvent, b: CalendarEvent, gap: number): boolean {
+  const x = span(a)
+  const y = span(b)
+  if ([x.start, x.end, y.start, y.end].some(Number.isNaN)) return false
+  return x.start - gap <= y.end && y.start - gap <= x.end
+}
+
 /** Chronologisch: Datum, dann Uhrzeit. Termine ohne Uhrzeit zuerst. */
 function compareEvents(a: CalendarEvent, b: CalendarEvent): number {
   if (a.date_from !== b.date_from) return a.date_from < b.date_from ? -1 : 1
@@ -85,7 +111,7 @@ function compareEvents(a: CalendarEvent, b: CalendarEvent): number {
 export function groupCalendarEvents<V extends { id: string }>(
   events: CalendarEvent[],
   vehicleOf: (event: CalendarEvent) => V | null,
-  maxDays: number = PAIR_MAX_DAYS
+  maxGapDays: number = PAIR_MAX_GAP_DAYS
 ): CalendarGroup<V>[] {
   const sorted = [...events].sort(compareEvents)
   const vehicles = new Map<string, V | null>()
@@ -102,17 +128,20 @@ export function groupCalendarEvents<V extends { id: string }>(
     let partner: CalendarEvent | null = null
     if (vehicle) {
       const kind = classifyEvent(event.summary)
-      const day = dayNumber(event.date_from)
+      const end = span(event).end
 
       // Der nächstgelegene passende Termin gewinnt – die Liste ist sortiert,
       // also ist das der erste Treffer.
       for (const other of sorted.slice(i + 1)) {
         if (used.has(other.uid)) continue
-        if (vehicles.get(other.uid)?.id !== vehicle.id) continue
 
-        const diff = dayNumber(other.date_from) - day
-        if (Number.isNaN(diff)) continue
-        if (diff > maxDays) break // weiter hinten wird der Abstand nur größer
+        // Weiter hinten fangen die Termine nur noch später an: berührt einer
+        // das Ende dieses Zeitraums nicht mehr, tut es auch keiner danach.
+        const otherStart = span(other).start
+        if (!Number.isNaN(otherStart) && otherStart - maxGapDays > end) break
+
+        if (vehicles.get(other.uid)?.id !== vehicle.id) continue
+        if (!connected(event, other, maxGapDays)) continue
 
         const otherKind = classifyEvent(other.summary)
         // Zwei gleichartige Termine sind zwei Fahrten. Zwei unbestimmte auch:
@@ -176,17 +205,36 @@ export function mergeEvents(events: CalendarEvent[]): MergedEvent {
     }
   }
 
+  // Das Ende der Fahrt ist der späteste Tag aller Termine, nicht der des
+  // zuletzt beginnenden: fällt die Abholung mitten in den Zeitraum der
+  // Überführung, bleibt deren Ende stehen.
+  const withEnd = sorted.map((e) => ({ e, end: e.date_to || e.date_from }))
+  // Bei gleichem Enddatum gewinnt der spätere Termin – der Zeitraum hat keine
+  // Uhrzeit, die Abholung darin schon.
+  const latest = withEnd.reduce((a, b) => (b.end >= a.end ? b : a))
+  const timeTo =
+    withEnd
+      .filter((x) => x.end === latest.end)
+      .reverse()
+      .map((x) => x.e.time_to ?? x.e.time_from)
+      .find(Boolean) ?? null
+
   const named = sorted.find((e) => classifyEvent(e.summary) === 'ueberfuehrung')
+
+  const from = first.location?.trim() || null
+  const to = (latest.e.location ?? last.location)?.trim() || null
+  // Steht überall derselbe Ort, ist das der Abholort – wohin die Fahrt geht,
+  // sagt der Kalender dann nicht, und ein "Seevetal → Seevetal" wäre gelogen.
+  const sameSpot = !!from && !!to && from.toLowerCase() === to.toLowerCase()
 
   return {
     title: (named ?? first).summary || '',
     date_from: first.date_from,
     time_from: first.time_from,
-    date_to: last.date_to || last.date_from,
-    // Beim Zieltermin zählt, wann er anfängt, falls kein Ende hinterlegt ist.
-    time_to: last.time_to ?? last.time_from,
-    location_from: first.location,
-    location_to: last.location,
+    date_to: latest.end,
+    time_to: timeTo,
+    location_from: from,
+    location_to: sameSpot ? null : to,
     notes: sorted.map(block).filter(Boolean).join('\n\n'),
     uids: sorted.map((e) => e.uid),
   }

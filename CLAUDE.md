@@ -155,16 +155,30 @@ sich der Zeitraum ändern, **Alle** hebt den Filter auf.
 
 ### Abholung und Überführung als eine Fahrt
 
-Im Kalender steht eine Fahrt meist als zwei Termine: die Abholung und die
-Überführung desselben Fahrzeugs, wenige Tage auseinander. `calendarPairs.ts`
-bündelt sie zu einem Vorschlag — erkannt am Fahrzeug (Kennzeichen im Titel),
-am Abstand der Daten (höchstens drei Tage) und an der Art des Termins. Zwei
-gleichartige Termine bleiben getrennt: zweimal "Abholung" sind zwei Fahrten.
+Im Kalender steht eine Fahrt meist als zwei Termine: der Zeitraum der
+Überführung und die Abholung darin. Zum Beispiel
 
-Beim Übernehmen gibt der frühere Termin Start und Startort her, der spätere
-Ende und Zielort — unabhängig von der Beschriftung, denn die Uhr ist
-verlässlicher als das Wort. Titel wird der Termin, der nach Überführung
-klingt; die Notizen beider Termine landen zusammen im Feld Notizen.
+```
+LYNK 02 MY27 in Seevetal            02.11.2026 – 09.11.2026
+Abholung LYNK 02 MY27 in Seevetal   09.11.2026, 12:00
+```
+
+`calendarPairs.ts` bündelt sie zu einem Vorschlag. Zusammen gehören zwei
+Termine, wenn sie dasselbe Fahrzeug betreffen (Kennzeichen im Titel) und ihre
+**Zeiträume sich berühren** — die Abholung also in den Zeitraum fällt, meist auf
+dessen letzten Tag. Ein bloß ähnliches Datum genügt nicht: zwei Fahrten
+desselben Fahrzeugs in derselben Woche sind zwei Fahrten. Die Art des Termins
+entscheidet mit, damit aus zweimal "Abholung" nicht eine Fahrt wird; ein Titel
+ohne Schlagwort ("LYNK 02 MY27 in Seevetal") gilt als unbestimmt und passt zu
+beidem.
+
+Beim Übernehmen wird daraus: Start vom früheren Termin, Ende vom spätesten Tag
+aller Termine, Uhrzeit vom Termin, der an diesem Tag liegt. Titel wird der
+Termin, der nach Überführung klingt, sonst der frühere. Die Notizen beider
+Termine landen zusammen im Feld Notizen und werden gemeinsam nach
+Ansprechpartner und Telefon durchsucht. Steht in beiden Terminen derselbe Ort,
+ist das der **Startort** und der Zielort bleibt leer — wohin die Fahrt geht,
+sagt der Kalender dann nicht.
 
 Die Karte zeigt beide Termine untereinander mit dem Hinweis "2 Termine · eine
 Fahrt". Passt die Paarung nicht, übernimmt das kleine Symbol neben einem
