@@ -225,8 +225,33 @@ Die Titel folgen einem Muster, und die App liest es:
 
 Der **Tausch** bekommt ein blaues Kennzeichen-Paar und den Hinweis "Tausch";
 `matchVehiclesByPlate` liefert dafür alle Fahrzeuge aus dem Titel, nicht nur
-das erste. Übernommen wird er vorerst als **eine** Fahrt für das erste
-Fahrzeug — die zweite legt man von Hand an und verknüpft sie.
+das erste.
+
+### Ein Tausch wird zu zwei Fahrten
+
+"Tausch Lynk 08 WI-L 8957E **gegen** 02 DPG98A" heißt: das erste Fahrzeug wird
+abgeholt, das zweite gebracht. Das sind zwei Fahrten, und der Knopf sagt es
+schon — er heißt dann "Als zwei Fahrten übernehmen".
+
+`splitSwap` teilt den Titel am Trennwort (`gegen`, `statt`, `vs`, `→`) und
+lässt das führende "Tausch" weg; `swapTitles` sucht die Hälften in der ganzen
+Gruppe, denn in einem Paar muss der Tauschtermin nicht der erste sein. Das
+Formular geht danach zweimal auf:
+
+1. **Schritt 1 – bringen:** das Fahrzeug hinter dem Trennwort, der Ort des
+   Termins als **Zielort**.
+2. **Schritt 2 – abholen:** das Fahrzeug davor, derselbe Ort als **Startort**.
+
+Danach sind beide Fahrten über die `group_id` verbunden. Beide tragen denselben
+Kalendertermin — dafür liegt der Schlüssel von `transfer_calendar_links` auf
+`(calendar_uid, transfer_id)` und nicht mehr allein auf der UID
+(`20260923_calendar_link_per_transfer.sql`).
+
+Geteilt wird nur, wenn **beide** Kennzeichen zu einem Fahrzeug in der Flotte
+passen. Sonst bleibt es bei einer Fahrt: zwei anzulegen, von denen eine kein
+Fahrzeug hat, hilft niemandem. Wer den zweiten Schritt abbricht, behält die
+erste Fahrt — die Verbindung entsteht erst, wenn auch die zweite gespeichert
+ist.
 
 Das **Fragezeichen** heißt: vom Kunden noch nicht bestätigt. Der Termin lässt
 sich trotzdem übernehmen, die Fahrt ist dann eben geplant; in der Terminkarte
@@ -279,11 +304,20 @@ Blick. Verwaltet werden sie aufgeklappt unter **Verbundene Fahrten**: dort sind 
 angesprungen), je Zeile löst ein Symbol die Verbindung, und "Fahrt verknüpfen"
 öffnet die Auswahl.
 
+Verknüpfen lässt sich auch **schon beim Anlegen**: im Formular steht unter den
+Notizen derselbe Abschnitt "Verbundene Fahrten". Ausgewählt wird dort nur
+vorgemerkt — verbunden wird nach dem Speichern, vorher gibt es keine ID, an der
+die Gruppe hängen könnte. Beim Bearbeiten fehlt der Abschnitt: dort verwaltet
+die Karte die Verbindungen, und dasselbe an zwei Stellen wäre eine zu viel.
+
 Technisch ist das kein Paar, sondern eine gemeinsame `transfers.group_id`:
 damit passt auch die dritte Fahrt noch dazu. Wird eine Fahrt aus einer Gruppe
 mit einer anderen Gruppe verknüpft, werden beide Gruppen zusammengeführt.
 Bleibt beim Lösen nur eine Fahrt übrig, verliert auch sie die Gruppe — eine
-Gruppe aus einer einzigen Fahrt ist keine. Das Fahrzeug spielt dabei keine
+Gruppe aus einer einzigen Fahrt ist keine. `linkTransfers` gibt die Gruppe
+zurück, in der beide danach stehen: wer gleich mehrere Fahrten aneinanderhängt,
+gibt sie beim nächsten Aufruf mit, sonst entstünde eine zweite Gruppe und die
+erste Verbindung fiele wieder heraus. Das Fahrzeug spielt dabei keine
 Rolle: die Rückfahrt mit einem anderen Auto ist der Normalfall.
 
 ## Datenbank-Migrationen

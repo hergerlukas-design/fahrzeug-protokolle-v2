@@ -306,7 +306,14 @@
     "calendar_swap": "Tausch",
     "calendar_unconfirmed": "Unbestätigt",
     "calendar_error": "Kalender konnte nicht gelesen werden.",
-    "form_title_import": "Termin übernehmen"
+    "form_title_import": "Termin übernehmen",
+    "calendar_import_swap": "Als zwei Fahrten übernehmen",
+    "swap_step": "Tausch · Schritt {{step}} von 2",
+    "swap_bring": "{{what}} bringen",
+    "swap_pick": "{{what}} abholen",
+    "swap_hint_bring": "Erst die Hinfahrt: Dieses Fahrzeug wird gebracht.",
+    "swap_hint_pick": "Jetzt die Rückfahrt: Dieses Fahrzeug wird abgeholt. Beide Fahrten werden verbunden.",
+    "link_new_hint": "Gehört diese Fahrt zu einer anderen? Beim Speichern werden sie verbunden."
   },
   "annahme": {
     "title": "Annahmeprotokoll",

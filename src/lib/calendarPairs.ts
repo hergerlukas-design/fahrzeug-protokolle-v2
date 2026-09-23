@@ -76,6 +76,45 @@ export function isUnconfirmed(summary: string | null | undefined): boolean {
   return (summary ?? '').includes('?')
 }
 
+/** Trennwörter im Tauschtitel: "Tausch A gegen B". */
+const SWAP_SPLIT = /\s(?:gegen|vs\.?|statt|→|->)\s/i
+/** Das Schlagwort am Anfang gehört zum Termin, nicht zum Fahrzeug. */
+const SWAP_LEAD = /^(?:tausch|wechsel|fahrzeugtausch|fahrzeugwechsel|swap)\s*:?\s*/i
+
+/**
+ * Die beiden Hälften eines Tauschtitels.
+ *
+ * "Tausch Lynk 08 WI-L 8957E gegen 02 DPG98A" → vorne das Fahrzeug, das
+ * abgeholt wird, hinten das gebrachte. Das führende "Tausch" fällt weg: was
+ * bleibt, benennt das Fahrzeug. Ohne Trennwort gibt es nichts zu teilen; dann
+ * bleibt es bei einer Fahrt.
+ */
+export function splitSwap(summary: string | null | undefined): { pick: string; bring: string } | null {
+  const text = summary ?? ''
+  const m = text.match(SWAP_SPLIT)
+  if (!m || m.index === undefined) return null
+
+  const pick = text.slice(0, m.index).replace(SWAP_LEAD, '').trim()
+  const bring = text.slice(m.index + m[0].length).trim()
+  return pick && bring ? { pick, bring } : null
+}
+
+/**
+ * Die beiden Hälften des Tauschtermins in einer Gruppe.
+ *
+ * Gesucht wird der Termin, der nach Tausch klingt – in einer Gruppe aus zwei
+ * Terminen muss das nicht der erste sein. Findet sich keiner oder fehlt das
+ * Trennwort, gibt es keinen Tausch zu teilen.
+ */
+export function swapTitles(events: CalendarEvent[]): { pick: string; bring: string } | null {
+  for (const ev of events) {
+    if (classifyEvent(ev.summary) !== 'tausch') continue
+    const halves = splitSwap(ev.summary)
+    if (halves) return halves
+  }
+  return null
+}
+
 export interface CalendarGroup<V> {
   /** Aus den UIDs gebildet – als React-key brauchbar und stabil. */
   key: string

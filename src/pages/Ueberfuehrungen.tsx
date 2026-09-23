@@ -36,7 +36,7 @@ import {
   type LinkableProtocol,
 } from '../lib/transfers'
 import { extractContact } from '../lib/calendarContact'
-import { groupCalendarEvents, mergeEvents, classifyEvent, isUnconfirmed } from '../lib/calendarPairs'
+import { groupCalendarEvents, mergeEvents, classifyEvent, isUnconfirmed, swapTitles } from '../lib/calendarPairs'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -552,13 +552,20 @@ function TransferCard({
 function TransferForm({
   target,
   preset,
+  candidates = [],
+  note,
   onSaved,
   onCancel,
 }: {
   target: Transfer | null
   /** Vorbelegung für eine neue Überführung, etwa aus einem Kalendertermin. */
   preset?: TransferInput | null
-  onSaved: () => void
+  /** Fahrten, mit denen sich diese hier schon beim Anlegen verbinden lässt. */
+  candidates?: Transfer[]
+  /** Hinweis über dem Formular – etwa welcher Schritt eines Tauschs das ist. */
+  note?: string | null
+  /** Die gespeicherte Fahrt und die Fahrten, mit denen sie verbunden werden soll. */
+  onSaved: (saved: Transfer, links: Transfer[]) => void
   onCancel: () => void
 }) {
   const { t, i18n } = useTranslation()
@@ -579,6 +586,12 @@ function TransferForm({
   const [contactName, setContactName] = useState(init?.contact_name ?? '')
   const [contactPhone, setContactPhone] = useState(init?.contact_phone ?? '')
   const [notes, setNotes] = useState(init?.notes ?? '')
+
+  // Verbindungen zu anderen Fahrten. Nur beim Anlegen: eine bestehende Fahrt
+  // verwaltet sie in ihrer Karte, sonst stünde dasselbe an zwei Stellen.
+  const [links, setLinks] = useState<Transfer[]>([])
+  const [linkOpen, setLinkOpen] = useState(false)
+  const [linkSearch, setLinkSearch] = useState('')
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -617,6 +630,18 @@ function TransferForm({
     ).slice(0, 8)
   }, [vehicles, vehicleSearch])
 
+  const linkable = useMemo(() => {
+    const chosen = new Set(links.map((l) => l.id))
+    const needle = linkSearch.trim().toUpperCase()
+    return candidates
+      .filter((c) => !chosen.has(c.id))
+      .filter((c) =>
+        !needle ||
+        [c.title, c.vehicle?.license_plate, c.vehicle?.brand_model, c.location_to]
+          .some((f) => (f ?? '').toUpperCase().includes(needle))
+      )
+  }, [candidates, links, linkSearch])
+
   const valid = !!vehicleId && !!dateFrom && (!dateTo || dateTo >= dateFrom)
 
   async function handleSubmit(e: React.FormEvent) {
@@ -649,9 +674,10 @@ function TransferForm({
         calendar_uids: preset?.calendar_uids,
         calendar_events: preset?.calendar_events,
       }
-      if (target) await updateTransfer(target.id, values)
-      else await createTransfer(values)
-      onSaved()
+      const saved = target ? await updateTransfer(target.id, values) : await createTransfer(values)
+      // Verbunden wird erst danach – vorher gibt es keine ID, an der die
+      // Gruppe hängen könnte.
+      onSaved(saved, links)
     } catch (err) {
       setError(errorText(err, t('common.error')))
       setSaving(false)
@@ -675,6 +701,12 @@ function TransferForm({
                 ? t('transfers.form_title_import')
                 : t('transfers.form_title_new')}
           </h2>
+
+          {note && (
+            <p className="-mt-2 text-sm text-brand-700 bg-brand-50 border border-brand-100 rounded-xl px-3 py-2">
+              {note}
+            </p>
+          )}
 
           {error && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-start gap-2">
@@ -834,6 +866,107 @@ function TransferForm({
             <label className="block text-sm font-medium text-gray-700 mb-1">{t('transfers.notes')}</label>
             <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} className={field} />
           </div>
+
+          {/* Verbundene Fahrten – beim Anlegen, damit Hin- und Rückfahrt nicht
+              erst nachträglich zueinander finden müssen. */}
+          {!target && candidates.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('transfers.linked_section')}
+              </label>
+
+              {links.length > 0 && (
+                <div className="space-y-1.5 mb-2">
+                  {links.map((l) => (
+                    <div key={l.id} className="flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-gray-50">
+                      <Link2 size={14} className="text-gray-400 flex-shrink-0" />
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-sm text-gray-800 truncate">
+                          {l.title?.trim() || l.vehicle?.license_plate || t('transfers.vehicle_missing')}
+                        </span>
+                        <span className="block text-xs text-gray-400 truncate">
+                          {l.title?.trim() && `${l.vehicle?.license_plate ?? ''} · `}
+                          {dateRange(l, i18n.language)}
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setLinks((cur) => cur.filter((x) => x.id !== l.id))}
+                        aria-label={t('transfers.unlink_transfer')}
+                        className="text-gray-300 active:text-gray-600 flex-shrink-0"
+                      >
+                        <X size={15} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {linkOpen ? (
+                <div className="border border-gray-200 rounded-xl p-2 space-y-1.5">
+                  {candidates.length > 3 && (
+                    <div className="relative">
+                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="text"
+                        value={linkSearch}
+                        onChange={(e) => setLinkSearch(e.target.value)}
+                        placeholder={t('transfers.vehicle_placeholder')}
+                        className="w-full border border-gray-300 rounded-xl pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
+                      />
+                    </div>
+                  )}
+                  {linkable.length === 0 ? (
+                    <p className="text-sm text-gray-400 py-2 px-1">{t('transfers.link_transfer_empty')}</p>
+                  ) : (
+                    <div className="max-h-56 overflow-y-auto space-y-1.5">
+                      {linkable.slice(0, 30).map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => {
+                            setLinks((cur) => [...cur, c])
+                            setLinkOpen(false)
+                            setLinkSearch('')
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 text-left active:bg-gray-50"
+                        >
+                          <RouteIcon size={15} className="text-gray-400 flex-shrink-0" />
+                          <span className="flex-1 min-w-0">
+                            <span className="block text-sm text-gray-800 truncate">
+                              {c.title?.trim() || c.vehicle?.license_plate || t('transfers.vehicle_missing')}
+                            </span>
+                            <span className="block text-xs text-gray-400 truncate">
+                              {c.title?.trim() && `${c.vehicle?.license_plate ?? ''} · `}
+                              {dateRange(c, i18n.language)}
+                              {c.location_to && ` · ${c.location_to}`}
+                            </span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => { setLinkOpen(false); setLinkSearch('') }}
+                    className="w-full py-2 text-sm font-medium text-gray-500 active:text-gray-700"
+                  >
+                    {t('common.cancel')}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setLinkOpen(true)}
+                  className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-dashed border-gray-300 text-sm font-medium text-gray-500 active:bg-gray-50"
+                >
+                  <Link2 size={15} /> {t('transfers.link_transfer')}
+                </button>
+              )}
+
+              <p className="text-xs text-gray-400 mt-1">{t('transfers.link_new_hint')}</p>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3 pt-1">
             <button type="button" onClick={onCancel} className="py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm">
@@ -1217,6 +1350,12 @@ function CalendarSection({
             // nicht vom Kunden bestätigt.
             const plates = matchVehiclesByPlate(group.events.map((e) => e.summary).join(' '), vehicles)
             const swap = group.events.some((e) => classifyEvent(e.summary) === 'tausch')
+            // Ein Tausch mit zwei bekannten Fahrzeugen wird zu zwei Fahrten –
+            // der Knopf sagt es, bevor das Formular zweimal aufgeht.
+            const halves = swapTitles(group.events)
+            const picked = halves ? matchVehiclesByPlate(halves.pick, vehicles)[0] : undefined
+            const brought = halves ? matchVehiclesByPlate(halves.bring, vehicles)[0] : undefined
+            const splitSwapImport = !!picked && !!brought && picked.id !== brought.id
             const unconfirmed = group.events.some((e) => isUnconfirmed(e.summary))
             return (
               <div key={group.key} className="bg-white rounded-2xl border border-dashed border-gray-300 shadow-sm px-4 py-3">
@@ -1307,7 +1446,11 @@ function CalendarSection({
                     className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-600 text-white text-xs font-semibold active:bg-brand-700"
                   >
                     <Download size={13} />
-                    {pair ? t('transfers.calendar_import_pair') : t('transfers.calendar_import')}
+                    {splitSwapImport
+                      ? t('transfers.calendar_import_swap')
+                      : pair
+                        ? t('transfers.calendar_import_pair')
+                        : t('transfers.calendar_import')}
                   </button>
                 </div>
               </div>
@@ -1340,6 +1483,16 @@ export default function Ueberfuehrungen() {
   const [formOpen, setFormOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<Transfer | null>(null)
   const [formPreset, setFormPreset] = useState<TransferInput | null>(null)
+  const [formNote, setFormNote] = useState<string | null>(null)
+  // Zählt jedes Öffnen mit: Der zweite Teil eines Tauschs geht in dasselbe
+  // Formular, das ohne neuen key die Felder des ersten behielte.
+  const [formSeq, setFormSeq] = useState(0)
+
+  // Tausch: aus einem Termin werden zwei Fahrten. Der zweite Teil steht schon
+  // fest, während der erste noch im Formular ist; verbunden werden sie, sobald
+  // auch der zweite gespeichert ist.
+  const [swapNext, setSwapNext] = useState<TransferInput | null>(null)
+  const [swapFirst, setSwapFirst] = useState<Transfer | null>(null)
 
   // Kalender
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([])
@@ -1400,16 +1553,33 @@ export default function Ueberfuehrungen() {
 
   useEffect(() => { loadCalendar() }, [loadCalendar])
 
+  const openForm = useCallback(
+    (opts: { target?: Transfer | null; preset?: TransferInput | null; note?: string | null } = {}) => {
+      setEditTarget(opts.target ?? null)
+      setFormPreset(opts.preset ?? null)
+      setFormNote(opts.note ?? null)
+      setFormSeq((n) => n + 1)
+      setFormOpen(true)
+    },
+    []
+  )
+
+  /** Formular zu und alles vergessen – auch einen angefangenen Tausch. */
+  const closeForm = useCallback(() => {
+    setFormOpen(false)
+    setEditTarget(null)
+    setFormPreset(null)
+    setFormNote(null)
+    setSwapNext(null)
+    setSwapFirst(null)
+  }, [])
+
   // Der Wizard hinter dem Plus-Button öffnet das Formular über den
   // Navigations-State – auch dann, wenn diese Seite schon offen ist.
   useEffect(() => {
     const state = loc.state as { createTransfer?: number } | null
-    if (state?.createTransfer) {
-      setEditTarget(null)
-      setFormPreset(null)
-      setFormOpen(true)
-    }
-  }, [loc.state])
+    if (state?.createTransfer) openForm()
+  }, [loc.state, openForm])
 
   async function handleStatus(transfer: Transfer, status: TransferStatus) {
     setBusyId(transfer.id)
@@ -1463,15 +1633,19 @@ export default function Ueberfuehrungen() {
   /**
    * Termine ins Formular übernehmen – ein einzelner oder ein Paar aus Abholung
    * und Überführung. Gespeichert wird erst nach Bestätigung.
+   *
+   * Ein Tausch ("Tausch A gegen B") ist zweierlei: A wird abgeholt, B gebracht.
+   * Daraus werden zwei Fahrten, das Formular geht also zweimal auf – erst für
+   * das gebrachte Fahrzeug, dann für das geholte. Verbunden werden sie am Ende
+   * von selbst. Beide tragen denselben Termin, deshalb liegt der Schlüssel in
+   * transfer_calendar_links auf (calendar_uid, transfer_id).
    */
   function handleImportEvents(events: CalendarEvent[], vehicle: Vehicle | null) {
     const merged = mergeEvents(events)
     // Ansprechpartner und Telefon stehen, wenn überhaupt, in den Notizen –
     // der Titel trägt das Kennzeichen und sonst nichts Verlässliches.
     const contact = extractContact(merged.notes, { exclude: locationsOf(events) })
-    setEditTarget(null)
-    setFormPreset({
-      vehicle_id: vehicle?.id ?? '',
+    const base = {
       // Der Termintitel bleibt der Titel der Überführung – in den Notizen wäre
       // er in der Liste nicht mehr zu sehen.
       title: merged.title || null,
@@ -1488,8 +1662,78 @@ export default function Ueberfuehrungen() {
       calendar_uids: merged.uids,
       // Mit Inhalt, damit die Karte der Fahrt später dieselben Blöcke zeigt.
       calendar_events: events,
-    })
-    setFormOpen(true)
+    }
+
+    const halves = swapTitles(events)
+    const pickVehicle = halves ? matchVehiclesByPlate(halves.pick, vehicles)[0] ?? null : null
+    const bringVehicle = halves ? matchVehiclesByPlate(halves.bring, vehicles)[0] ?? null : null
+
+    // Nur wenn wirklich zwei Fahrzeuge im Titel stehen. Steht eines davon
+    // nicht in der Flotte, bleibt es bei einer Fahrt – zwei anzulegen, von
+    // denen eine kein Fahrzeug hat, hilft niemandem.
+    if (halves && pickVehicle && bringVehicle && pickVehicle.id !== bringVehicle.id) {
+      // Beide Fahrten treffen sich am selben Ort: dorthin wird gebracht, von
+      // dort wird geholt.
+      const spot = merged.location_to || merged.location_from || null
+      setSwapNext({
+        ...base,
+        vehicle_id: pickVehicle.id,
+        title: t('transfers.swap_pick', { what: halves.pick }),
+        location_from: spot,
+        location_to: null,
+      })
+      openForm({
+        preset: {
+          ...base,
+          vehicle_id: bringVehicle.id,
+          title: t('transfers.swap_bring', { what: halves.bring }),
+          location_from: null,
+          location_to: spot,
+        },
+        note: `${t('transfers.swap_step', { step: 1 })} · ${t('transfers.swap_hint_bring')}`,
+      })
+      return
+    }
+
+    openForm({ preset: { ...base, vehicle_id: vehicle?.id ?? '' } })
+  }
+
+  /**
+   * Nach dem Speichern: verbinden, was verbunden werden soll, und beim Tausch
+   * gleich den zweiten Teil aufschlagen.
+   *
+   * Die Gruppe wandert von Aufruf zu Aufruf weiter – ohne sie bekäme jede
+   * weitere Verbindung eine eigene und die vorige fiele wieder heraus.
+   */
+  async function handleFormSaved(saved: Transfer, links: Transfer[]) {
+    setFormOpen(false)
+    setEditTarget(null)
+    setFormPreset(null)
+    setFormNote(null)
+
+    const partners = swapFirst ? [swapFirst, ...links] : links
+    setSwapFirst(null)
+
+    try {
+      let group = saved.group_id
+      for (const other of partners) {
+        group = await linkTransfers({ id: saved.id, group_id: group }, other)
+      }
+    } catch (e) {
+      setError(errorText(e, t('common.error')))
+    }
+
+    if (swapNext) {
+      setSwapFirst(saved)
+      setSwapNext(null)
+      openForm({
+        preset: swapNext,
+        note: `${t('transfers.swap_step', { step: 2 })} · ${t('transfers.swap_hint_pick')}`,
+      })
+    }
+
+    await load()
+    loadCalendar()
   }
 
   /** Ein Protokoll, das es schon gibt, an die Überführung hängen. */
@@ -1607,7 +1851,7 @@ export default function Ueberfuehrungen() {
         onLinkProtocol={(role) => setLinkTarget({ transfer, role })}
         onUnlinkProtocol={(role) => handleUnlink(transfer, role)}
         onOpenProtocol={(protocolId) => navigate('/archiv', { state: { protocol_id: protocolId } })}
-        onEdit={() => { setEditTarget(transfer); setFormPreset(null); setFormOpen(true) }}
+        onEdit={() => openForm({ target: transfer })}
         onDelete={() => setDeleteTarget(transfer)}
         busy={busyId === transfer.id}
       />
@@ -1673,13 +1917,15 @@ export default function Ueberfuehrungen() {
 
       {formOpen && (
         <TransferForm
+          // Neuer key je Öffnen: Sonst stünden im zweiten Teil eines Tauschs
+          // noch die Felder des ersten.
+          key={formSeq}
           target={editTarget}
           preset={formPreset}
-          onSaved={() => {
-            setFormOpen(false); setEditTarget(null); setFormPreset(null)
-            load(); loadCalendar()
-          }}
-          onCancel={() => { setFormOpen(false); setEditTarget(null); setFormPreset(null) }}
+          candidates={editTarget ? candidatesFor(editTarget) : all}
+          note={formNote}
+          onSaved={handleFormSaved}
+          onCancel={closeForm}
         />
       )}
 

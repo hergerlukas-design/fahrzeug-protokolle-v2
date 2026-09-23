@@ -306,7 +306,14 @@
     "calendar_swap": "Swap",
     "calendar_unconfirmed": "Unconfirmed",
     "calendar_error": "The calendar could not be read.",
-    "form_title_import": "Import event"
+    "form_title_import": "Import event",
+    "calendar_import_swap": "Import as two trips",
+    "swap_step": "Swap · step {{step}} of 2",
+    "swap_bring": "Deliver {{what}}",
+    "swap_pick": "Pick up {{what}}",
+    "swap_hint_bring": "First leg: this vehicle is delivered.",
+    "swap_hint_pick": "Now the return leg: this vehicle is picked up. Both trips will be linked.",
+    "link_new_hint": "Does this trip belong to another one? They are linked when you save."
   },
   "annahme": {
     "title": "Intake Protocol",

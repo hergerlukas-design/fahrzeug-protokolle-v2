@@ -264,7 +264,9 @@ async function linkCalendarUids(rows: Record<string, unknown>[]): Promise<void> 
   if (rows.length === 0) return
   const { error } = await supabase
     .from('transfer_calendar_links')
-    .upsert(rows, { onConflict: 'calendar_uid', ignoreDuplicates: true })
+    // Der Schlüssel ist (calendar_uid, transfer_id): beim Tausch hängt derselbe
+    // Termin an zwei Fahrten, an einer Fahrt aber nur einmal.
+    .upsert(rows, { onConflict: 'calendar_uid,transfer_id', ignoreDuplicates: true })
   if (error) console.warn('Kalendertermine konnten nicht vermerkt werden:', error.message)
 }
 
@@ -445,11 +447,15 @@ type GroupMember = Pick<Transfer, 'id' | 'group_id'>
  * haben beide eine, werden die Gruppen zusammengeführt. Das Umhängen läuft
  * über `eq('group_id', …)` und erwischt damit auch Fahrten, die gerade nicht
  * auf dem Bildschirm stehen – sonst bliebe die halbe Gruppe zurück.
+ *
+ * Zurück kommt die Gruppe, in der beide jetzt stehen. Wer gleich noch eine
+ * dritte Fahrt dazuhängt, gibt sie beim nächsten Aufruf mit – sonst entstünde
+ * eine zweite Gruppe und die erste Verbindung fiele wieder heraus.
  */
-export async function linkTransfers(a: GroupMember, b: GroupMember): Promise<void> {
+export async function linkTransfers(a: GroupMember, b: GroupMember): Promise<string | null> {
   requireOnline()
-  if (a.id === b.id) return
-  if (a.group_id && a.group_id === b.group_id) return
+  if (a.id === b.id) return a.group_id
+  if (a.group_id && a.group_id === b.group_id) return a.group_id
 
   const group = a.group_id ?? b.group_id ?? crypto.randomUUID()
 
@@ -461,6 +467,8 @@ export async function linkTransfers(a: GroupMember, b: GroupMember): Promise<voi
       : await query.eq('id', t.id)
     if (error) throw error
   }
+
+  return group
 }
 
 /**
