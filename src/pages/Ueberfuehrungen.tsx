@@ -66,7 +66,15 @@ function withTime(date: string, time: string | null, lang: string): string {
   return t ? `${formatDate(date, lang)}, ${t}` : formatDate(date, lang)
 }
 
-function dateRange(tr: Transfer, lang: string): string {
+/** Reicht für den Zeitraum – so passt auch ein gespeicherter Kalendertermin hinein. */
+interface DateSpan {
+  date_from: string
+  date_to: string | null
+  time_from: string | null
+  time_to: string | null
+}
+
+function dateRange(tr: DateSpan, lang: string): string {
   const from = withTime(tr.date_from, tr.time_from, lang)
   const sameDay = !tr.date_to || tr.date_to === tr.date_from
 
@@ -173,11 +181,38 @@ function TransferCard({
 }) {
   const { t, i18n } = useTranslation()
   const v = transfer.vehicle
-  // Aus dem Kalender übernommene Fahrten tragen den Termintitel; er ist die
-  // Beschriftung, unter der sie bekannt sind. Das Kennzeichen rückt dann eine
-  // Zeile nach unten, statt zu verschwinden.
   const title = transfer.title?.trim() || null
   const plate = v?.license_plate ?? t('transfers.vehicle_missing')
+
+  // Die übernommenen Termine, chronologisch – aus ihnen wird die Karte gebaut.
+  const links = [...(transfer.calendar_links ?? [])]
+    .filter((l) => l.date_from)
+    .sort((a, b) =>
+      (a.date_from ?? '').localeCompare(b.date_from ?? '') ||
+      (a.time_from ?? '').localeCompare(b.time_from ?? ''))
+
+  const route = transfer.location_from && transfer.location_to
+    ? `${transfer.location_from} → ${transfer.location_to}`
+    : transfer.location_to || transfer.location_from || null
+
+  /**
+   * Eine übernommene Fahrt sieht aus wie der Termin, aus dem sie entstanden ist –
+   * bei einem Paar mit beiden Blöcken. Fahrten ohne gespeicherte Termine (von
+   * Hand angelegt oder vor dieser Änderung übernommen) zeigen ihre eigenen Daten.
+   */
+  const blocks = links.length > 0
+    ? links.map((l) => ({
+        key: l.calendar_uid,
+        title: l.summary?.trim() || t('transfers.calendar_untitled'),
+        when: dateRange({ ...l, date_from: l.date_from as string }, i18n.language),
+        location: l.location,
+      }))
+    : [{
+        key: transfer.id,
+        title: title ?? plate,
+        when: dateRange(transfer, i18n.language),
+        location: route,
+      }]
 
   return (
     <div id={`transfer-${transfer.id}`} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -186,22 +221,46 @@ function TransferCard({
         className="w-full flex items-center gap-3 px-4 py-3 text-left active:bg-gray-50"
       >
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="font-bold text-gray-900 truncate">{title ?? plate}</p>
-            <StatusBadge status={transfer.status} />
+        {blocks.map((b, idx) => (
+          <div key={b.key} className={idx > 0 ? 'mt-2 pt-2 border-t border-dashed border-gray-200' : ''}>
+            <p className="font-semibold text-gray-900 text-sm">{b.title}</p>
+            {b.when && <p className="text-xs text-gray-400 mt-0.5">{b.when}</p>}
+            {b.location && (
+              <p className="text-xs text-gray-500 mt-0.5 flex items-start gap-1">
+                <MapPin size={12} className="text-gray-400 flex-shrink-0 mt-0.5" />
+                <span>{b.location}</span>
+              </p>
+            )}
           </div>
-          {title ? (
-            <p className="text-sm text-gray-600 truncate">
-              <span className="font-semibold">{plate}</span>
-              {v?.brand_model && <span className="text-gray-400"> · {v.brand_model}</span>}
-            </p>
-          ) : (
-            <p className="text-sm text-gray-500 truncate">
-              {v?.brand_model || <span className="italic text-gray-300">{t('vehicles.brand_unknown')}</span>}
-            </p>
+        ))}
+
+        {(transfer.contact_name || transfer.contact_phone) && (
+          <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+            <Phone size={12} className="text-gray-400 flex-shrink-0" />
+            <span className="truncate">
+              {transfer.contact_name}
+              {transfer.contact_name && transfer.contact_phone && <span className="text-gray-400"> · </span>}
+              {transfer.contact_phone}
+            </span>
+          </p>
+        )}
+
+        <div className="flex items-center gap-2 mt-2 flex-wrap">
+          <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${
+            v ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+          }`}>
+            {plate}
+          </span>
+          <StatusBadge status={transfer.status} />
+          {blocks.length > 1 && (
+            <span className="text-[10px] font-semibold uppercase tracking-wide bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full">
+              {t('transfers.calendar_pair')}
+            </span>
           )}
-          <p className="text-xs text-gray-400 mt-0.5">{dateRange(transfer, i18n.language)}</p>
+          {v?.brand_model && <span className="text-[11px] text-gray-400 truncate">{v.brand_model}</span>}
         </div>
+        </div>
+        {/* Bleibt rechts mittig stehen, auch wenn die Marken umbrechen. */}
         {expanded
           ? <ChevronDown size={18} className="text-gray-300 flex-shrink-0" />
           : <ChevronRight size={18} className="text-gray-300 flex-shrink-0" />}
@@ -209,31 +268,18 @@ function TransferCard({
 
       {expanded && (
         <div className="border-t border-gray-100 px-4 py-3 space-y-3">
-          <Row icon={<MapPin size={16} />}>
-            {transfer.location_from || transfer.location_to ? (
-              <span>
-                {transfer.location_from || '—'}
-                <span className="text-gray-400"> → </span>
-                <span className="font-semibold text-gray-900">{transfer.location_to || '—'}</span>
-              </span>
-            ) : (
-              <span className="text-gray-400 italic">{t('transfers.no_route')}</span>
-            )}
-          </Row>
-
           {transfer.driver_name && (
             <Row icon={<User size={16} />}>{transfer.driver_name}</Row>
           )}
 
-          {(transfer.contact_name || transfer.contact_phone) && (
+          {/* Oben steht die Nummer schon; hier ist sie wählbar. In der
+              zugeklappten Karte ginge das nicht: die ganze Fläche ist die
+              Schaltfläche zum Öffnen, ein Link darin wäre verschachtelt. */}
+          {transfer.contact_phone && (
             <Row icon={<Phone size={16} />}>
-              {transfer.contact_name}
-              {transfer.contact_name && transfer.contact_phone && <span className="text-gray-400"> · </span>}
-              {transfer.contact_phone && (
-                <a href={`tel:${transfer.contact_phone}`} className="text-brand-600 font-medium">
-                  {transfer.contact_phone}
-                </a>
-              )}
+              <a href={`tel:${transfer.contact_phone}`} className="text-brand-600 font-medium">
+                {transfer.contact_phone}
+              </a>
             </Row>
           )}
 
@@ -532,6 +578,7 @@ function TransferForm({
         // Ein Paar bringt zwei Termine mit – beide müssen als übernommen
         // vermerkt werden, sonst taucht der zweite gleich wieder als neu auf.
         calendar_uids: preset?.calendar_uids,
+        calendar_events: preset?.calendar_events,
       }
       if (target) await updateTransfer(target.id, values)
       else await createTransfer(values)
@@ -1351,6 +1398,8 @@ export default function Ueberfuehrungen() {
       notes: merged.notes,
       calendar_uid: merged.uids[0],
       calendar_uids: merged.uids,
+      // Mit Inhalt, damit die Karte der Fahrt später dieselben Blöcke zeigt.
+      calendar_events: events,
     })
     setFormOpen(true)
   }

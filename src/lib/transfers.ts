@@ -32,6 +32,17 @@ export interface LinkedProtocol {
   inspector_name: string | null
 }
 
+/** Ein übernommener Kalendertermin, so wie er zum Zeitpunkt der Übernahme aussah. */
+export interface TransferCalendarLink {
+  calendar_uid: string
+  summary: string | null
+  date_from: string | null
+  date_to: string | null
+  time_from: string | null
+  time_to: string | null
+  location: string | null
+}
+
 export interface Transfer {
   id: string
   vehicle_id: string
@@ -63,6 +74,8 @@ export interface Transfer {
   vehicle?: TransferVehicle | null
   pickup_protocol?: LinkedProtocol | null
   dropoff_protocol?: LinkedProtocol | null
+  /** Die Termine, aus denen die Fahrt entstanden ist – leer bei Handarbeit. */
+  calendar_links?: TransferCalendarLink[]
 }
 
 export interface TransferInput {
@@ -81,6 +94,8 @@ export interface TransferInput {
   calendar_uid?: string | null
   /** Alle Kalendertermine, aus denen die Fahrt entsteht – meist Abholung und Überführung. */
   calendar_uids?: string[]
+  /** Dieselben Termine mit Inhalt, damit die Karte sie später zeigen kann. */
+  calendar_events?: CalendarEvent[]
 }
 
 const PROTOCOL_FIELDS = 'id, created_at, status, protocol_type, inspector_name'
@@ -92,7 +107,8 @@ const SELECT =
   'driver_name, contact_name, contact_phone, notes, pickup_protocol_id, dropoff_protocol_id, calendar_uid, group_id, created_at, ' +
   'vehicle:vehicles(id, license_plate, brand_model, availability, cleanliness_interior, cleanliness_exterior, is_fueled, is_charged, current_odometer), ' +
   `pickup_protocol:protocols!transfers_pickup_protocol_id_fkey(${PROTOCOL_FIELDS}), ` +
-  `dropoff_protocol:protocols!transfers_dropoff_protocol_id_fkey(${PROTOCOL_FIELDS})`
+  `dropoff_protocol:protocols!transfers_dropoff_protocol_id_fkey(${PROTOCOL_FIELDS}), ` +
+  'calendar_links:transfer_calendar_links(calendar_uid, summary, date_from, date_to, time_from, time_to, location)'
 
 /** Eine eingebettete Beziehung kommt je nach generierten Typen als Objekt oder
  *  als einelementiges Array zurück – beides auf ein Objekt bringen. */
@@ -106,6 +122,8 @@ function normalize(row: any): Transfer {
   return {
     ...row,
     vehicle: one<TransferVehicle>(row?.vehicle),
+    // Bleibt eine Liste: eine Fahrt kann aus Abholung und Überführung entstehen.
+    calendar_links: Array.isArray(row?.calendar_links) ? row.calendar_links : [],
     pickup_protocol: one<LinkedProtocol>(row?.pickup_protocol),
     dropoff_protocol: one<LinkedProtocol>(row?.dropoff_protocol),
   } as Transfer
@@ -202,10 +220,33 @@ function clean(values: TransferInput) {
   }
 }
 
-/** Alle UIDs, die zu dieser Eingabe gehören – ohne Dopplungen. */
-function uidsOf(values: TransferInput): string[] {
-  const all = [...(values.calendar_uids ?? []), values.calendar_uid ?? '']
-  return [...new Set(all.filter(Boolean))] as string[]
+/**
+ * Die Zeilen für transfer_calendar_links – ein Termin je Zeile, ohne Dopplungen.
+ *
+ * Liegt der Termin mit Inhalt vor, wird er mitgespeichert: die Karte einer
+ * übernommenen Fahrt zeigt damit dieselben Blöcke wie der Kalender. Sonst
+ * bleibt es beim reinen Vermerk "übernommen".
+ */
+function linkRowsOf(values: TransferInput, transferId: string) {
+  const byUid = new Map<string, Record<string, unknown>>()
+
+  for (const uid of [...(values.calendar_uids ?? []), values.calendar_uid ?? '']) {
+    if (uid) byUid.set(uid, { calendar_uid: uid, transfer_id: transferId })
+  }
+  for (const ev of values.calendar_events ?? []) {
+    if (!ev?.uid) continue
+    byUid.set(ev.uid, {
+      calendar_uid: ev.uid,
+      transfer_id: transferId,
+      summary: ev.summary || null,
+      date_from: ev.date_from || null,
+      date_to: ev.date_to || null,
+      time_from: ev.time_from || null,
+      time_to: ev.time_to || null,
+      location: ev.location || null,
+    })
+  }
+  return [...byUid.values()]
 }
 
 /**
@@ -219,9 +260,8 @@ function uidsOf(values: TransferInput): string[] {
  * ignoreDuplicates, damit ein erneutes Speichern einen Termin nicht einer
  * anderen Fahrt wegnimmt.
  */
-async function linkCalendarUids(transferId: string, uids: string[]): Promise<void> {
-  if (uids.length === 0) return
-  const rows = uids.map((calendar_uid) => ({ calendar_uid, transfer_id: transferId }))
+async function linkCalendarUids(rows: Record<string, unknown>[]): Promise<void> {
+  if (rows.length === 0) return
   const { error } = await supabase
     .from('transfer_calendar_links')
     .upsert(rows, { onConflict: 'calendar_uid', ignoreDuplicates: true })
@@ -237,7 +277,7 @@ export async function createTransfer(values: TransferInput): Promise<Transfer> {
     .single()
   if (error) throw error
   const row = normalize(data)
-  await linkCalendarUids(row.id, uidsOf(values))
+  await linkCalendarUids(linkRowsOf(values, row.id))
   return row
 }
 
@@ -251,7 +291,7 @@ export async function updateTransfer(id: string, values: TransferInput): Promise
     .single()
   if (error) throw error
   const row = normalize(data)
-  await linkCalendarUids(row.id, uidsOf(values))
+  await linkCalendarUids(linkRowsOf(values, row.id))
   return row
 }
 

@@ -184,9 +184,19 @@ Die Karte zeigt beide Termine untereinander mit dem Hinweis "2 Termine · eine
 Fahrt". Passt die Paarung nicht, übernimmt das kleine Symbol neben einem
 Termin nur diesen einen.
 
-Welche Termine schon übernommen wurden, steht in `transfer_calendar_links`
-(eine Zeile je Termin, `calendar_uid` als Primärschlüssel). `transfers.calendar_uid`
-bleibt als Herkunftsmerkmal an der Fahrt, trägt aber nur den ersten Termin.
+**Nach der Übernahme bleibt die Karte, wie sie war** — nur der Knopf
+"Übernehmen" weicht dem Pfeil zum Aufklappen. Dafür speichert
+`transfer_calendar_links` nicht bloß die UID, sondern auch Titel, Zeitraum und
+Ort jedes Termins: eine Momentaufnahme vom Tag der Übernahme, die die Liste
+später zeigen kann, ohne den Kalender erneut zu lesen. Eine Fahrt aus zwei
+Terminen zeigt beide Blöcke.
+
+Fahrten ohne solche Termine — von Hand angelegt oder vor dieser Änderung
+übernommen — zeigen an derselben Stelle ihre eigenen Felder: Titel oder
+Kennzeichen, Zeitraum, Strecke.
+
+`transfers.calendar_uid` bleibt als Herkunftsmerkmal an der Fahrt, trägt aber
+nur den ersten Termin.
 
 Function deployen:
 
