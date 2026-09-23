@@ -282,6 +282,7 @@
     "link_transfer": "Link a trip",
     "unlink_transfer": "Remove link",
     "link_transfer_title": "Link a trip",
+    "link_section_existing": "Existing trips",
     "link_transfer_empty": "No other trip found.",
     "time_hint": "Time is optional — the date is enough.",
     "date_label": "Date",

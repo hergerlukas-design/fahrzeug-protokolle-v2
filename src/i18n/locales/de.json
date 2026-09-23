@@ -282,6 +282,7 @@
     "link_transfer": "Fahrt verknüpfen",
     "unlink_transfer": "Verbindung lösen",
     "link_transfer_title": "Fahrt verknüpfen",
+    "link_section_existing": "Schon angelegt",
     "link_transfer_empty": "Keine weitere Fahrt gefunden.",
     "time_hint": "Uhrzeit ist optional – das Datum genügt.",
     "date_label": "Datum",

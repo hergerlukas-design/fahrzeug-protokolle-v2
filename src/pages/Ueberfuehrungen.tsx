@@ -670,6 +670,7 @@ function TransferForm({
   target,
   preset,
   candidates = [],
+  presetLinks,
   note,
   onSaved,
   onCancel,
@@ -679,6 +680,9 @@ function TransferForm({
   preset?: TransferInput | null
   /** Fahrten, mit denen sich diese hier schon beim Anlegen verbinden lässt. */
   candidates?: Transfer[]
+  /** Schon vorgemerkte Verbindungen – etwa die Fahrt, aus der heraus der
+      Termin übernommen wurde. */
+  presetLinks?: Transfer[]
   /** Hinweis über dem Formular – etwa welcher Schritt eines Tauschs das ist. */
   note?: string | null
   /** Die gespeicherte Fahrt und die Fahrten, mit denen sie verbunden werden soll. */
@@ -706,7 +710,7 @@ function TransferForm({
 
   // Verbindungen zu anderen Fahrten. Nur beim Anlegen: eine bestehende Fahrt
   // verwaltet sie in ihrer Karte, sonst stünde dasselbe an zwei Stellen.
-  const [links, setLinks] = useState<Transfer[]>([])
+  const [links, setLinks] = useState<Transfer[]>(presetLinks ?? [])
   const [linkOpen, setLinkOpen] = useState(false)
   const [linkSearch, setLinkSearch] = useState('')
 
@@ -986,7 +990,7 @@ function TransferForm({
 
           {/* Verbundene Fahrten – beim Anlegen, damit Hin- und Rückfahrt nicht
               erst nachträglich zueinander finden müssen. */}
-          {!target && candidates.length > 0 && (
+          {!target && (candidates.length > 0 || links.length > 0) && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 {t('transfers.linked_section')}
@@ -1144,27 +1148,53 @@ function DeleteConfirm({
 function TransferPicker({
   transfer,
   candidates,
+  events,
+  vehicles,
   onPick,
+  onPickEvents,
   onCancel,
   linking,
 }: {
   transfer: Transfer
   candidates: Transfer[]
+  /** Termine, aus denen noch keine Fahrt geworden ist. */
+  events: CalendarEvent[]
+  vehicles: Vehicle[]
   onPick: (other: Transfer) => void
+  /** Einen Termin übernehmen und die neue Fahrt gleich verbinden. */
+  onPickEvents: (events: CalendarEvent[], vehicle: Vehicle | null) => void
   onCancel: () => void
   linking: boolean
 }) {
   const { t, i18n } = useTranslation()
   const [search, setSearch] = useState('')
 
+  const needle = search.trim().toUpperCase()
+
   const filtered = useMemo(() => {
-    const needle = search.trim().toUpperCase()
     if (!needle) return candidates
     return candidates.filter((c) =>
       [c.title, c.vehicle?.license_plate, c.vehicle?.brand_model, c.location_to]
         .some((f) => (f ?? '').toUpperCase().includes(needle))
     )
-  }, [candidates, search])
+  }, [candidates, needle])
+
+  // Verbunden werden soll oft mit einer Fahrt, die es noch gar nicht gibt –
+  // die Abholung steht dann noch als Termin im Kalender. Also stehen die hier
+  // mit zur Wahl; übernommen wird sie im Formular, verbunden beim Speichern.
+  const groups = useMemo(
+    () => groupCalendarEvents(events, (ev) => matchVehicleByPlate(ev.summary, vehicles)),
+    [events, vehicles]
+  )
+
+  const openGroups = useMemo(() => {
+    if (!needle) return groups
+    return groups.filter((g) =>
+      g.events.some((e) =>
+        [e.summary, e.location].some((f) => (f ?? '').toUpperCase().includes(needle))
+      ) || (g.vehicle?.license_plate ?? '').toUpperCase().includes(needle)
+    )
+  }, [groups, needle])
 
   return (
     <>
@@ -1175,7 +1205,7 @@ function TransferPicker({
           {transfer.title?.trim() || transfer.vehicle?.license_plate} · {dateRange(transfer, i18n.language)}
         </p>
 
-        {candidates.length > 3 && (
+        {candidates.length + groups.length > 3 && (
           <div className="relative mb-3">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
@@ -1188,10 +1218,15 @@ function TransferPicker({
           </div>
         )}
 
-        {filtered.length === 0 ? (
+        {filtered.length === 0 && openGroups.length === 0 ? (
           <p className="text-sm text-gray-400 py-4">{t('transfers.link_transfer_empty')}</p>
         ) : (
           <div className="space-y-1.5">
+            {filtered.length > 0 && openGroups.length > 0 && (
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide pt-1">
+                {t('transfers.link_section_existing')}
+              </p>
+            )}
             {filtered.slice(0, 30).map((c) => (
               <button
                 key={c.id}
@@ -1213,6 +1248,43 @@ function TransferPicker({
                 <StatusBadge status={c.status} />
               </button>
             ))}
+
+            {openGroups.length > 0 && (
+              <>
+                {filtered.length > 0 && (
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide pt-2">
+                    {t('transfers.calendar_section')}
+                  </p>
+                )}
+                {openGroups.slice(0, 30).map((g) => {
+                  const first = g.events[0]
+                  const last = g.events[g.events.length - 1]
+                  return (
+                    <button
+                      key={g.key}
+                      onClick={() => onPickEvents(g.events, g.vehicle)}
+                      disabled={linking}
+                      className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-gray-300 text-left active:bg-gray-50 disabled:opacity-50"
+                    >
+                      <CalendarDays size={15} className="text-gray-400 flex-shrink-0" />
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-sm text-gray-800 truncate">
+                          {first.summary || t('transfers.calendar_untitled')}
+                        </span>
+                        <span className="block text-xs text-gray-400 truncate">
+                          {g.vehicle && `${g.vehicle.license_plate} · `}
+                          {withTime(first.date_from, first.time_from, i18n.language)}
+                          {(last.date_to || last.date_from) !== first.date_from &&
+                            ` – ${formatDate(last.date_to || last.date_from, i18n.language)}`}
+                          {first.location && ` · ${first.location}`}
+                        </span>
+                      </span>
+                      <Download size={15} className="text-gray-300 flex-shrink-0" />
+                    </button>
+                  )
+                })}
+              </>
+            )}
           </div>
         )}
 
@@ -1601,6 +1673,8 @@ export default function Ueberfuehrungen() {
   const [editTarget, setEditTarget] = useState<Transfer | null>(null)
   const [formPreset, setFormPreset] = useState<TransferInput | null>(null)
   const [formNote, setFormNote] = useState<string | null>(null)
+  // Beim Übernehmen aus einer anderen Fahrt heraus schon vorgemerkt.
+  const [formLinks, setFormLinks] = useState<Transfer[]>([])
   // Zählt jedes Öffnen mit: Der zweite Teil eines Tauschs geht in dasselbe
   // Formular, das ohne neuen key die Felder des ersten behielte.
   const [formSeq, setFormSeq] = useState(0)
@@ -1671,10 +1745,16 @@ export default function Ueberfuehrungen() {
   useEffect(() => { loadCalendar() }, [loadCalendar])
 
   const openForm = useCallback(
-    (opts: { target?: Transfer | null; preset?: TransferInput | null; note?: string | null } = {}) => {
+    (opts: {
+      target?: Transfer | null
+      preset?: TransferInput | null
+      note?: string | null
+      links?: Transfer[]
+    } = {}) => {
       setEditTarget(opts.target ?? null)
       setFormPreset(opts.preset ?? null)
       setFormNote(opts.note ?? null)
+      setFormLinks(opts.links ?? [])
       setFormSeq((n) => n + 1)
       setFormOpen(true)
     },
@@ -1687,6 +1767,7 @@ export default function Ueberfuehrungen() {
     setEditTarget(null)
     setFormPreset(null)
     setFormNote(null)
+    setFormLinks([])
     setSwapNext(null)
     setSwapFirst(null)
   }, [])
@@ -1754,10 +1835,14 @@ export default function Ueberfuehrungen() {
    * Ein Tausch ("Tausch A gegen B") ist zweierlei: A wird abgeholt, B gebracht.
    * Daraus werden zwei Fahrten, das Formular geht also zweimal auf – erst für
    * das gebrachte Fahrzeug, dann für das geholte. Verbunden werden sie am Ende
-   * von selbst. Beide tragen denselben Termin, deshalb liegt der Schlüssel in
-   * transfer_calendar_links auf (calendar_uid, transfer_id).
+   * von selbst.
+   *
+   * Die Termine teilen sich dabei auf: der Tauschtermin gehört zur Fahrt des
+   * gebrachten Fahrzeugs, die Termine davor (die Überführung, die A überhaupt
+   * erst hinbrachte) zur Fahrt des geholten. Bekämen beide alles, stünde jeder
+   * Termin zweimal in derselben Karte.
    */
-  function handleImportEvents(events: CalendarEvent[], vehicle: Vehicle | null) {
+  function handleImportEvents(events: CalendarEvent[], vehicle: Vehicle | null, links: Transfer[] = []) {
     const merged = mergeEvents(events)
     // Ansprechpartner und Telefon stehen, wenn überhaupt, in den Notizen –
     // der Titel trägt das Kennzeichen und sonst nichts Verlässliches.
@@ -1792,27 +1877,50 @@ export default function Ueberfuehrungen() {
       // Beide Fahrten treffen sich am selben Ort: dorthin wird gebracht, von
       // dort wird geholt.
       const spot = merged.location_to || merged.location_from || null
+      const swapEvents = events.filter((e) => classifyEvent(e.summary) === 'tausch')
+      const restEvents = events.filter((e) => classifyEvent(e.summary) !== 'tausch')
+
+      // Das geholte Fahrzeug stand schon da – seine Fahrt ist die Überführung
+      // davor und endet mit dem Tausch. Die Zeiten kommen deshalb weiter aus
+      // allen Terminen, die Blöcke der Karte aber nur aus den eigenen.
       setSwapNext({
         ...base,
         vehicle_id: pickVehicle.id,
         title: t('transfers.swap_pick', { what: halves.pick }),
         location_from: spot,
         location_to: null,
+        calendar_uid: restEvents[0]?.uid ?? base.calendar_uid,
+        calendar_uids: restEvents.map((e) => e.uid),
+        calendar_events: restEvents,
       })
+
+      // Das gebrachte Fahrzeug kommt mit dem Tauschtermin – und nur mit ihm.
+      const brought = mergeEvents(swapEvents)
+      const broughtContact = extractContact(brought.notes, { exclude: locationsOf(swapEvents) })
       openForm({
         preset: {
-          ...base,
           vehicle_id: bringVehicle.id,
           title: t('transfers.swap_bring', { what: halves.bring }),
+          date_from: brought.date_from,
+          date_to: brought.date_to,
+          time_from: brought.time_from,
+          time_to: brought.time_to,
           location_from: null,
           location_to: spot,
+          contact_name: broughtContact.name,
+          contact_phone: broughtContact.phone,
+          notes: brought.notes,
+          calendar_uid: swapEvents[0].uid,
+          calendar_uids: swapEvents.map((e) => e.uid),
+          calendar_events: swapEvents,
         },
         note: `${t('transfers.swap_step', { step: 1 })} · ${t('transfers.swap_hint_bring')}`,
+        links,
       })
       return
     }
 
-    openForm({ preset: { ...base, vehicle_id: vehicle?.id ?? '' } })
+    openForm({ preset: { ...base, vehicle_id: vehicle?.id ?? '' }, links })
   }
 
   /**
@@ -2062,6 +2170,7 @@ export default function Ueberfuehrungen() {
           target={editTarget}
           preset={formPreset}
           candidates={editTarget ? candidatesFor(editTarget) : all}
+          presetLinks={formLinks}
           note={formNote}
           onSaved={handleFormSaved}
           onCancel={closeForm}
@@ -2072,7 +2181,17 @@ export default function Ueberfuehrungen() {
         <TransferPicker
           transfer={transferLinkTarget}
           candidates={candidatesFor(transferLinkTarget)}
+          events={calendarEvents}
+          vehicles={vehicles}
           onPick={handleLinkTransfer}
+          onPickEvents={(events, vehicle) => {
+            // Der Termin wird übernommen wie aus dem Kalenderbereich – die
+            // Fahrt, aus der heraus verknüpft wurde, steht dabei schon im
+            // Formular und wird beim Speichern verbunden.
+            const target = transferLinkTarget
+            setTransferLinkTarget(null)
+            handleImportEvents(events, vehicle, [target])
+          }}
           onCancel={() => setTransferLinkTarget(null)}
           linking={linking}
         />

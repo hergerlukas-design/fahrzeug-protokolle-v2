@@ -242,6 +242,18 @@ Formular geht danach zweimal auf:
    Termins als **Zielort**.
 2. **Schritt 2 – abholen:** das Fahrzeug davor, derselbe Ort als **Startort**.
 
+Die Termine teilen sich dabei auf: der **Tauschtermin** gehört zur Fahrt des
+gebrachten Fahrzeugs, die Termine **davor** — die Überführung, die das andere
+Fahrzeug überhaupt erst hinbrachte — zur Fahrt des geholten. Bekämen beide
+alles, stünde jeder Termin zweimal in derselben Karte. Die Zeiten der
+Abholfahrt kommen weiter aus allen Terminen: das Fahrzeug steht ja seit der
+Überführung dort und fährt erst mit dem Tausch wieder los.
+
+```
+LYNK 08 WI-L 8957E in Hamburg      21.10. – 05.11.   → Fahrt "WI-L 8957E abholen"
+Tausch WI-L 8957E gegen DPG98A     05.11., 12–13     → Fahrt "DPG98A bringen"
+```
+
 Danach sind beide Fahrten über die `group_id` verbunden. Beide tragen denselben
 Kalendertermin — dafür liegt der Schlüssel von `transfer_calendar_links` auf
 `(calendar_uid, transfer_id)` und nicht mehr allein auf der UID
@@ -321,6 +333,13 @@ dafür in Gruppen, `TransferHead` und `TransferDetails` sind je Fahrt da.
 Verwaltet werden die Verbindungen aufgeklappt unter **Verbundene Fahrten**: je
 Zeile löst ein Symbol die Verbindung, und "Fahrt verknüpfen" öffnet die
 Auswahl.
+
+Die Auswahl zeigt zweierlei: die schon angelegten Fahrten und darunter, mit
+gestricheltem Rand, die **Termine aus dem Kalender**, aus denen noch keine
+Fahrt geworden ist — oft steht die Abholung ja noch dort. Ein Griff dorthin
+öffnet das Übernehmen-Formular mit der Fahrt, aus der heraus verknüpft wurde,
+schon unter "Verbundene Fahrten"; gespeichert wird wie immer erst nach
+Bestätigung, und mit dem Speichern entsteht die Verbindung.
 
 Verknüpfen lässt sich auch **schon beim Anlegen**: im Formular steht unter den
 Notizen derselbe Abschnitt "Verbundene Fahrten". Ausgewählt wird dort nur
