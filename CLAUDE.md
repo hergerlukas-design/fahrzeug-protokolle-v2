@@ -212,6 +212,19 @@ Function deployen:
 supabase functions deploy transfer-calendar --project-ref zhsqcrmdqxfnupmuqaya
 ```
 
+### Adressen und Telefonnummern
+
+Adressen sind Links in die Karten-App:
+`https://www.google.com/maps/search/?api=1&query=…`. Auf dem Telefon öffnet
+das die installierte App, sonst die Website — ein `maps:`-Link kennen nur
+Apple-Geräte. Telefonnummern sind `tel:`-Links, die Nummer darin ohne
+Leerzeichen.
+
+Die Karte einer Fahrt ist deshalb keine Schaltfläche mehr, sondern ein
+klickbarer Bereich (`role="button"`): ein Link darf nicht in einem `<button>`
+stecken. Die Links rufen `stopPropagation`, sonst klappte beim Antippen
+zusätzlich die Karte auf.
+
 ### Grenzen
 
 - **Einmalige Übernahme, keine Synchronisation.** Wird der Termin im Kalender

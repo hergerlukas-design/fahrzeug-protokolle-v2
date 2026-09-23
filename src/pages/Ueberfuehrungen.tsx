@@ -107,6 +107,59 @@ function StatusBadge({ status }: { status: TransferStatus }) {
   )
 }
 
+/**
+ * Adresse als Link in die Karten-App.
+ *
+ * Der Google-Maps-Link öffnet auf dem Telefon die installierte App und sonst
+ * die Website – anders als ein `maps:`-Link, den nur Apple-Geräte kennen.
+ * stopPropagation, damit das Antippen nicht zusätzlich die Karte auf- oder
+ * zuklappt, in der der Link steckt.
+ */
+/** Für tel:-Links – Leerzeichen und Schrägstriche mögen manche Wählprogramme nicht. */
+function telHref(phone: string): string {
+  return `tel:${phone.replace(/[^\d+]/g, '')}`
+}
+
+function MapLink({ address, strong = false }: { address: string; strong?: boolean }) {
+  return (
+    <a
+      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      className={`underline decoration-gray-300 underline-offset-2 active:text-brand-600 ${
+        strong ? 'font-medium text-gray-700' : ''
+      }`}
+    >
+      {address}
+    </a>
+  )
+}
+
+/** Ort oder Strecke mit Kartenlink – in der Terminkarte wie in der Fahrt. */
+function LocationLine({ from, to }: { from?: string | null; to?: string | null }) {
+  const start = from?.trim() || null
+  const end = to?.trim() || null
+  if (!start && !end) return null
+
+  return (
+    <p className="text-xs text-gray-500 mt-0.5 flex items-start gap-1">
+      <MapPin size={12} className="text-gray-400 flex-shrink-0 mt-0.5" />
+      <span>
+        {start && end ? (
+          <>
+            <MapLink address={start} />
+            <span className="text-gray-400"> → </span>
+            <MapLink address={end} strong />
+          </>
+        ) : (
+          <MapLink address={(end || start) as string} />
+        )}
+      </span>
+    </p>
+  )
+}
+
 function Row({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="flex items-start gap-2.5 text-sm">
@@ -196,10 +249,6 @@ function TransferCard({
       (a.date_from ?? '').localeCompare(b.date_from ?? '') ||
       (a.time_from ?? '').localeCompare(b.time_from ?? ''))
 
-  const route = transfer.location_from && transfer.location_to
-    ? `${transfer.location_from} → ${transfer.location_to}`
-    : transfer.location_to || transfer.location_from || null
-
   /**
    * Eine übernommene Fahrt sieht aus wie der Termin, aus dem sie entstanden ist –
    * bei einem Paar mit beiden Blöcken. Fahrten ohne gespeicherte Termine (von
@@ -210,32 +259,36 @@ function TransferCard({
         key: l.calendar_uid,
         title: l.summary?.trim() || t('transfers.calendar_untitled'),
         when: dateRange({ ...l, date_from: l.date_from as string }, i18n.language),
-        location: l.location,
+        from: null as string | null,
+        to: l.location,
       }))
     : [{
         key: transfer.id,
         title: title ?? plate,
         when: dateRange(transfer, i18n.language),
-        location: route,
+        from: transfer.location_from,
+        to: transfer.location_to,
       }]
 
   return (
     <div id={`transfer-${transfer.id}`} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <button
+      {/* Bewusst kein <button>: die Karte enthält Links (Adresse, Telefon),
+          und die dürfen nicht in einer Schaltfläche stecken. */}
+      <div
+        role="button"
+        tabIndex={0}
         onClick={onToggle}
-        className="w-full flex items-center gap-3 px-4 py-3 text-left active:bg-gray-50"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle() }
+        }}
+        className="w-full flex items-center gap-3 px-4 py-3 text-left active:bg-gray-50 cursor-pointer"
       >
         <div className="flex-1 min-w-0">
         {blocks.map((b, idx) => (
           <div key={b.key} className={idx > 0 ? 'mt-2 pt-2 border-t border-dashed border-gray-200' : ''}>
             <p className="font-semibold text-gray-900 text-sm">{b.title}</p>
             {b.when && <p className="text-xs text-gray-400 mt-0.5">{b.when}</p>}
-            {b.location && (
-              <p className="text-xs text-gray-500 mt-0.5 flex items-start gap-1">
-                <MapPin size={12} className="text-gray-400 flex-shrink-0 mt-0.5" />
-                <span>{b.location}</span>
-              </p>
-            )}
+            <LocationLine from={b.from} to={b.to} />
           </div>
         ))}
 
@@ -245,7 +298,15 @@ function TransferCard({
             <span className="truncate">
               {transfer.contact_name}
               {transfer.contact_name && transfer.contact_phone && <span className="text-gray-400"> · </span>}
-              {transfer.contact_phone}
+              {transfer.contact_phone && (
+                <a
+                  href={telHref(transfer.contact_phone)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-brand-600 font-medium"
+                >
+                  {transfer.contact_phone}
+                </a>
+              )}
             </span>
           </p>
         )}
@@ -255,9 +316,6 @@ function TransferCard({
             Fahrt mit eigenem Status. */}
         {related.map((r) => {
           const rTitle = r.title?.trim() || r.vehicle?.license_plate || t('transfers.vehicle_missing')
-          const rRoute = r.location_from && r.location_to
-            ? `${r.location_from} → ${r.location_to}`
-            : r.location_to || r.location_from || null
           return (
             <div key={r.id} className="mt-2 pt-2 border-t border-dashed border-gray-200">
               <div className="flex items-center gap-1.5">
@@ -266,12 +324,7 @@ function TransferCard({
                 <StatusBadge status={r.status} />
               </div>
               <p className="text-xs text-gray-400 mt-0.5">{dateRange(r, i18n.language)}</p>
-              {rRoute && (
-                <p className="text-xs text-gray-500 mt-0.5 flex items-start gap-1">
-                  <MapPin size={12} className="text-gray-400 flex-shrink-0 mt-0.5" />
-                  <span>{rRoute}</span>
-                </p>
-              )}
+              <LocationLine from={r.location_from} to={r.location_to} />
             </div>
           )
         })}
@@ -290,7 +343,7 @@ function TransferCard({
         {expanded
           ? <ChevronDown size={18} className="text-gray-300 flex-shrink-0" />
           : <ChevronRight size={18} className="text-gray-300 flex-shrink-0" />}
-      </button>
+      </div>
 
       {expanded && (
         <div className="border-t border-gray-100 px-4 py-3 space-y-3">
@@ -298,16 +351,6 @@ function TransferCard({
             <Row icon={<User size={16} />}>{transfer.driver_name}</Row>
           )}
 
-          {/* Oben steht die Nummer schon; hier ist sie wählbar. In der
-              zugeklappten Karte ginge das nicht: die ganze Fläche ist die
-              Schaltfläche zum Öffnen, ein Link darin wäre verschachtelt. */}
-          {transfer.contact_phone && (
-            <Row icon={<Phone size={16} />}>
-              <a href={`tel:${transfer.contact_phone}`} className="text-brand-600 font-medium">
-                {transfer.contact_phone}
-              </a>
-            </Row>
-          )}
 
           {transfer.notes && (
             <Row icon={<StickyNote size={16} />}>
@@ -1186,11 +1229,7 @@ function CalendarSection({
                           {withTime(ev.date_from, ev.time_from, i18n.language)}
                           {ev.date_to && ` – ${withTime(ev.date_to, ev.time_to, i18n.language)}`}
                         </p>
-                        {ev.location && (
-                          <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
-                            <MapPin size={12} className="text-gray-400 flex-shrink-0" /> {ev.location}
-                          </p>
-                        )}
+                        <LocationLine to={ev.location} />
                       </div>
                       {/* Falls das Paar doch nicht zusammengehört: einzeln übernehmen. */}
                       {pair && (
@@ -1216,7 +1255,10 @@ function CalendarSection({
                     )}
                     {contact.phone && (
                       <span className="flex items-center gap-1">
-                        <Phone size={12} className="text-gray-400 flex-shrink-0" /> {contact.phone}
+                        <Phone size={12} className="text-gray-400 flex-shrink-0" />
+                        <a href={telHref(contact.phone)} className="text-brand-600 font-medium">
+                          {contact.phone}
+                        </a>
                       </span>
                     )}
                   </p>
