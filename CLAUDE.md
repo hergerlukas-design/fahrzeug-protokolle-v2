@@ -143,10 +143,16 @@ Vorschlag, keine Automatik.
 
 Der Termintitel wird als `transfers.title` übernommen und steht im Kopf der
 Karte, das Kennzeichen eine Zeile darunter. Aus den Notizen des Termins liest
-`src/lib/calendarContact.ts` zusätzlich Ansprechpartner und Telefonnummer
-(`Ansprechpartner: …`, `Tel: …`, sonst die erste Zeichenfolge, die wie eine
-Rufnummer aussieht). Datumsangaben und Auftragsnummern werden dabei bewusst
-aussortiert. Auch das ist ein Vorschlag: beides landet im Formular und ist dort
+`src/lib/calendarContact.ts` zusätzlich Ansprechpartner und Telefonnummer.
+Gesucht wird in dieser Reihenfolge: beschriftete Angaben (`Ansprechpartner: …`,
+`Tel: …`), die erste Zeichenfolge, die wie eine Rufnummer aussieht, der Text
+davor in derselben Zeile — und zuletzt die Zeile **über** der Nummer, wo der
+Name am häufigsten steht, mit Vor- und Nachnamen und ohne Beschriftung.
+
+Anschriften werden dabei aussortiert: Zeilen mit Ziffern (Hausnummer,
+Postleitzahl), mit Straßenwörtern und alles, was schon im Ort des Termins
+steht — dafür bekommt `extractContact` den Ort als `exclude` mitgegeben.
+Datumsangaben und Auftragsnummern gelten weiterhin nicht als Rufnummer. Auch das ist ein Vorschlag: beides landet im Formular und ist dort
 änderbar.
 
 Die Liste der Termine zeigt voreingestellt alles ab heute — der Feed liefert

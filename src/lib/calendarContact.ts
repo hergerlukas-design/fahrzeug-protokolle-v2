@@ -101,6 +101,28 @@ function looksLikeName(text: string): boolean {
   })
 }
 
+/** Wörter, die eine Zeile als Anschrift ausweisen. */
+const ADDRESS_HINT = /(stra(?:ß|ss)e|str\.|[a-zäöüß]weg\b|allee|platz\b|ring\b|gasse|damm\b|ufer\b|chaussee|postfach)/i
+
+/** Für den Vergleich mit dem Ort des Termins: klein, ohne Satzzeichen. */
+function plain(text: string): string {
+  return text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
+}
+
+/**
+ * Steht in dieser Zeile eher eine Anschrift als ein Name?
+ *
+ * Ziffern sind das stärkste Merkmal – Hausnummer, Postleitzahl –, ein Name hat
+ * keine. Dazu die üblichen Straßenwörter und der Ort des Termins selbst: was
+ * dort schon steht ("Harksheide, Norderstedt"), ist kein Ansprechpartner.
+ */
+function isAddressish(line: string, exclude: string): boolean {
+  if (/\d/.test(line)) return true
+  if (ADDRESS_HINT.test(line)) return true
+  const needle = plain(line)
+  return needle.length > 2 && exclude.includes(needle)
+}
+
 /**
  * Aus einem Textstück einen Namen machen – oder nichts.
  *
@@ -124,7 +146,18 @@ function cleanName(raw: string, strict = false): string | null {
   return text
 }
 
-export function extractContact(text: string | null | undefined): CalendarContact {
+export interface ExtractOptions {
+  /**
+   * Der Ort des Termins. Zeilen, die darin vorkommen, scheiden als Name aus –
+   * über der Telefonnummer steht sonst gern die Anschrift.
+   */
+  exclude?: string | null
+}
+
+export function extractContact(
+  text: string | null | undefined,
+  options: ExtractOptions = {}
+): CalendarContact {
   const lines = (text ?? '')
     .split(LINE_SPLIT)
     .map((l) => l.trim())
@@ -177,6 +210,22 @@ export function extractContact(text: string | null | undefined): CalendarContact
   // 4. Sonst der Text vor der Nummer – "Frau Weber 0151 2345678".
   if (!name && phoneLine >= 0) {
     name = cleanName(lines[phoneLine].slice(0, phoneIndex), true)
+  }
+
+  // 5. Sonst die Zeile über der Nummer: dort steht der Ansprechpartner am
+  //    häufigsten, ohne Beschriftung und mit Vor- und Nachnamen. Anschriften
+  //    werden dabei aussortiert, sonst stünde die Straße im Namensfeld.
+  if (!name && phoneLine > 0) {
+    const exclude = plain(options.exclude ?? '')
+    for (let i = phoneLine - 1; i >= 0; i--) {
+      const line = lines[i]
+      if (isAddressish(line, exclude)) continue
+      const candidate = cleanName(line, true)
+      if (candidate) {
+        name = candidate
+        break
+      }
+    }
   }
 
   return { name, phone }

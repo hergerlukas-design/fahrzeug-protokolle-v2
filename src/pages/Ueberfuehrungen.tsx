@@ -66,6 +66,11 @@ function withTime(date: string, time: string | null, lang: string): string {
   return t ? `${formatDate(date, lang)}, ${t}` : formatDate(date, lang)
 }
 
+/** Alle Orte der Termine als ein Text – zum Aussortieren von Anschriften. */
+function locationsOf(events: CalendarEvent[]): string {
+  return events.map((e) => e.location ?? '').filter(Boolean).join(' ')
+}
+
 /** Reicht für den Zeitraum – so passt auch ein gespeicherter Kalendertermin hinein. */
 interface DateSpan {
   date_from: string
@@ -1160,7 +1165,9 @@ function CalendarSection({
         <div className="space-y-2">
           {visible.map((group) => {
             const merged = mergeEvents(group.events)
-            const contact = extractContact(merged.notes)
+            // Der Ort des Termins hilft beim Aussortieren: was dort steht, ist
+            // kein Ansprechpartner, auch wenn es über der Nummer steht.
+            const contact = extractContact(merged.notes, { exclude: locationsOf(group.events) })
             const vehicle = group.vehicle
             const pair = group.events.length > 1
             return (
@@ -1401,7 +1408,7 @@ export default function Ueberfuehrungen() {
     const merged = mergeEvents(events)
     // Ansprechpartner und Telefon stehen, wenn überhaupt, in den Notizen –
     // der Titel trägt das Kennzeichen und sonst nichts Verlässliches.
-    const contact = extractContact(merged.notes)
+    const contact = extractContact(merged.notes, { exclude: locationsOf(events) })
     setEditTarget(null)
     setFormPreset({
       vehicle_id: vehicle?.id ?? '',
