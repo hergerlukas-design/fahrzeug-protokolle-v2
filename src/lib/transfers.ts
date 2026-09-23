@@ -30,11 +30,28 @@ export interface LinkedProtocol {
   status: string | null
   protocol_type: string | null
   inspector_name: string | null
+  /** "Hinbringen" oder "Rücknahme" – im Protokoll selbst gewählt. */
+  transfer_type: string | null
+}
+
+/** Ein übernommener Kalendertermin, so wie er zum Zeitpunkt der Übernahme aussah. */
+export interface TransferCalendarLink {
+  calendar_uid: string
+  summary: string | null
+  date_from: string | null
+  date_to: string | null
+  time_from: string | null
+  time_to: string | null
+  location: string | null
+  /** Die Notizen des Termins – dort stehen Ansprechpartner und Telefon. */
+  description: string | null
 }
 
 export interface Transfer {
   id: string
   vehicle_id: string
+  /** Beschriftung der Fahrt – bei Kalenderübernahmen der Termintitel. */
+  title: string | null
   date_from: string
   date_to: string | null
   /** Optionale Uhrzeiten (HH:MM). Das Datum steht oft früher fest als die Stunde. */
@@ -55,14 +72,19 @@ export interface Transfer {
   dropoff_protocol_id: string | null
   /** UID des Kalendertermins, aus dem die Überführung übernommen wurde. */
   calendar_uid: string | null
+  /** Fahrten mit derselben group_id gehören zusammen (Hin- und Rückfahrt, Etappen). */
+  group_id: string | null
   created_at: string
   vehicle?: TransferVehicle | null
   pickup_protocol?: LinkedProtocol | null
   dropoff_protocol?: LinkedProtocol | null
+  /** Die Termine, aus denen die Fahrt entstanden ist – leer bei Handarbeit. */
+  calendar_links?: TransferCalendarLink[]
 }
 
 export interface TransferInput {
   vehicle_id: string
+  title?: string | null
   date_from: string
   date_to?: string | null
   time_from?: string | null
@@ -74,18 +96,26 @@ export interface TransferInput {
   contact_phone?: string | null
   notes?: string | null
   calendar_uid?: string | null
+  /** Alle Kalendertermine, aus denen die Fahrt entsteht – meist Abholung und Überführung. */
+  calendar_uids?: string[]
+  /** Dieselben Termine mit Inhalt, damit die Karte sie später zeigen kann. */
+  calendar_events?: CalendarEvent[]
 }
 
-const PROTOCOL_FIELDS = 'id, created_at, status, protocol_type, inspector_name'
+// transfer_type steht in condition_data – PostgREST holt einzelne JSON-Felder
+// über den Pfeiloperator; so steht "Hinbringen" oder "Rücknahme" in der Zeile.
+const PROTOCOL_FIELDS =
+  'id, created_at, status, protocol_type, inspector_name, transfer_type:condition_data->>transfer_type'
 
 // Beide Protokollspalten zeigen auf dieselbe Tabelle – PostgREST braucht
 // deshalb den Constraint-Namen, um die Einbettungen auseinanderzuhalten.
 const SELECT =
-  'id, vehicle_id, date_from, date_to, time_from, time_to, location_from, location_to, status, picked_up_at, arrived_at, ' +
-  'driver_name, contact_name, contact_phone, notes, pickup_protocol_id, dropoff_protocol_id, calendar_uid, created_at, ' +
+  'id, vehicle_id, title, date_from, date_to, time_from, time_to, location_from, location_to, status, picked_up_at, arrived_at, ' +
+  'driver_name, contact_name, contact_phone, notes, pickup_protocol_id, dropoff_protocol_id, calendar_uid, group_id, created_at, ' +
   'vehicle:vehicles(id, license_plate, brand_model, availability, cleanliness_interior, cleanliness_exterior, is_fueled, is_charged, current_odometer), ' +
   `pickup_protocol:protocols!transfers_pickup_protocol_id_fkey(${PROTOCOL_FIELDS}), ` +
-  `dropoff_protocol:protocols!transfers_dropoff_protocol_id_fkey(${PROTOCOL_FIELDS})`
+  `dropoff_protocol:protocols!transfers_dropoff_protocol_id_fkey(${PROTOCOL_FIELDS}), ` +
+  'calendar_links:transfer_calendar_links(calendar_uid, summary, date_from, date_to, time_from, time_to, location, description)'
 
 /** Eine eingebettete Beziehung kommt je nach generierten Typen als Objekt oder
  *  als einelementiges Array zurück – beides auf ein Objekt bringen. */
@@ -99,6 +129,8 @@ function normalize(row: any): Transfer {
   return {
     ...row,
     vehicle: one<TransferVehicle>(row?.vehicle),
+    // Bleibt eine Liste: eine Fahrt kann aus Abholung und Überführung entstehen.
+    calendar_links: Array.isArray(row?.calendar_links) ? row.calendar_links : [],
     pickup_protocol: one<LinkedProtocol>(row?.pickup_protocol),
     dropoff_protocol: one<LinkedProtocol>(row?.dropoff_protocol),
   } as Transfer
@@ -178,6 +210,7 @@ export async function findOverlappingTransfers(
 function clean(values: TransferInput) {
   return {
     vehicle_id: values.vehicle_id,
+    title: values.title?.trim() || null,
     date_from: values.date_from,
     date_to: values.date_to || null,
     time_from: values.time_from || null,
@@ -188,8 +221,73 @@ function clean(values: TransferInput) {
     contact_name: values.contact_name?.trim() || null,
     contact_phone: values.contact_phone?.trim() || null,
     notes: values.notes?.trim() || null,
-    calendar_uid: values.calendar_uid || null,
+    // Die erste UID bleibt als Herkunftsmerkmal an der Fahrt; die vollständige
+    // Liste steht in transfer_calendar_links.
+    calendar_uid: values.calendar_uid || values.calendar_uids?.[0] || null,
   }
+}
+
+/**
+ * Die Zeilen für transfer_calendar_links – ein Termin je Zeile, ohne Dopplungen.
+ *
+ * Liegt der Termin mit Inhalt vor, wird er mitgespeichert: die Karte einer
+ * übernommenen Fahrt zeigt damit dieselben Blöcke wie der Kalender. Sonst
+ * bleibt es beim reinen Vermerk "übernommen".
+ */
+function linkRowsOf(values: TransferInput, transferId: string) {
+  const full = new Map<string, Record<string, unknown>>()
+  for (const ev of values.calendar_events ?? []) {
+    if (!ev?.uid) continue
+    full.set(ev.uid, {
+      calendar_uid: ev.uid,
+      transfer_id: transferId,
+      summary: ev.summary || null,
+      date_from: ev.date_from || null,
+      date_to: ev.date_to || null,
+      time_from: ev.time_from || null,
+      time_to: ev.time_to || null,
+      location: ev.location || null,
+      description: ev.description || null,
+    })
+  }
+
+  const bare = new Map<string, Record<string, unknown>>()
+  for (const uid of [...(values.calendar_uids ?? []), values.calendar_uid ?? '']) {
+    if (uid && !full.has(uid)) bare.set(uid, { calendar_uid: uid, transfer_id: transferId })
+  }
+
+  return { full: [...full.values()], bare: [...bare.values()] }
+}
+
+/**
+ * Kalendertermine als übernommen vermerken.
+ *
+ * Bewusst nicht weitergeworfen: die Überführung ist an dieser Stelle schon
+ * gespeichert. Schlägt der Vermerk fehl, erscheint der Termin wieder als neu –
+ * ärgerlich, aber kein Grund, einen Fehler über eine gelungene Speicherung zu
+ * legen.
+ *
+ * Zwei Sorten Zeilen, und sie werden verschieden behandelt. Der Schlüssel ist
+ * beidemal (calendar_uid, transfer_id) – beim Tausch hängt derselbe Termin an
+ * zwei Fahrten, an einer Fahrt aber nur einmal.
+ *
+ * - **Mit Inhalt** (der Termin liegt vor): überschreibt einen vorhandenen
+ *   Schnappschuss. Wird ein geänderter Termin neu übernommen, soll dort der
+ *   neue Stand stehen und nicht der von damals.
+ * - **Nur die UID** (bloßer Vermerk "übernommen"): wird nur eingefügt, nie
+ *   überschrieben. Sonst leerte jedes gewöhnliche Bearbeiten einer Fahrt den
+ *   Schnappschuss, den sie beim Übernehmen bekommen hat.
+ */
+async function linkCalendarUids(rows: ReturnType<typeof linkRowsOf>): Promise<void> {
+  const write = async (values: Record<string, unknown>[], ignoreDuplicates: boolean) => {
+    if (values.length === 0) return
+    const { error } = await supabase
+      .from('transfer_calendar_links')
+      .upsert(values, { onConflict: 'calendar_uid,transfer_id', ignoreDuplicates })
+    if (error) console.warn('Kalendertermine konnten nicht vermerkt werden:', error.message)
+  }
+  await write(rows.full, false)
+  await write(rows.bare, true)
 }
 
 export async function createTransfer(values: TransferInput): Promise<Transfer> {
@@ -200,7 +298,9 @@ export async function createTransfer(values: TransferInput): Promise<Transfer> {
     .select(SELECT)
     .single()
   if (error) throw error
-  return normalize(data)
+  const row = normalize(data)
+  await linkCalendarUids(linkRowsOf(values, row.id))
+  return row
 }
 
 export async function updateTransfer(id: string, values: TransferInput): Promise<Transfer> {
@@ -212,7 +312,9 @@ export async function updateTransfer(id: string, values: TransferInput): Promise
     .select(SELECT)
     .single()
   if (error) throw error
-  return normalize(data)
+  const row = normalize(data)
+  await linkCalendarUids(linkRowsOf(values, row.id))
+  return row
 }
 
 export async function deleteTransfer(id: string): Promise<void> {
@@ -310,6 +412,25 @@ export async function linkProtocolToTransfer(
   if (nextStatus) await syncVehicleAvailability(transfer.vehicle_id, nextStatus)
 }
 
+/**
+ * Ein Protokoll wieder von der Überführung lösen.
+ *
+ * Der Status bleibt, wo er ist: er kann von Hand gesetzt worden sein, und ein
+ * versehentlich verknüpftes Protokoll soll die Fahrt nicht zurückwerfen.
+ */
+export async function detachProtocolFromTransfer(
+  transferId: string,
+  role: ProtocolRole
+): Promise<void> {
+  requireOnline()
+  const column = role === 'pickup' ? 'pickup_protocol_id' : 'dropoff_protocol_id'
+  const { error } = await supabase
+    .from('transfers')
+    .update({ [column]: null })
+    .eq('id', transferId)
+  if (error) throw error
+}
+
 /** Verfügbarkeit des Fahrzeugs an den Überführungsstatus angleichen. */
 export async function syncVehicleAvailability(
   vehicleId: string,
@@ -325,6 +446,142 @@ export async function syncVehicleAvailability(
     // Bewusst nicht weiterwerfen: der Statuswechsel selbst ist schon gespeichert.
     console.warn('Verfügbarkeit konnte nicht angeglichen werden:', error.message)
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Verbundene Fahrten
+//
+// Hin mit dem einen Fahrzeug, zurück mit dem anderen, oder mehrere Etappen an
+// einem Tag: solche Fahrten gehören zusammen, bleiben aber eigene
+// Überführungen mit eigenem Status und eigenen Protokollen. Verbunden werden
+// sie über eine gemeinsame group_id – kein Paar, damit auch die dritte Fahrt
+// noch dazupasst.
+// ─────────────────────────────────────────────────────────────────────────────
+
+type GroupMember = Pick<Transfer, 'id' | 'group_id'>
+
+/**
+ * Zwei Fahrten verbinden.
+ *
+ * Hat eine von beiden schon eine Gruppe, wird die andere dort aufgenommen;
+ * haben beide eine, werden die Gruppen zusammengeführt. Das Umhängen läuft
+ * über `eq('group_id', …)` und erwischt damit auch Fahrten, die gerade nicht
+ * auf dem Bildschirm stehen – sonst bliebe die halbe Gruppe zurück.
+ *
+ * Zurück kommt die Gruppe, in der beide jetzt stehen. Wer gleich noch eine
+ * dritte Fahrt dazuhängt, gibt sie beim nächsten Aufruf mit – sonst entstünde
+ * eine zweite Gruppe und die erste Verbindung fiele wieder heraus.
+ */
+export async function linkTransfers(a: GroupMember, b: GroupMember): Promise<string | null> {
+  requireOnline()
+  if (a.id === b.id) return a.group_id
+  if (a.group_id && a.group_id === b.group_id) return a.group_id
+
+  const group = a.group_id ?? b.group_id ?? crypto.randomUUID()
+
+  for (const t of [a, b]) {
+    if (t.group_id === group) continue
+    const query = supabase.from('transfers').update({ group_id: group })
+    const { error } = t.group_id
+      ? await query.eq('group_id', t.group_id)
+      : await query.eq('id', t.id)
+    if (error) throw error
+  }
+
+  return group
+}
+
+/**
+ * Eine Fahrt aus ihrer Gruppe lösen.
+ *
+ * Bleibt danach nur noch eine übrig, wird auch die gelöst: eine Gruppe aus
+ * einer einzigen Fahrt ist keine.
+ */
+export async function unlinkTransfer(id: string, groupId: string | null): Promise<void> {
+  requireOnline()
+  const { error } = await supabase.from('transfers').update({ group_id: null }).eq('id', id)
+  if (error) throw error
+  if (!groupId) return
+
+  const { data, error: countErr } = await supabase
+    .from('transfers')
+    .select('id')
+    .eq('group_id', groupId)
+  if (countErr) throw countErr
+
+  if ((data ?? []).length === 1) {
+    const { error: lastErr } = await supabase
+      .from('transfers')
+      .update({ group_id: null })
+      .eq('group_id', groupId)
+    if (lastErr) throw lastErr
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Freie Protokolle
+//
+// Ein Protokoll entsteht nicht immer aus einer Überführung heraus – oft ist es
+// zuerst da, weil unterwegs schnell dokumentiert wurde. Damit die beiden
+// zusammenfinden, lassen sich vorhandene Protokolle nachträglich anhängen.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Ein Protokoll, das an eine Überführung gehängt werden kann. */
+export interface LinkableProtocol {
+  id: string
+  created_at: string
+  inspection_date: string | null
+  status: string | null
+  protocol_type: string | null
+  inspector_name: string | null
+  location: string | null
+  start_location: string | null
+  end_location: string | null
+  /** "Hinbringen" oder "Rücknahme" – steckt im JSON der Zustandsdaten. */
+  transfer_type: string | null
+}
+
+// condition_data enthält auch die Fotos als Base64; deshalb wird aus dem JSON
+// nur das eine Feld geholt, statt die ganze Spalte zu laden.
+const LINKABLE_SELECT =
+  'id, created_at, inspection_date, status, protocol_type, inspector_name, location, ' +
+  'start_location, end_location, transfer_type:condition_data->>transfer_type'
+
+/** IDs aller Protokolle, die schon an einer Überführung hängen. */
+async function fetchLinkedProtocolIds(): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from('transfers')
+    .select('pickup_protocol_id, dropoff_protocol_id')
+  if (error) throw error
+
+  const ids = new Set<string>()
+  for (const row of (data ?? []) as { pickup_protocol_id: string | null; dropoff_protocol_id: string | null }[]) {
+    if (row.pickup_protocol_id) ids.add(row.pickup_protocol_id)
+    if (row.dropoff_protocol_id) ids.add(row.dropoff_protocol_id)
+  }
+  return ids
+}
+
+/**
+ * Protokolle dieses Fahrzeugs, die an keiner Überführung hängen – das jüngste
+ * zuerst.
+ *
+ * Die Fremdschlüssel zeigen von der Überführung zum Protokoll, eine
+ * Unterabfrage gibt es in PostgREST nicht. Die belegten IDs werden deshalb
+ * getrennt geholt und hier abgezogen; die Tabelle ist klein genug dafür.
+ */
+export async function fetchUnlinkedProtocols(vehicleId: string): Promise<LinkableProtocol[]> {
+  const [result, used] = await Promise.all([
+    supabase
+      .from('protocols')
+      .select(LINKABLE_SELECT)
+      .eq('vehicle_id', vehicleId)
+      .order('inspection_date', { ascending: false, nullsFirst: false })
+      .limit(50),
+    fetchLinkedProtocolIds(),
+  ])
+  if (result.error) throw result.error
+  return ((result.data ?? []) as unknown as LinkableProtocol[]).filter((p) => !used.has(p.id))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -365,14 +622,25 @@ export async function fetchCalendarEvents(): Promise<CalendarEvent[]> {
   return ((data as { events?: CalendarEvent[] })?.events ?? [])
 }
 
-/** UIDs der Termine, aus denen schon eine Überführung entstanden ist. */
+/**
+ * UIDs der Termine, aus denen schon eine Überführung entstanden ist.
+ *
+ * Gefragt sind beide Quellen: die Verknüpfungstabelle (eine Fahrt kann aus
+ * Abholung und Überführung entstehen) und die alte Spalte an der Fahrt selbst,
+ * falls dort einmal etwas ohne Eintrag in der Tabelle landet.
+ */
 export async function fetchImportedCalendarUids(): Promise<Set<string>> {
-  const { data, error } = await supabase
-    .from('transfers')
-    .select('calendar_uid')
-    .not('calendar_uid', 'is', null)
-  if (error) throw error
-  return new Set((data ?? []).map((r: { calendar_uid: string }) => r.calendar_uid))
+  const [links, legacy] = await Promise.all([
+    supabase.from('transfer_calendar_links').select('calendar_uid'),
+    supabase.from('transfers').select('calendar_uid').not('calendar_uid', 'is', null),
+  ])
+  if (links.error) throw links.error
+  if (legacy.error) throw legacy.error
+
+  const uids = new Set<string>()
+  for (const r of (links.data ?? []) as { calendar_uid: string }[]) uids.add(r.calendar_uid)
+  for (const r of (legacy.data ?? []) as { calendar_uid: string }[]) uids.add(r.calendar_uid)
+  return uids
 }
 
 /**
@@ -389,18 +657,30 @@ export function matchVehicleByPlate<T extends { license_plate: string }>(
   summary: string,
   vehicles: T[]
 ): T | null {
-  const haystack = normalizeKennzeichen(summary)
-  if (!haystack) return null
+  return matchVehiclesByPlate(summary, vehicles)[0] ?? null
+}
 
-  let best: T | null = null
-  let bestLen = 0
-  for (const v of vehicles) {
-    const plate = normalizeKennzeichen(v.license_plate ?? '')
-    if (plate.length < 3) continue
-    if (haystack.includes(plate) && plate.length > bestLen) {
-      best = v
-      bestLen = plate.length
-    }
-  }
-  return best
+/**
+ * Alle Fahrzeuge, deren Kennzeichen im Titel vorkommen – das längste zuerst.
+ *
+ * Für den Tausch: dort stehen zwei Kennzeichen im Titel, eines kommt und eines
+ * geht. Steckt ein Treffer vollständig in einem längeren ("8957E" in
+ * "WI-L 8957E"), bleibt nur der längere übrig; es ist dasselbe Fahrzeug,
+ * einmal knapper geschrieben.
+ */
+export function matchVehiclesByPlate<T extends { license_plate: string }>(
+  summary: string,
+  vehicles: T[]
+): T[] {
+  const haystack = normalizeKennzeichen(summary)
+  if (!haystack) return []
+
+  const hits = vehicles
+    .map((v) => ({ v, plate: normalizeKennzeichen(v.license_plate ?? '') }))
+    .filter((x) => x.plate.length >= 3 && haystack.includes(x.plate))
+    .sort((a, b) => b.plate.length - a.plate.length)
+
+  return hits
+    .filter((x, i) => !hits.some((other, j) => j < i && other.plate.includes(x.plate)))
+    .map((x) => x.v)
 }

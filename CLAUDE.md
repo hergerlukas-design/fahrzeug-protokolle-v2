@@ -141,19 +141,265 @@ sich in `transfers.calendar_uid`, welcher Termin schon übernommen wurde.
 Gespeichert wird erst nach Bestätigung im Formular — die Zuordnung ist ein
 Vorschlag, keine Automatik.
 
+Der Termintitel wird als `transfers.title` übernommen und steht im Kopf der
+Karte, das Kennzeichen eine Zeile darunter. Aus den Notizen des Termins liest
+`src/lib/calendarContact.ts` zusätzlich Ansprechpartner und Telefonnummer.
+Gesucht wird in dieser Reihenfolge: beschriftete Angaben (`Ansprechpartner: …`,
+`Tel: …`), die erste Zeichenfolge, die wie eine Rufnummer aussieht, der Text
+davor in derselben Zeile — und zuletzt die Zeile **über** der Nummer, wo der
+Name am häufigsten steht, mit Vor- und Nachnamen und ohne Beschriftung.
+
+Anschriften werden dabei aussortiert: Zeilen mit Ziffern (Hausnummer,
+Postleitzahl), mit Straßenwörtern und alles, was schon im Ort des Termins
+steht — dafür bekommt `extractContact` den Ort als `exclude` mitgegeben.
+Datumsangaben und Auftragsnummern gelten weiterhin nicht als Rufnummer. Auch das ist ein Vorschlag: beides landet im Formular und ist dort
+änderbar.
+
+Die Seite hat dafür zwei Tabs: **Überführungen** (die Arbeitsliste, darunter
+aufklappbar die abgeschlossenen) und **Kalender** (der Zulauf). Untereinander
+schob der Kalender die Liste immer weiter nach unten. Am Tab steht, wie viele
+Fahrten bzw. Termine dort warten. Nach dem Übernehmen bleibt der Tab stehen —
+wer dreißig Termine übernimmt, will den nächsten sehen und nicht erst
+zurückwechseln; der übernommene verschwindet ohnehin aus der Liste. Nur der
+Sprung zu einer verbundenen Fahrt wechselt zu den Fahrten.
+
+Die Liste der Termine zeigt voreingestellt alles ab heute — der Feed liefert
+den ganzen Kalender samt Vergangenheit. Über die Felder **Von**/**Bis** lässt
+sich der Zeitraum ändern, **Alle** hebt den Filter auf.
+
+### Abholung und Überführung als eine Fahrt
+
+Im Kalender steht eine Fahrt meist als zwei Termine: der Zeitraum der
+Überführung und die Abholung darin. Zum Beispiel
+
+```
+LYNK 02 MY27 in Seevetal            02.11.2026 – 09.11.2026
+Abholung LYNK 02 MY27 in Seevetal   09.11.2026, 12:00
+```
+
+`calendarPairs.ts` bündelt sie zu einem Vorschlag. Zusammen gehören zwei
+Termine, wenn sie dasselbe Fahrzeug betreffen (Kennzeichen im Titel) und ihre
+**Zeiträume sich berühren** — die Abholung also in den Zeitraum fällt, meist auf
+dessen letzten Tag. Ein bloß ähnliches Datum genügt nicht: zwei Fahrten
+desselben Fahrzeugs in derselben Woche sind zwei Fahrten. Die Art des Termins
+entscheidet mit, damit aus zweimal "Abholung" nicht eine Fahrt wird; ein Titel
+ohne Schlagwort ("LYNK 02 MY27 in Seevetal") gilt als unbestimmt und passt zu
+beidem.
+
+Beim Übernehmen wird daraus: Start vom früheren Termin, Ende vom spätesten Tag
+aller Termine, Uhrzeit vom Termin, der an diesem Tag liegt. Titel wird der
+Termin, der nach Überführung klingt, sonst der frühere. Die Notizen beider
+Termine landen zusammen im Feld Notizen und werden gemeinsam nach
+Ansprechpartner und Telefon durchsucht. Steht in beiden Terminen derselbe Ort,
+ist das der **Startort** und der Zielort bleibt leer — wohin die Fahrt geht,
+sagt der Kalender dann nicht.
+
+Die Karte im Kalenderbereich zeigt beide Termine untereinander mit dem Hinweis
+"2 Termine · eine Fahrt". Passt die Paarung nicht, übernimmt das kleine Symbol
+neben einem Termin nur diesen einen. In der übernommenen Fahrt fällt der
+Hinweis weg — dass zwei Termine zu einer Fahrt wurden, zeigen dort die beiden
+Blöcke selbst.
+
+**Nach der Übernahme bleibt die Karte, wie sie war** — nur der Knopf
+"Übernehmen" weicht dem Pfeil zum Aufklappen. Dafür speichert
+`transfer_calendar_links` nicht bloß die UID, sondern auch Titel, Zeitraum und
+Ort jedes Termins: eine Momentaufnahme vom Tag der Übernahme, die die Liste
+später zeigen kann, ohne den Kalender erneut zu lesen. Eine Fahrt aus zwei
+Terminen zeigt beide Blöcke.
+
+Fahrten ohne solche Termine — von Hand angelegt oder vor dieser Änderung
+übernommen — zeigen an derselben Stelle ihre eigenen Felder: Titel oder
+Kennzeichen, Zeitraum, Strecke.
+
+`transfers.calendar_uid` bleibt als Herkunftsmerkmal an der Fahrt, trägt aber
+nur den ersten Termin.
+
 Function deployen:
 
 ```bash
 supabase functions deploy transfer-calendar --project-ref zhsqcrmdqxfnupmuqaya
 ```
 
+### Wie die Termine im Kalender heißen
+
+Die Titel folgen einem Muster, und die App liest es:
+
+| Muster | Beispiel | Erkennung |
+|--------|----------|-----------|
+| Überführung | `LYNK 02 DPG98A Emmering 21.09. - 09.10.` | beginnt mit Fahrzeug und Kennzeichen, kein Schlagwort |
+| Abholung | `Abholung LYNK 02 DPG98A in Emmering` | Wort "Abholung" |
+| Tausch | `Tausch Lynk 08 WI-L 8957E gegen WI-L 8958E` | Wort "Tausch"/"Wechsel"; **zwei** Kennzeichen |
+| Unbestätigt | `Lynk 08 WI-L 8957E in München ?` | Fragezeichen im Titel |
+
+Der **Tausch** bekommt ein blaues Kennzeichen-Paar und den Hinweis "Tausch";
+`matchVehiclesByPlate` liefert dafür alle Fahrzeuge aus dem Titel, nicht nur
+das erste.
+
+### Ein Tausch wird zu zwei Fahrten
+
+"Tausch Lynk 08 WI-L 8957E **gegen** 02 DPG98A" heißt: das erste Fahrzeug wird
+abgeholt, das zweite gebracht. Das sind zwei Fahrten, und der Knopf sagt es
+schon — er heißt dann "Als zwei Fahrten übernehmen".
+
+`splitSwap` teilt den Titel am Trennwort (`gegen`, `statt`, `vs`, `→`) und
+lässt das führende "Tausch" weg; `swapTitles` sucht die Hälften in der ganzen
+Gruppe, denn in einem Paar muss der Tauschtermin nicht der erste sein. Das
+Formular geht danach zweimal auf:
+
+1. **Schritt 1 – bringen:** das Fahrzeug hinter dem Trennwort, der Ort des
+   Termins als **Zielort**.
+2. **Schritt 2 – abholen:** das Fahrzeug davor, derselbe Ort als **Startort**.
+
+Die Termine teilen sich dabei auf: der **Tauschtermin** gehört zur Fahrt des
+gebrachten Fahrzeugs, die Termine **davor** — die Überführung, die das andere
+Fahrzeug überhaupt erst hinbrachte — zur Fahrt des geholten. Bekämen beide
+alles, stünde jeder Termin zweimal in derselben Karte. Die Zeiten der
+Abholfahrt kommen weiter aus allen Terminen: das Fahrzeug steht ja seit der
+Überführung dort und fährt erst mit dem Tausch wieder los.
+
+```
+LYNK 08 WI-L 8957E in Hamburg      21.10. – 05.11.   → Fahrt "WI-L 8957E abholen"
+Tausch WI-L 8957E gegen DPG98A     05.11., 12–13     → Fahrt "DPG98A bringen"
+```
+
+Danach sind beide Fahrten über die `group_id` verbunden. Beide tragen denselben
+Kalendertermin — dafür liegt der Schlüssel von `transfer_calendar_links` auf
+`(calendar_uid, transfer_id)` und nicht mehr allein auf der UID
+(`20260923_calendar_link_per_transfer.sql`), und `transfers.calendar_uid` ist
+nicht mehr eindeutig (`20260923_transfer_calendar_uid_not_unique.sql`). Sonst
+scheitert die zweite Fahrt an `transfers_calendar_uid_key` (Fehler 23505).
+Welcher Termin schon übernommen ist, sagt ohnehin `transfer_calendar_links`.
+
+Geteilt wird nur, wenn **beide** Kennzeichen zu einem Fahrzeug in der Flotte
+passen. Sonst bleibt es bei einer Fahrt: zwei anzulegen, von denen eine kein
+Fahrzeug hat, hilft niemandem. Wer den zweiten Schritt abbricht, behält die
+erste Fahrt — die Verbindung entsteht erst, wenn auch die zweite gespeichert
+ist.
+
+Das **Fragezeichen** heißt: vom Kunden noch nicht bestätigt. Der Termin lässt
+sich trotzdem übernehmen, die Fahrt ist dann eben geplant; in der Terminkarte
+steht der Hinweis "Unbestätigt".
+
+### Adressen und Telefonnummern
+
+Adressen sind Links in die Karten-App:
+`https://www.google.com/maps/search/?api=1&query=…`. Auf dem Telefon öffnet
+das die installierte App, sonst die Website — ein `maps:`-Link kennen nur
+Apple-Geräte. Telefonnummern sind `tel:`-Links, die Nummer darin ohne
+Leerzeichen.
+
+Die Karte einer Fahrt ist deshalb keine Schaltfläche mehr, sondern ein
+klickbarer Bereich (`role="button"`): ein Link darf nicht in einem `<button>`
+stecken. Die Links rufen `stopPropagation`, sonst klappte beim Antippen
+zusätzlich die Karte auf.
+
+### Wenn sich ein Termin später ändert
+
+Übernommen wird eine Momentaufnahme, und `transfer_calendar_links` hält sie
+fest. Beim Laden des Kalenders vergleicht `src/lib/calendarChanges.ts` beide
+Stände — `changedFields` meldet Titel, Zeitraum, Uhrzeit, Ort und Notizen.
+
+In der Karte steht dann eine Zeile "Termin geändert: Datum, Ort"; aufgeklappt
+stehen die Werte gegenübergestellt ("21.10.–05.11. → 21.10.–16.11.") und
+darunter der Knopf **Neuen Stand übernehmen**. Der füllt das Formular mit dem
+neuen Stand — aber nur in den Feldern, in denen noch der alte stand. Wer Datum
+oder Ort von Hand angepasst hat, behält seine Fassung; gespeichert wird wie
+immer erst nach Bestätigung. Mit dem Speichern wird auch der Schnappschuss
+aufgefrischt, und der Hinweis verschwindet.
+
+Ist der Termin im Kalender gelöscht, heißt es "Termin nicht mehr im Kalender".
+Die Fahrt bleibt, wie sie ist — löschen ist eine Entscheidung, keine Folge.
+
+Zwei Dinge dabei zu wissen:
+
+- Gemeldet wird nur, wenn der Kalender auch wirklich gelesen wurde. Klemmt der
+  Feed, gilt kein Termin als verschwunden.
+- Für Zeilen aus der Zeit vor `20260923_calendar_link_details.sql` (nur die
+  UID) gibt es keinen alten Stand, für die vor
+  `20260923_calendar_link_description.sql` keine alten Notizen. Unbekannt heißt
+  "keine Änderung": sonst meldete jede ältere Fahrt eine, die keine ist.
+
 ### Grenzen
 
-- **Einmalige Übernahme, keine Synchronisation.** Wird der Termin im Kalender
-  später geändert, zieht die Überführung nicht nach.
+- **Kein Nachziehen von selbst.** Eine geänderte Fahrt wird gemeldet, nicht
+  überschrieben — sie kann von Hand angepasst worden sein.
 - **Serientermine** werden markiert, aber nicht aufgelöst; übernommen wird nur
   der erste Eintrag.
 - Uhrzeiten werden in `Europe/Berlin` gelesen.
+
+## Protokolle und Überführungen verknüpfen
+
+**Eine Fahrt, ein Protokoll.** Ob es ein Hinbringen oder eine Rücknahme
+dokumentiert, steht im Protokoll selbst ("Art der Überführung") — zwei Zeilen
+in der Karte, Abhol- und Ankunftsprotokoll, ließen aussehen, als brauchte jede
+Fahrt beide. Vorgeschlagen wird die Art aus dem Titel der Fahrt: was nach
+Abholung klingt, ist eine Rücknahme, alles andere ein Hinbringen
+(`protocolKindOf`); umstellen lässt es sich im Protokoll.
+
+Gespeichert wird es in `transfers.pickup_protocol_id` — mit dem Protokoll ist
+die Fahrt unterwegs. Fahrten aus der Zeit davor, an denen zwei Protokolle
+hängen, zeigen weiterhin beide Zeilen.
+
+Ein Protokoll entsteht nicht immer aus einer Überführung heraus — oft ist es
+zuerst da, weil unterwegs schnell dokumentiert wurde. Neben "Protokoll
+erstellen" steht deshalb ein Kettensymbol: es listet alle Protokolle des
+Fahrzeugs auf, die an keiner Überführung hängen, und hängt das gewählte an.
+
+Verknüpfen zieht den Status mit (→ unterwegs) und damit auch
+`vehicles.availability` — dieselbe Logik wie beim Erstellen aus der Überführung
+heraus. Das Lösen einer Verknüpfung lässt den Status dagegen stehen: er kann
+von Hand gesetzt worden sein, und ein versehentlich angehängtes Protokoll soll
+die Fahrt nicht zurückwerfen.
+
+## Fahrten untereinander verbinden
+
+Hin mit dem einen Fahrzeug, zurück mit dem anderen, oder mehrere Etappen an
+einem Tag: solche Überführungen gehören zusammen, bleiben aber eigene Fahrten
+mit eigenem Status und eigenen Protokollen.
+
+**Eine Gruppe ist eine Karte.** Die früheste Fahrt führt, die verbundenen
+hängen darunter — mit Kettensymbol, blasserem Hintergrund und etwas
+zurückhaltenderem Titel, sonst genauso aufgebaut wie die Fahrt selbst. Meist
+ist das die Abholung, die der Kalender nicht als solche hergab, oder die des
+getauschten Fahrzeugs:
+
+```
+Lynk 08 WI-L 8957E Emmering          01.11. – 03.11.
+  Tausch WI-L 8957E gegen DPG98A     03.11., 10:00
+  Abholung DPG98A Emmering           06.11.
+```
+
+Eine Reise steht so untereinander statt verteilt über drei Karten, die dasselbe
+dreimal zeigen. Jede angehängte Fahrt klappt für sich auf und hat dort ihren
+eigenen Status, ihre Protokolle und ihre Knöpfe — `toCards` teilt die Liste
+dafür in Gruppen, `TransferHead` und `TransferDetails` sind je Fahrt da.
+
+Verwaltet werden die Verbindungen aufgeklappt unter **Verbundene Fahrten**: je
+Zeile löst ein Symbol die Verbindung, und "Fahrt verknüpfen" öffnet die
+Auswahl.
+
+Die Auswahl zeigt zweierlei: die schon angelegten Fahrten und darunter, mit
+gestricheltem Rand, die **Termine aus dem Kalender**, aus denen noch keine
+Fahrt geworden ist — oft steht die Abholung ja noch dort. Ein Griff dorthin
+öffnet das Übernehmen-Formular mit der Fahrt, aus der heraus verknüpft wurde,
+schon unter "Verbundene Fahrten"; gespeichert wird wie immer erst nach
+Bestätigung, und mit dem Speichern entsteht die Verbindung.
+
+Verknüpfen lässt sich auch **schon beim Anlegen**: im Formular steht unter den
+Notizen derselbe Abschnitt "Verbundene Fahrten". Ausgewählt wird dort nur
+vorgemerkt — verbunden wird nach dem Speichern, vorher gibt es keine ID, an der
+die Gruppe hängen könnte. Beim Bearbeiten fehlt der Abschnitt: dort verwaltet
+die Karte die Verbindungen, und dasselbe an zwei Stellen wäre eine zu viel.
+
+Technisch ist das kein Paar, sondern eine gemeinsame `transfers.group_id`:
+damit passt auch die dritte Fahrt noch dazu. Wird eine Fahrt aus einer Gruppe
+mit einer anderen Gruppe verknüpft, werden beide Gruppen zusammengeführt.
+Bleibt beim Lösen nur eine Fahrt übrig, verliert auch sie die Gruppe — eine
+Gruppe aus einer einzigen Fahrt ist keine. `linkTransfers` gibt die Gruppe
+zurück, in der beide danach stehen: wer gleich mehrere Fahrten aneinanderhängt,
+gibt sie beim nächsten Aufruf mit, sonst entstünde eine zweite Gruppe und die
+erste Verbindung fiele wieder heraus. Das Fahrzeug spielt dabei keine
+Rolle: die Rückfahrt mit einem anderen Auto ist der Normalfall.
 
 ## Datenbank-Migrationen
 
