@@ -281,8 +281,6 @@
     "linked_section": "Verbundene Fahrten",
     "link_transfer": "Fahrt verknüpfen",
     "unlink_transfer": "Verbindung lösen",
-    "linked_hint": "Verbunden mit {{what}}",
-    "linked_hint_more": "Verbunden mit {{what}} und {{rest}} weiteren",
     "link_transfer_title": "Fahrt verknüpfen",
     "link_transfer_empty": "Keine weitere Fahrt gefunden.",
     "time_hint": "Uhrzeit ist optional – das Datum genügt.",

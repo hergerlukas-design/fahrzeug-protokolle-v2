@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import {
   Route as RouteIcon, ChevronDown, ChevronRight, MapPin, User, Phone, StickyNote,
   Car, Search, AlertTriangle, X, Pencil, Trash2, Truck, CheckCircle2, RotateCcw,
@@ -204,77 +205,71 @@ function VehicleState({ vehicle }: { vehicle: NonNullable<Transfer['vehicle']> }
 // Transfer card – collapsed shows plate and date, expanded the rest
 // ─────────────────────────────────────────────────────────────────────────────
 
-function TransferCard({
-  transfer,
-  related,
-  expanded,
-  onToggle,
-  onStatus,
-  onCreateProtocol,
-  onLinkProtocol,
-  onUnlinkProtocol,
-  onOpenProtocol,
-  onLinkTransfer,
-  onUnlinkTransfer,
-  onOpenTransfer,
-  onEdit,
-  onDelete,
-  busy,
-}: {
-  transfer: Transfer
-  /** Die anderen Fahrten derselben Gruppe. */
-  related: Transfer[]
-  expanded: boolean
-  onToggle: () => void
-  onStatus: (status: TransferStatus) => void
-  onCreateProtocol: (role: ProtocolRole) => void
-  onLinkProtocol: (role: ProtocolRole) => void
-  onUnlinkProtocol: (role: ProtocolRole) => void
-  onOpenProtocol: (protocolId: string) => void
-  onLinkTransfer: () => void
-  onUnlinkTransfer: (other: Transfer) => void
-  onOpenTransfer: (transferId: string) => void
-  onEdit: () => void
-  onDelete: () => void
-  busy: boolean
-}) {
-  const { t, i18n } = useTranslation()
-  const v = transfer.vehicle
-  const title = transfer.title?.trim() || null
-  const plate = v?.license_plate ?? t('transfers.vehicle_missing')
+interface CardBlock {
+  key: string
+  title: string
+  when: string
+  from: string | null
+  to: string | null
+}
 
-  // Die übernommenen Termine, chronologisch – aus ihnen wird die Karte gebaut.
+/**
+ * Wie eine Fahrt aussieht: ein Block je übernommenem Termin.
+ *
+ * Eine übernommene Fahrt sieht aus wie der Termin, aus dem sie entstanden ist –
+ * bei einem Paar mit beiden Blöcken. Fahrten ohne gespeicherte Termine (von
+ * Hand angelegt oder vor dieser Änderung übernommen) zeigen ihre eigenen Daten.
+ */
+function blocksOf(transfer: Transfer, t: TFunction, lang: string): CardBlock[] {
   const links = [...(transfer.calendar_links ?? [])]
     .filter((l) => l.date_from)
     .sort((a, b) =>
       (a.date_from ?? '').localeCompare(b.date_from ?? '') ||
       (a.time_from ?? '').localeCompare(b.time_from ?? ''))
 
-  /**
-   * Eine übernommene Fahrt sieht aus wie der Termin, aus dem sie entstanden ist –
-   * bei einem Paar mit beiden Blöcken. Fahrten ohne gespeicherte Termine (von
-   * Hand angelegt oder vor dieser Änderung übernommen) zeigen ihre eigenen Daten.
-   */
-  const blocks = links.length > 0
-    ? links.map((l) => ({
-        key: l.calendar_uid,
-        title: l.summary?.trim() || t('transfers.calendar_untitled'),
-        when: dateRange({ ...l, date_from: l.date_from as string }, i18n.language),
-        from: null as string | null,
-        to: l.location,
-      }))
-    : [{
-        key: transfer.id,
-        title: title ?? plate,
-        when: dateRange(transfer, i18n.language),
-        from: transfer.location_from,
-        to: transfer.location_to,
-      }]
+  if (links.length > 0) {
+    return links.map((l) => ({
+      key: l.calendar_uid,
+      title: l.summary?.trim() || t('transfers.calendar_untitled'),
+      when: dateRange({ ...l, date_from: l.date_from as string }, lang),
+      from: null,
+      to: l.location,
+    }))
+  }
+
+  return [{
+    key: transfer.id,
+    title: transfer.title?.trim() || transfer.vehicle?.license_plate || t('transfers.vehicle_missing'),
+    when: dateRange(transfer, lang),
+    from: transfer.location_from,
+    to: transfer.location_to,
+  }]
+}
+
+/**
+ * Der Kopf einer Fahrt: die Blöcke ihrer Termine, Kontakt und Kennzeichen.
+ *
+ * Bewusst kein <button>: die Karte enthält Links (Adresse, Telefon), und die
+ * dürfen nicht in einer Schaltfläche stecken.
+ */
+function TransferHead({
+  transfer,
+  expanded,
+  onToggle,
+  attached = false,
+}: {
+  transfer: Transfer
+  expanded: boolean
+  onToggle: () => void
+  /** Hängt diese Fahrt an einer anderen? Dann trägt sie das Kettensymbol. */
+  attached?: boolean
+}) {
+  const { t, i18n } = useTranslation()
+  const v = transfer.vehicle
+  const plate = v?.license_plate ?? t('transfers.vehicle_missing')
+  const blocks = blocksOf(transfer, t, i18n.language)
 
   return (
-    <div id={`transfer-${transfer.id}`} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      {/* Bewusst kein <button>: die Karte enthält Links (Adresse, Telefon),
-          und die dürfen nicht in einer Schaltfläche stecken. */}
       <div
         role="button"
         tabIndex={0}
@@ -282,12 +277,17 @@ function TransferCard({
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle() }
         }}
-        className="w-full flex items-center gap-3 px-4 py-3 text-left active:bg-gray-50 cursor-pointer"
+        className={`w-full flex items-center gap-3 px-4 text-left cursor-pointer ${
+          attached ? 'py-2.5 active:bg-gray-100' : 'py-3 active:bg-gray-50'
+        }`}
       >
+        {attached && <Link2 size={13} className="text-gray-300 flex-shrink-0 self-start mt-1" />}
         <div className="flex-1 min-w-0">
         {blocks.map((b, idx) => (
           <div key={b.key} className={idx > 0 ? 'mt-2 pt-2 border-t border-dashed border-gray-200' : ''}>
-            <p className="font-semibold text-gray-900 text-sm">{b.title}</p>
+            <p className={attached ? 'text-sm font-medium text-gray-700' : 'font-semibold text-gray-900 text-sm'}>
+              {b.title}
+            </p>
             {b.when && <p className="text-xs text-gray-400 mt-0.5">{b.when}</p>}
             <LocationLine from={b.from} to={b.to} />
           </div>
@@ -312,23 +312,6 @@ function TransferCard({
           </p>
         )}
 
-        {/* Eine Zeile genügt: dass eine Verbindung besteht und mit wem. Der
-            ganze Termin stünde sonst doppelt in der Liste – einmal als eigene
-            Karte, einmal hier. Alles Weitere steht aufgeklappt. */}
-        {related.length > 0 && (
-          <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-            <Link2 size={12} className="flex-shrink-0" />
-            <span className="truncate">
-              {t(related.length > 1 ? 'transfers.linked_hint_more' : 'transfers.linked_hint', {
-                what: related[0].title?.trim()
-                  || related[0].vehicle?.license_plate
-                  || t('transfers.vehicle_missing'),
-                rest: related.length - 1,
-              })}
-            </span>
-          </p>
-        )}
-
         <div className="flex items-center gap-2 mt-2 flex-wrap">
           <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${
             v ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
@@ -344,203 +327,337 @@ function TransferCard({
           ? <ChevronDown size={18} className="text-gray-300 flex-shrink-0" />
           : <ChevronRight size={18} className="text-gray-300 flex-shrink-0" />}
       </div>
+  )
+}
 
-      {expanded && (
-        <div className="border-t border-gray-100 px-4 py-3 space-y-3">
-          {transfer.driver_name && (
-            <Row icon={<User size={16} />}>{transfer.driver_name}</Row>
-          )}
+/** Alles, was aufgeklappt zu einer Fahrt gehört – Protokolle, Status, Verbindungen. */
+function TransferDetails({
+  transfer,
+  related,
+  onStatus,
+  onCreateProtocol,
+  onLinkProtocol,
+  onUnlinkProtocol,
+  onOpenProtocol,
+  onLinkTransfer,
+  onUnlinkTransfer,
+  onOpenTransfer,
+  onEdit,
+  onDelete,
+  busy,
+}: {
+  transfer: Transfer
+  /** Die anderen Fahrten derselben Gruppe. */
+  related: Transfer[]
+  onStatus: (status: TransferStatus) => void
+  onCreateProtocol: (role: ProtocolRole) => void
+  onLinkProtocol: (role: ProtocolRole) => void
+  onUnlinkProtocol: (role: ProtocolRole) => void
+  onOpenProtocol: (protocolId: string) => void
+  onLinkTransfer: () => void
+  onUnlinkTransfer: (other: Transfer) => void
+  onOpenTransfer: (transferId: string) => void
+  onEdit: () => void
+  onDelete: () => void
+  busy: boolean
+}) {
+  const { t, i18n } = useTranslation()
+  const v = transfer.vehicle
+
+  return (
+      <div className="border-t border-gray-100 px-4 py-3 space-y-3">
+        {transfer.driver_name && (
+          <Row icon={<User size={16} />}>{transfer.driver_name}</Row>
+        )}
 
 
-          {transfer.notes && (
-            <Row icon={<StickyNote size={16} />}>
-              <span className="whitespace-pre-wrap">{transfer.notes}</span>
-            </Row>
-          )}
+        {transfer.notes && (
+          <Row icon={<StickyNote size={16} />}>
+            <span className="whitespace-pre-wrap">{transfer.notes}</span>
+          </Row>
+        )}
 
-          {v && (
-            <div className="pt-1">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
-                {t('transfers.vehicle_state')}
-              </p>
-              <VehicleState vehicle={v} />
-            </div>
-          )}
-
-          {/* Fahrten, die zu dieser gehören */}
+        {v && (
           <div className="pt-1">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
-              {t('transfers.linked_section')}
+              {t('transfers.vehicle_state')}
             </p>
-            <div className="space-y-1.5">
-              {related.map((r) => (
-                <div key={r.id} className="flex items-center gap-1 pr-1 rounded-xl border border-gray-200">
-                  <button
-                    onClick={() => onOpenTransfer(r.id)}
-                    className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 text-left active:bg-gray-50 rounded-l-xl"
-                  >
-                    <RouteIcon size={15} className="text-gray-400 flex-shrink-0" />
-                    <span className="flex-1 min-w-0 text-sm text-gray-700 truncate">
-                      {r.title?.trim() || r.vehicle?.license_plate || t('transfers.vehicle_missing')}
-                      <span className="text-gray-400"> · {withTime(r.date_from, r.time_from, i18n.language)}</span>
-                    </span>
-                    <StatusBadge status={r.status} />
-                  </button>
-                  <button
-                    onClick={() => onUnlinkTransfer(r)}
-                    disabled={busy}
-                    aria-label={t('transfers.unlink_transfer')}
-                    className="p-2 text-gray-300 active:text-gray-600 disabled:opacity-50 flex-shrink-0"
-                  >
-                    <Unlink size={15} />
-                  </button>
-                </div>
-              ))}
-              <button
-                onClick={onLinkTransfer}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-gray-300 text-left active:bg-gray-50"
-              >
-                <Link2 size={15} className="text-gray-400 flex-shrink-0" />
-                <span className="flex-1 min-w-0 text-sm text-gray-500 truncate">
-                  {t('transfers.link_transfer')}
-                </span>
-              </button>
-            </div>
+            <VehicleState vehicle={v} />
           </div>
+        )}
 
-          {/* Protokolle dieser Überführung */}
-          <div className="pt-1">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
-              {t('transfers.protocols')}
-            </p>
-            <div className="space-y-1.5">
-              {(['pickup', 'dropoff'] as ProtocolRole[]).map((role) => {
-                const proto = role === 'pickup' ? transfer.pickup_protocol : transfer.dropoff_protocol
-                const label = t(`transfers.protocol_${role}`)
-                if (proto) {
-                  // Zeile mit zwei Zielen: öffnen und wieder lösen. Deshalb ein
-                  // div mit zwei Schaltflächen statt einer verschachtelten.
-                  return (
-                    <div
-                      key={role}
-                      className="flex items-center gap-1 pr-1 rounded-xl border border-gray-200"
-                    >
-                      <button
-                        onClick={() => onOpenProtocol(proto.id)}
-                        className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 text-left active:bg-gray-50 rounded-l-xl"
-                      >
-                        <FileText size={15} className="text-gray-400 flex-shrink-0" />
-                        <span className="flex-1 min-w-0 text-sm text-gray-700 truncate">
-                          {label}
-                          <span className="text-gray-400"> · {formatDate(proto.created_at.slice(0, 10), i18n.language)}</span>
-                        </span>
-                        {proto.status === 'draft' && (
-                          <span className="text-[10px] font-semibold uppercase text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full flex-shrink-0">
-                            {t('archiv.draft')}
-                          </span>
-                        )}
-                        <ChevronRight size={15} className="text-gray-300 flex-shrink-0" />
-                      </button>
-                      <button
-                        onClick={() => onUnlinkProtocol(role)}
-                        disabled={busy}
-                        aria-label={t('transfers.unlink_protocol')}
-                        className="p-2 text-gray-300 active:text-gray-600 disabled:opacity-50 flex-shrink-0"
-                      >
-                        <Unlink size={15} />
-                      </button>
-                    </div>
-                  )
-                }
-                return (
-                  // Wie die verknüpfte Zeile: Hauptweg links, die zweite
-                  // Möglichkeit als Symbol rechts. So bleibt für die
-                  // Beschriftung genug Platz.
-                  <div
-                    key={role}
-                    className="flex items-center gap-1 pr-1 rounded-xl border border-dashed border-gray-300"
-                  >
-                    <button
-                      onClick={() => onCreateProtocol(role)}
-                      disabled={!v}
-                      className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 text-left active:bg-gray-50 disabled:opacity-50 rounded-l-xl"
-                    >
-                      <FilePlus size={15} className="text-gray-400 flex-shrink-0" />
-                      <span className="flex-1 min-w-0 text-sm text-gray-500 truncate">
-                        {t('transfers.create_protocol', { which: label })}
-                      </span>
-                    </button>
-                    {/* Für Protokolle, die es schon gibt – etwa unterwegs angelegt. */}
-                    <button
-                      onClick={() => onLinkProtocol(role)}
-                      disabled={!v}
-                      aria-label={t('transfers.link_protocol')}
-                      className="p-2 text-gray-400 active:text-gray-700 disabled:opacity-50 flex-shrink-0"
-                    >
-                      <Link2 size={15} />
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Status actions */}
-          <div className="flex flex-wrap gap-2 pt-1">
-            {transfer.status === 'geplant' && (
-              <button
-                onClick={() => onStatus('unterwegs')}
-                disabled={busy}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 text-white text-xs font-semibold active:bg-amber-600 disabled:opacity-60"
-              >
-                <Truck size={14} /> {t('transfers.action_pickup')}
-              </button>
-            )}
-            {transfer.status === 'unterwegs' && (
-              <button
-                onClick={() => onStatus('angekommen')}
-                disabled={busy}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-green-600 text-white text-xs font-semibold active:bg-green-700 disabled:opacity-60"
-              >
-                <CheckCircle2 size={14} /> {t('transfers.action_arrive')}
-              </button>
-            )}
-            {(transfer.status === 'geplant' || transfer.status === 'unterwegs') && (
-              <button
-                onClick={() => onStatus('abgebrochen')}
-                disabled={busy}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-gray-600 text-xs font-semibold active:bg-gray-50 disabled:opacity-60"
-              >
-                <X size={14} /> {t('transfers.action_cancel')}
-              </button>
-            )}
-            {(transfer.status === 'angekommen' || transfer.status === 'abgebrochen') && (
-              <button
-                onClick={() => onStatus('geplant')}
-                disabled={busy}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-gray-600 text-xs font-semibold active:bg-gray-50 disabled:opacity-60"
-              >
-                <RotateCcw size={14} /> {t('transfers.action_reset')}
-              </button>
-            )}
-          </div>
-
-          <div className="flex gap-2 pt-1 border-t border-gray-100">
+        {/* Fahrten, die zu dieser gehören */}
+        <div className="pt-1">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
+            {t('transfers.linked_section')}
+          </p>
+          <div className="space-y-1.5">
+            {related.map((r) => (
+              <div key={r.id} className="flex items-center gap-1 pr-1 rounded-xl border border-gray-200">
+                <button
+                  onClick={() => onOpenTransfer(r.id)}
+                  className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 text-left active:bg-gray-50 rounded-l-xl"
+                >
+                  <RouteIcon size={15} className="text-gray-400 flex-shrink-0" />
+                  <span className="flex-1 min-w-0 text-sm text-gray-700 truncate">
+                    {r.title?.trim() || r.vehicle?.license_plate || t('transfers.vehicle_missing')}
+                    <span className="text-gray-400"> · {withTime(r.date_from, r.time_from, i18n.language)}</span>
+                  </span>
+                  <StatusBadge status={r.status} />
+                </button>
+                <button
+                  onClick={() => onUnlinkTransfer(r)}
+                  disabled={busy}
+                  aria-label={t('transfers.unlink_transfer')}
+                  className="p-2 text-gray-300 active:text-gray-600 disabled:opacity-50 flex-shrink-0"
+                >
+                  <Unlink size={15} />
+                </button>
+              </div>
+            ))}
             <button
-              onClick={onEdit}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 mt-2 rounded-xl border border-gray-200 text-gray-600 text-xs font-semibold active:bg-gray-50"
+              onClick={onLinkTransfer}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-gray-300 text-left active:bg-gray-50"
             >
-              <Pencil size={14} /> {t('common.edit')}
-            </button>
-            <button
-              onClick={onDelete}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 mt-2 rounded-xl border border-red-200 text-red-600 text-xs font-semibold active:bg-red-50"
-            >
-              <Trash2 size={14} /> {t('common.delete')}
+              <Link2 size={15} className="text-gray-400 flex-shrink-0" />
+              <span className="flex-1 min-w-0 text-sm text-gray-500 truncate">
+                {t('transfers.link_transfer')}
+              </span>
             </button>
           </div>
         </div>
-      )}
+
+        {/* Protokolle dieser Überführung */}
+        <div className="pt-1">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
+            {t('transfers.protocols')}
+          </p>
+          <div className="space-y-1.5">
+            {(['pickup', 'dropoff'] as ProtocolRole[]).map((role) => {
+              const proto = role === 'pickup' ? transfer.pickup_protocol : transfer.dropoff_protocol
+              const label = t(`transfers.protocol_${role}`)
+              if (proto) {
+                // Zeile mit zwei Zielen: öffnen und wieder lösen. Deshalb ein
+                // div mit zwei Schaltflächen statt einer verschachtelten.
+                return (
+                  <div
+                    key={role}
+                    className="flex items-center gap-1 pr-1 rounded-xl border border-gray-200"
+                  >
+                    <button
+                      onClick={() => onOpenProtocol(proto.id)}
+                      className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 text-left active:bg-gray-50 rounded-l-xl"
+                    >
+                      <FileText size={15} className="text-gray-400 flex-shrink-0" />
+                      <span className="flex-1 min-w-0 text-sm text-gray-700 truncate">
+                        {label}
+                        <span className="text-gray-400"> · {formatDate(proto.created_at.slice(0, 10), i18n.language)}</span>
+                      </span>
+                      {proto.status === 'draft' && (
+                        <span className="text-[10px] font-semibold uppercase text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                          {t('archiv.draft')}
+                        </span>
+                      )}
+                      <ChevronRight size={15} className="text-gray-300 flex-shrink-0" />
+                    </button>
+                    <button
+                      onClick={() => onUnlinkProtocol(role)}
+                      disabled={busy}
+                      aria-label={t('transfers.unlink_protocol')}
+                      className="p-2 text-gray-300 active:text-gray-600 disabled:opacity-50 flex-shrink-0"
+                    >
+                      <Unlink size={15} />
+                    </button>
+                  </div>
+                )
+              }
+              return (
+                // Wie die verknüpfte Zeile: Hauptweg links, die zweite
+                // Möglichkeit als Symbol rechts. So bleibt für die
+                // Beschriftung genug Platz.
+                <div
+                  key={role}
+                  className="flex items-center gap-1 pr-1 rounded-xl border border-dashed border-gray-300"
+                >
+                  <button
+                    onClick={() => onCreateProtocol(role)}
+                    disabled={!v}
+                    className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 text-left active:bg-gray-50 disabled:opacity-50 rounded-l-xl"
+                  >
+                    <FilePlus size={15} className="text-gray-400 flex-shrink-0" />
+                    <span className="flex-1 min-w-0 text-sm text-gray-500 truncate">
+                      {t('transfers.create_protocol', { which: label })}
+                    </span>
+                  </button>
+                  {/* Für Protokolle, die es schon gibt – etwa unterwegs angelegt. */}
+                  <button
+                    onClick={() => onLinkProtocol(role)}
+                    disabled={!v}
+                    aria-label={t('transfers.link_protocol')}
+                    className="p-2 text-gray-400 active:text-gray-700 disabled:opacity-50 flex-shrink-0"
+                  >
+                    <Link2 size={15} />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Status actions */}
+        <div className="flex flex-wrap gap-2 pt-1">
+          {transfer.status === 'geplant' && (
+            <button
+              onClick={() => onStatus('unterwegs')}
+              disabled={busy}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 text-white text-xs font-semibold active:bg-amber-600 disabled:opacity-60"
+            >
+              <Truck size={14} /> {t('transfers.action_pickup')}
+            </button>
+          )}
+          {transfer.status === 'unterwegs' && (
+            <button
+              onClick={() => onStatus('angekommen')}
+              disabled={busy}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-green-600 text-white text-xs font-semibold active:bg-green-700 disabled:opacity-60"
+            >
+              <CheckCircle2 size={14} /> {t('transfers.action_arrive')}
+            </button>
+          )}
+          {(transfer.status === 'geplant' || transfer.status === 'unterwegs') && (
+            <button
+              onClick={() => onStatus('abgebrochen')}
+              disabled={busy}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-gray-600 text-xs font-semibold active:bg-gray-50 disabled:opacity-60"
+            >
+              <X size={14} /> {t('transfers.action_cancel')}
+            </button>
+          )}
+          {(transfer.status === 'angekommen' || transfer.status === 'abgebrochen') && (
+            <button
+              onClick={() => onStatus('geplant')}
+              disabled={busy}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-gray-600 text-xs font-semibold active:bg-gray-50 disabled:opacity-60"
+            >
+              <RotateCcw size={14} /> {t('transfers.action_reset')}
+            </button>
+          )}
+        </div>
+
+        <div className="flex gap-2 pt-1 border-t border-gray-100">
+          <button
+            onClick={onEdit}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 mt-2 rounded-xl border border-gray-200 text-gray-600 text-xs font-semibold active:bg-gray-50"
+          >
+            <Pencil size={14} /> {t('common.edit')}
+          </button>
+          <button
+            onClick={onDelete}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 mt-2 rounded-xl border border-red-200 text-red-600 text-xs font-semibold active:bg-red-50"
+          >
+            <Trash2 size={14} /> {t('common.delete')}
+          </button>
+        </div>
+      </div>
+  )
+}
+
+/**
+ * Eine Karte je Fahrt – und was mit ihr verbunden ist, hängt darunter.
+ *
+ * Verbundene Fahrten sind meist die Abholung, die der Kalender nicht als
+ * solche hergab, oder die des getauschten Fahrzeugs: A fährt am 1.11. hin,
+ * wird am 3.11. gegen B getauscht, B kommt am 6.11. zurück. Das ist eine
+ * Reise, und so steht sie auch da – untereinander in einer Karte, statt als
+ * drei Karten, die nichts voneinander wissen.
+ *
+ * Jede der angehängten Fahrten bleibt eine eigene Fahrt: eigener Status,
+ * eigene Protokolle, eigenes Aufklappen. Deshalb bekommt jede ihren eigenen
+ * Kopf und ihren eigenen aufgeklappten Teil.
+ */
+function TransferCard({
+  transfer,
+  members,
+  relatedOf,
+  expandedId,
+  onToggle,
+  onStatus,
+  onCreateProtocol,
+  onLinkProtocol,
+  onUnlinkProtocol,
+  onOpenProtocol,
+  onLinkTransfer,
+  onUnlinkTransfer,
+  onOpenTransfer,
+  onEdit,
+  onDelete,
+  busyId,
+}: {
+  transfer: Transfer
+  /** Die verbundenen Fahrten, die unter dieser hängen – chronologisch. */
+  members: Transfer[]
+  /** Alle Fahrten derselben Gruppe, auch die aus einem anderen Abschnitt. */
+  relatedOf: (transfer: Transfer) => Transfer[]
+  expandedId: string | null
+  onToggle: (transferId: string) => void
+  onStatus: (transfer: Transfer, status: TransferStatus) => void
+  onCreateProtocol: (transfer: Transfer, role: ProtocolRole) => void
+  onLinkProtocol: (transfer: Transfer, role: ProtocolRole) => void
+  onUnlinkProtocol: (transfer: Transfer, role: ProtocolRole) => void
+  onOpenProtocol: (protocolId: string) => void
+  onLinkTransfer: (transfer: Transfer) => void
+  onUnlinkTransfer: (transfer: Transfer, other: Transfer) => void
+  onOpenTransfer: (transferId: string) => void
+  onEdit: (transfer: Transfer) => void
+  onDelete: (transfer: Transfer) => void
+  busyId: string | null
+}) {
+  const details = (x: Transfer) => (
+    <TransferDetails
+      transfer={x}
+      related={relatedOf(x)}
+      onStatus={(status) => onStatus(x, status)}
+      onCreateProtocol={(role) => onCreateProtocol(x, role)}
+      onLinkProtocol={(role) => onLinkProtocol(x, role)}
+      onUnlinkProtocol={(role) => onUnlinkProtocol(x, role)}
+      onOpenProtocol={onOpenProtocol}
+      onLinkTransfer={() => onLinkTransfer(x)}
+      onUnlinkTransfer={(other) => onUnlinkTransfer(x, other)}
+      onOpenTransfer={onOpenTransfer}
+      onEdit={() => onEdit(x)}
+      onDelete={() => onDelete(x)}
+      busy={busyId === x.id}
+    />
+  )
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div id={`transfer-${transfer.id}`}>
+        <TransferHead
+          transfer={transfer}
+          expanded={expandedId === transfer.id}
+          onToggle={() => onToggle(transfer.id)}
+        />
+        {expandedId === transfer.id && details(transfer)}
+      </div>
+
+      {/* Die verbundenen Fahrten, etwas blasser: sie gehören dazu, sind aber
+          nicht diese Fahrt. */}
+      {members.map((m) => (
+        <div
+          key={m.id}
+          id={`transfer-${m.id}`}
+          className="bg-gray-50/70 border-t border-dashed border-gray-200"
+        >
+          <TransferHead
+            transfer={m}
+            expanded={expandedId === m.id}
+            onToggle={() => onToggle(m.id)}
+            attached
+          />
+          {expandedId === m.id && details(m)}
+        </div>
+      ))}
     </div>
   )
 }
@@ -1835,25 +1952,47 @@ export default function Ueberfuehrungen() {
     }
   }
 
-  function renderCard(transfer: Transfer) {
+  /**
+   * Eine Liste in Karten aufteilen: verbundene Fahrten in eine.
+   *
+   * Die früheste Fahrt einer Gruppe führt, die anderen hängen darunter – so
+   * steht eine Reise (hin, Tausch, Rückholung) untereinander statt verteilt
+   * über drei Karten, die dasselbe dreimal zeigen. Die Reihenfolge der Liste
+   * bleibt: die Gruppe steht dort, wo ihre erste Fahrt stünde.
+   */
+  function toCards(rows: Transfer[]): { lead: Transfer; members: Transfer[] }[] {
+    const seen = new Set<string>()
+    const cards: { lead: Transfer; members: Transfer[] }[] = []
+
+    for (const row of rows) {
+      if (seen.has(row.id)) continue
+      const group = row.group_id ? rows.filter((x) => x.group_id === row.group_id) : [row]
+      for (const x of group) seen.add(x.id)
+      cards.push({ lead: row, members: group.filter((x) => x.id !== row.id) })
+    }
+    return cards
+  }
+
+  function renderCard({ lead, members }: { lead: Transfer; members: Transfer[] }) {
     return (
       <TransferCard
-        key={transfer.id}
-        transfer={transfer}
-        expanded={expanded === transfer.id}
-        onToggle={() => setExpanded((cur) => (cur === transfer.id ? null : transfer.id))}
-        onStatus={(status) => handleStatus(transfer, status)}
-        onCreateProtocol={(role) => handleCreateProtocol(transfer, role)}
-        related={relatedOf(transfer)}
-        onLinkTransfer={() => setTransferLinkTarget(transfer)}
-        onUnlinkTransfer={(other) => handleUnlinkTransfer(transfer, other)}
+        key={lead.id}
+        transfer={lead}
+        members={members}
+        relatedOf={relatedOf}
+        expandedId={expanded}
+        onToggle={(id) => setExpanded((cur) => (cur === id ? null : id))}
+        onStatus={handleStatus}
+        onCreateProtocol={handleCreateProtocol}
+        onLinkTransfer={(x) => setTransferLinkTarget(x)}
+        onUnlinkTransfer={handleUnlinkTransfer}
         onOpenTransfer={handleOpenTransfer}
-        onLinkProtocol={(role) => setLinkTarget({ transfer, role })}
-        onUnlinkProtocol={(role) => handleUnlink(transfer, role)}
+        onLinkProtocol={(x, role) => setLinkTarget({ transfer: x, role })}
+        onUnlinkProtocol={handleUnlink}
         onOpenProtocol={(protocolId) => navigate('/archiv', { state: { protocol_id: protocolId } })}
-        onEdit={() => openForm({ target: transfer })}
-        onDelete={() => setDeleteTarget(transfer)}
-        busy={busyId === transfer.id}
+        onEdit={(x) => openForm({ target: x })}
+        onDelete={(x) => setDeleteTarget(x)}
+        busyId={busyId}
       />
     )
   }
@@ -1895,7 +2034,7 @@ export default function Ueberfuehrungen() {
                   <p className="text-xs mt-1">{t('transfers.empty_hint')}</p>
                 </div>
               ) : (
-                <div className="space-y-2">{open.map(renderCard)}</div>
+                <div className="space-y-2">{toCards(open).map(renderCard)}</div>
               )}
             </section>
 
@@ -1908,7 +2047,7 @@ export default function Ueberfuehrungen() {
                   <span>{t('transfers.section_closed')} ({closed.length})</span>
                   {showClosed ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 </button>
-                {showClosed && <div className="space-y-2 mt-2 opacity-70">{closed.map(renderCard)}</div>}
+                {showClosed && <div className="space-y-2 mt-2 opacity-70">{toCards(closed).map(renderCard)}</div>}
               </section>
             )}
           </>

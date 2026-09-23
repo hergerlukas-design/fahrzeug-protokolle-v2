@@ -299,13 +299,28 @@ versehentlich angehängtes Protokoll soll die Fahrt nicht zurückwerfen.
 
 Hin mit dem einen Fahrzeug, zurück mit dem anderen, oder mehrere Etappen an
 einem Tag: solche Überführungen gehören zusammen, bleiben aber eigene Fahrten
-mit eigenem Status und eigenen Protokollen. In der Karte steht dafür eine schmale Zeile mit Kettensymbol: "Verbunden mit
-… (und N weiteren)". Nur der Titel der anderen Fahrt, kein Datum und kein Ort
-— beides stünde sonst doppelt in der Liste, einmal als eigene Karte und einmal
-in der Partnerkarte. Erkennbar ist die Verbindung trotzdem auf den ersten
-Blick. Verwaltet werden sie aufgeklappt unter **Verbundene Fahrten**: dort sind sie anzutippen (die Karte klappt auf und wird
-angesprungen), je Zeile löst ein Symbol die Verbindung, und "Fahrt verknüpfen"
-öffnet die Auswahl.
+mit eigenem Status und eigenen Protokollen.
+
+**Eine Gruppe ist eine Karte.** Die früheste Fahrt führt, die verbundenen
+hängen darunter — mit Kettensymbol, blasserem Hintergrund und etwas
+zurückhaltenderem Titel, sonst genauso aufgebaut wie die Fahrt selbst. Meist
+ist das die Abholung, die der Kalender nicht als solche hergab, oder die des
+getauschten Fahrzeugs:
+
+```
+Lynk 08 WI-L 8957E Emmering          01.11. – 03.11.
+  Tausch WI-L 8957E gegen DPG98A     03.11., 10:00
+  Abholung DPG98A Emmering           06.11.
+```
+
+Eine Reise steht so untereinander statt verteilt über drei Karten, die dasselbe
+dreimal zeigen. Jede angehängte Fahrt klappt für sich auf und hat dort ihren
+eigenen Status, ihre Protokolle und ihre Knöpfe — `toCards` teilt die Liste
+dafür in Gruppen, `TransferHead` und `TransferDetails` sind je Fahrt da.
+
+Verwaltet werden die Verbindungen aufgeklappt unter **Verbundene Fahrten**: je
+Zeile löst ein Symbol die Verbindung, und "Fahrt verknüpfen" öffnet die
+Auswahl.
 
 Verknüpfen lässt sich auch **schon beim Anlegen**: im Formular steht unter den
 Notizen derselbe Abschnitt "Verbundene Fahrten". Ausgewählt wird dort nur

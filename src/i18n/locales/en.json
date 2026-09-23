@@ -281,8 +281,6 @@
     "linked_section": "Linked trips",
     "link_transfer": "Link a trip",
     "unlink_transfer": "Remove link",
-    "linked_hint": "Linked with {{what}}",
-    "linked_hint_more": "Linked with {{what}} and {{rest}} more",
     "link_transfer_title": "Link a trip",
     "link_transfer_empty": "No other trip found.",
     "time_hint": "Time is optional — the date is enough.",
