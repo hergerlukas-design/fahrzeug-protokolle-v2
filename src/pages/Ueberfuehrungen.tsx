@@ -34,9 +34,11 @@ import {
   type TransferStatus,
   type ProtocolRole,
   type CalendarEvent,
+  type TransferCalendarLink,
   type LinkableProtocol,
 } from '../lib/transfers'
 import { extractContact } from '../lib/calendarContact'
+import { changedFields, sameText, type ChangeKey } from '../lib/calendarChanges'
 import {
   groupCalendarEvents, mergeEvents, classifyEvent, isUnconfirmed, swapTitles,
   type CalendarGroup,
@@ -220,6 +222,34 @@ function protocolKindOf(transfer: Transfer): string {
   return texts.some((x) => classifyEvent(x) === 'abholung') ? 'Rücknahme' : 'Hinbringen'
 }
 
+/**
+ * Ein übernommener Termin, der im Kalender inzwischen anders aussieht – oder
+ * gar nicht mehr da ist (`event: null`).
+ */
+export interface CalendarChange {
+  link: TransferCalendarLink
+  event: CalendarEvent | null
+  fields: ChangeKey[]
+}
+
+/** Die Termine einer Fahrt als Termine gelesen – der Stand vom Tag der Übernahme. */
+function eventsOfLinks(links: TransferCalendarLink[]): CalendarEvent[] {
+  return links
+    .filter((l) => l.date_from)
+    .map((l) => ({
+      uid: l.calendar_uid,
+      summary: l.summary ?? '',
+      description: l.description,
+      location: l.location,
+      date_from: l.date_from as string,
+      date_to: l.date_to,
+      time_from: l.time_from ? l.time_from.slice(0, 5) : null,
+      time_to: l.time_to ? l.time_to.slice(0, 5) : null,
+      all_day: !l.time_from,
+      recurring: false,
+    }))
+}
+
 interface CardBlock {
   key: string
   title: string
@@ -269,11 +299,14 @@ function blocksOf(transfer: Transfer, t: TFunction, lang: string): CardBlock[] {
  */
 function TransferHead({
   transfer,
+  changes = [],
   expanded,
   onToggle,
   attached = false,
 }: {
   transfer: Transfer
+  /** Termine, die im Kalender inzwischen anders stehen. */
+  changes?: CalendarChange[]
   expanded: boolean
   onToggle: () => void
   /** Hängt diese Fahrt an einer anderen? Dann trägt sie das Kettensymbol. */
@@ -327,6 +360,20 @@ function TransferHead({
           </p>
         )}
 
+        {/* Der Kalender ist weitergezogen – gemeldet, nicht nachgezogen. */}
+        {changes.length > 0 && (
+          <p className="text-xs text-amber-700 mt-1.5 flex items-start gap-1">
+            <AlertTriangle size={12} className="mt-0.5 flex-shrink-0" />
+            <span>
+              {changes.every((c) => !c.event)
+                ? t('transfers.calendar_gone')
+                : `${t('transfers.calendar_changed')}: ${[
+                    ...new Set(changes.flatMap((c) => c.fields)),
+                  ].map((f) => t(`transfers.change_${f}`)).join(', ')}`}
+            </span>
+          </p>
+        )}
+
         <div className="flex items-center gap-2 mt-2 flex-wrap">
           <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${
             v ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
@@ -349,6 +396,8 @@ function TransferHead({
 function TransferDetails({
   transfer,
   related,
+  changes = [],
+  onReimport,
   onStatus,
   onCreateProtocol,
   onLinkProtocol,
@@ -364,6 +413,10 @@ function TransferDetails({
   transfer: Transfer
   /** Die anderen Fahrten derselben Gruppe. */
   related: Transfer[]
+  /** Termine, die im Kalender inzwischen anders stehen. */
+  changes?: CalendarChange[]
+  /** Den neuen Stand des Termins ins Formular holen. */
+  onReimport: () => void
   onStatus: (status: TransferStatus) => void
   onCreateProtocol: () => void
   onLinkProtocol: () => void
@@ -384,8 +437,70 @@ function TransferDetails({
     role === 'pickup' ? transfer.pickup_protocol : transfer.dropoff_protocol
   )
 
+  /** Ein Feld des Termins, wie es sich lesen lässt. */
+  const valueOf = (field: ChangeKey, from: DateSpan & { summary: string | null; location: string | null }) => {
+    if (field === 'title') return from.summary?.trim() || '—'
+    if (field === 'date') return dateRange({ ...from, time_from: null, time_to: null }, i18n.language)
+    if (field === 'time') {
+      const span = [formatTime(from.time_from), formatTime(from.time_to)].filter(Boolean)
+      return span.length > 0 ? span.join(' – ') : '—'
+    }
+    if (field === 'location') return from.location?.trim() || '—'
+    return ''
+  }
+
   return (
       <div className="border-t border-gray-100 px-4 py-3 space-y-3">
+        {/* Was der Kalender inzwischen anders sagt. Nachgezogen wird nichts von
+            selbst: die Fahrt kann von Hand angepasst worden sein. */}
+        {changes.length > 0 && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+            <p className="text-sm font-semibold text-amber-800 flex items-center gap-1.5">
+              <AlertTriangle size={14} className="flex-shrink-0" />
+              {changes.every((c) => !c.event)
+                ? t('transfers.calendar_gone')
+                : t('transfers.calendar_changed')}
+            </p>
+
+            {changes.map((c) => (
+              <div key={c.link.calendar_uid} className="mt-1.5 text-xs text-amber-800">
+                {c.link.summary && <p className="font-medium">{c.link.summary}</p>}
+                {!c.event ? (
+                  <p className="text-amber-700">{t('transfers.calendar_gone_hint')}</p>
+                ) : (
+                  <ul className="space-y-0.5">
+                    {c.fields.map((f) => (
+                      <li key={f}>
+                        <span className="text-amber-600">{t(`transfers.change_${f}`)}:</span>{' '}
+                        {f === 'notes' ? (
+                          t('transfers.change_notes_hint')
+                        ) : (
+                          <>
+                            {valueOf(f, c.link as DateSpan & { summary: string | null; location: string | null })}
+                            <span className="text-amber-600"> → </span>
+                            <span className="font-medium">
+                              {valueOf(f, c.event as unknown as DateSpan & { summary: string | null; location: string | null })}
+                            </span>
+                          </>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
+
+            {changes.some((c) => c.event) && (
+              <button
+                onClick={onReimport}
+                className="w-full mt-2 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-amber-600 text-white text-xs font-semibold active:bg-amber-700"
+              >
+                <Download size={14} /> {t('transfers.calendar_reimport')}
+              </button>
+            )}
+          </div>
+        )}
+
         {transfer.driver_name && (
           <Row icon={<User size={16} />}>{transfer.driver_name}</Row>
         )}
@@ -605,6 +720,8 @@ function TransferCard({
   transfer,
   members,
   relatedOf,
+  changesOf,
+  onReimport,
   expandedId,
   onToggle,
   onStatus,
@@ -624,6 +741,9 @@ function TransferCard({
   members: Transfer[]
   /** Alle Fahrten derselben Gruppe, auch die aus einem anderen Abschnitt. */
   relatedOf: (transfer: Transfer) => Transfer[]
+  /** Termine dieser Fahrt, die im Kalender inzwischen anders stehen. */
+  changesOf: (transfer: Transfer) => CalendarChange[]
+  onReimport: (transfer: Transfer) => void
   expandedId: string | null
   onToggle: (transferId: string) => void
   onStatus: (transfer: Transfer, status: TransferStatus) => void
@@ -642,6 +762,8 @@ function TransferCard({
     <TransferDetails
       transfer={x}
       related={relatedOf(x)}
+      changes={changesOf(x)}
+      onReimport={() => onReimport(x)}
       onStatus={(status) => onStatus(x, status)}
       onCreateProtocol={() => onCreateProtocol(x)}
       onLinkProtocol={() => onLinkProtocol(x)}
@@ -661,6 +783,7 @@ function TransferCard({
       <div id={`transfer-${transfer.id}`}>
         <TransferHead
           transfer={transfer}
+          changes={changesOf(transfer)}
           expanded={expandedId === transfer.id}
           onToggle={() => onToggle(transfer.id)}
         />
@@ -677,6 +800,7 @@ function TransferCard({
         >
           <TransferHead
             transfer={m}
+            changes={changesOf(m)}
             expanded={expandedId === m.id}
             onToggle={() => onToggle(m.id)}
             attached
@@ -716,8 +840,11 @@ function TransferForm({
   onCancel: () => void
 }) {
   const { t, i18n } = useTranslation()
-  // Beim Bearbeiten gewinnt der Datensatz, sonst die Vorbelegung.
-  const init = target ?? preset ?? null
+  // Beim Bearbeiten gilt der Datensatz – mit einer Ausnahme: kommt zusätzlich
+  // eine Vorbelegung mit, gewinnt sie. Das ist der Fall, wenn der Kalender
+  // einen geänderten Termin nachreicht; gespeichert wird auch dann erst nach
+  // Bestätigung.
+  const init = target ? { ...target, ...(preset ?? {}) } : preset ?? null
 
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [vehicleId, setVehicleId] = useState(init?.vehicle_id ?? '')
@@ -1700,6 +1827,8 @@ export default function Ueberfuehrungen() {
   const [calendarLoading, setCalendarLoading] = useState(false)
   const [calendarError, setCalendarError] = useState<string | null>(null)
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
+  // Welche Termine schon eine Fahrt haben – die Liste im Kalender lässt sie weg.
+  const [importedUids, setImportedUids] = useState<Set<string>>(new Set())
   const [deleteTarget, setDeleteTarget] = useState<Transfer | null>(null)
   const [deleting, setDeleting] = useState(false)
 
@@ -1742,10 +1871,14 @@ export default function Ueberfuehrungen() {
         fetchVehicles(),
       ])
       setVehicles(vehicleList)
-      setCalendarEvents(events.filter((e) => !imported.has(e.uid)))
+      // Auch die übernommenen bleiben liegen: an ihnen lässt sich sehen, ob
+      // sich im Kalender seither etwas geändert hat.
+      setCalendarEvents(events)
+      setImportedUids(imported)
       setCalendarError(null)
     } catch (e) {
       setCalendarEvents([])
+      setImportedUids(new Set())
       setCalendarError(errorText(e, t('transfers.calendar_error')))
     } finally {
       setCalendarLoading(false)
@@ -2017,9 +2150,90 @@ export default function Ueberfuehrungen() {
   // gebündelt reicht: der Zähler am Tab, die Liste und die Auswahl beim
   // Verknüpfen zeigen dasselbe.
   const calendarGroups = useMemo(
-    () => groupCalendarEvents(calendarEvents, (ev) => matchVehicleByPlate(ev.summary, vehicles)),
-    [calendarEvents, vehicles]
+    () =>
+      groupCalendarEvents(
+        calendarEvents.filter((e) => !importedUids.has(e.uid)),
+        (ev) => matchVehicleByPlate(ev.summary, vehicles)
+      ),
+    [calendarEvents, importedUids, vehicles]
   )
+
+  /** Der aktuelle Stand jedes Termins, nach UID. */
+  const liveEvents = useMemo(
+    () => new Map(calendarEvents.map((e) => [e.uid, e])),
+    [calendarEvents]
+  )
+
+  /**
+   * Was sich an den Terminen dieser Fahrt seit der Übernahme geändert hat.
+   *
+   * Nur wenn der Kalender auch wirklich gelesen wurde: sonst wäre jeder Termin
+   * "nicht mehr vorhanden", bloß weil der Feed gerade klemmt.
+   */
+  const changesOf = useCallback(
+    (transfer: Transfer): CalendarChange[] => {
+      if (calendarError || calendarEvents.length === 0) return []
+      const out: CalendarChange[] = []
+      for (const link of transfer.calendar_links ?? []) {
+        if (!link.date_from) continue
+        const event = liveEvents.get(link.calendar_uid) ?? null
+        if (!event) {
+          out.push({ link, event: null, fields: [] })
+          continue
+        }
+        const fields = changedFields(link, event)
+        if (fields.length > 0) out.push({ link, event, fields })
+      }
+      return out
+    },
+    [calendarError, calendarEvents.length, liveEvents]
+  )
+
+  /**
+   * Den neuen Stand des Termins ins Formular holen.
+   *
+   * Übernommen wird nur, was noch dem alten Stand entsprach – von Hand
+   * Geändertes bleibt stehen. Gespeichert wird erst nach Bestätigung, wie beim
+   * ersten Übernehmen auch.
+   */
+  function handleReimport(transfer: Transfer) {
+    const links = (transfer.calendar_links ?? []).filter((l) => l.date_from)
+    const events = links
+      .map((l) => liveEvents.get(l.calendar_uid))
+      .filter((e): e is CalendarEvent => !!e)
+    if (events.length === 0) return
+
+    const before = mergeEvents(eventsOfLinks(links))
+    const after = mergeEvents(events)
+    const afterContact = extractContact(after.notes, { exclude: locationsOf(events) })
+    const beforeContact = extractContact(before.notes, { exclude: locationsOf(eventsOfLinks(links)) })
+
+    // Feld für Feld: stand dort noch der alte Stand, kommt der neue hinein.
+    const pick = (current: string | null, old: string | null, next: string | null) =>
+      sameText(current, old) ? next : current
+    const clock = (value: string | null) => (value ? value.slice(0, 5) : null)
+
+    openForm({
+      target: transfer,
+      preset: {
+        vehicle_id: transfer.vehicle_id,
+        title: pick(transfer.title, before.title, after.title),
+        date_from: transfer.date_from === before.date_from ? after.date_from : transfer.date_from,
+        date_to: transfer.date_to === before.date_to ? after.date_to : transfer.date_to,
+        time_from: clock(transfer.time_from) === clock(before.time_from) ? after.time_from : transfer.time_from,
+        time_to: clock(transfer.time_to) === clock(before.time_to) ? after.time_to : transfer.time_to,
+        location_from: pick(transfer.location_from, before.location_from, after.location_from),
+        location_to: pick(transfer.location_to, before.location_to, after.location_to),
+        contact_name: pick(transfer.contact_name, beforeContact.name, afterContact.name),
+        contact_phone: pick(transfer.contact_phone, beforeContact.phone, afterContact.phone),
+        notes: pick(transfer.notes, before.notes, after.notes),
+        calendar_uid: transfer.calendar_uid ?? after.uids[0],
+        calendar_uids: after.uids,
+        calendar_events: events,
+      },
+      note: t('transfers.reimport_note'),
+    })
+  }
 
   // Die Gruppenmitglieder stehen schon in den geladenen Listen – offene und
   // abgeschlossene Fahrten sind beide da, eine eigene Abfrage wäre überflüssig.
@@ -2119,6 +2333,8 @@ export default function Ueberfuehrungen() {
         transfer={lead}
         members={members}
         relatedOf={relatedOf}
+        changesOf={changesOf}
+        onReimport={handleReimport}
         expandedId={expanded}
         onToggle={(id) => setExpanded((cur) => (cur === id ? null : id))}
         onStatus={handleStatus}

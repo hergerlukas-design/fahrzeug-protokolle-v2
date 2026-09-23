@@ -43,6 +43,8 @@ export interface TransferCalendarLink {
   time_from: string | null
   time_to: string | null
   location: string | null
+  /** Die Notizen des Termins – dort stehen Ansprechpartner und Telefon. */
+  description: string | null
 }
 
 export interface Transfer {
@@ -113,7 +115,7 @@ const SELECT =
   'vehicle:vehicles(id, license_plate, brand_model, availability, cleanliness_interior, cleanliness_exterior, is_fueled, is_charged, current_odometer), ' +
   `pickup_protocol:protocols!transfers_pickup_protocol_id_fkey(${PROTOCOL_FIELDS}), ` +
   `dropoff_protocol:protocols!transfers_dropoff_protocol_id_fkey(${PROTOCOL_FIELDS}), ` +
-  'calendar_links:transfer_calendar_links(calendar_uid, summary, date_from, date_to, time_from, time_to, location)'
+  'calendar_links:transfer_calendar_links(calendar_uid, summary, date_from, date_to, time_from, time_to, location, description)'
 
 /** Eine eingebettete Beziehung kommt je nach generierten Typen als Objekt oder
  *  als einelementiges Array zurück – beides auf ein Objekt bringen. */
@@ -233,14 +235,10 @@ function clean(values: TransferInput) {
  * bleibt es beim reinen Vermerk "übernommen".
  */
 function linkRowsOf(values: TransferInput, transferId: string) {
-  const byUid = new Map<string, Record<string, unknown>>()
-
-  for (const uid of [...(values.calendar_uids ?? []), values.calendar_uid ?? '']) {
-    if (uid) byUid.set(uid, { calendar_uid: uid, transfer_id: transferId })
-  }
+  const full = new Map<string, Record<string, unknown>>()
   for (const ev of values.calendar_events ?? []) {
     if (!ev?.uid) continue
-    byUid.set(ev.uid, {
+    full.set(ev.uid, {
       calendar_uid: ev.uid,
       transfer_id: transferId,
       summary: ev.summary || null,
@@ -249,9 +247,16 @@ function linkRowsOf(values: TransferInput, transferId: string) {
       time_from: ev.time_from || null,
       time_to: ev.time_to || null,
       location: ev.location || null,
+      description: ev.description || null,
     })
   }
-  return [...byUid.values()]
+
+  const bare = new Map<string, Record<string, unknown>>()
+  for (const uid of [...(values.calendar_uids ?? []), values.calendar_uid ?? '']) {
+    if (uid && !full.has(uid)) bare.set(uid, { calendar_uid: uid, transfer_id: transferId })
+  }
+
+  return { full: [...full.values()], bare: [...bare.values()] }
 }
 
 /**
@@ -262,17 +267,27 @@ function linkRowsOf(values: TransferInput, transferId: string) {
  * ärgerlich, aber kein Grund, einen Fehler über eine gelungene Speicherung zu
  * legen.
  *
- * ignoreDuplicates, damit ein erneutes Speichern einen Termin nicht einer
- * anderen Fahrt wegnimmt.
+ * Zwei Sorten Zeilen, und sie werden verschieden behandelt. Der Schlüssel ist
+ * beidemal (calendar_uid, transfer_id) – beim Tausch hängt derselbe Termin an
+ * zwei Fahrten, an einer Fahrt aber nur einmal.
+ *
+ * - **Mit Inhalt** (der Termin liegt vor): überschreibt einen vorhandenen
+ *   Schnappschuss. Wird ein geänderter Termin neu übernommen, soll dort der
+ *   neue Stand stehen und nicht der von damals.
+ * - **Nur die UID** (bloßer Vermerk "übernommen"): wird nur eingefügt, nie
+ *   überschrieben. Sonst leerte jedes gewöhnliche Bearbeiten einer Fahrt den
+ *   Schnappschuss, den sie beim Übernehmen bekommen hat.
  */
-async function linkCalendarUids(rows: Record<string, unknown>[]): Promise<void> {
-  if (rows.length === 0) return
-  const { error } = await supabase
-    .from('transfer_calendar_links')
-    // Der Schlüssel ist (calendar_uid, transfer_id): beim Tausch hängt derselbe
-    // Termin an zwei Fahrten, an einer Fahrt aber nur einmal.
-    .upsert(rows, { onConflict: 'calendar_uid,transfer_id', ignoreDuplicates: true })
-  if (error) console.warn('Kalendertermine konnten nicht vermerkt werden:', error.message)
+async function linkCalendarUids(rows: ReturnType<typeof linkRowsOf>): Promise<void> {
+  const write = async (values: Record<string, unknown>[], ignoreDuplicates: boolean) => {
+    if (values.length === 0) return
+    const { error } = await supabase
+      .from('transfer_calendar_links')
+      .upsert(values, { onConflict: 'calendar_uid,transfer_id', ignoreDuplicates })
+    if (error) console.warn('Kalendertermine konnten nicht vermerkt werden:', error.message)
+  }
+  await write(rows.full, false)
+  await write(rows.bare, true)
 }
 
 export async function createTransfer(values: TransferInput): Promise<Transfer> {

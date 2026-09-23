@@ -293,10 +293,36 @@ klickbarer Bereich (`role="button"`): ein Link darf nicht in einem `<button>`
 stecken. Die Links rufen `stopPropagation`, sonst klappte beim Antippen
 zusätzlich die Karte auf.
 
+### Wenn sich ein Termin später ändert
+
+Übernommen wird eine Momentaufnahme, und `transfer_calendar_links` hält sie
+fest. Beim Laden des Kalenders vergleicht `src/lib/calendarChanges.ts` beide
+Stände — `changedFields` meldet Titel, Zeitraum, Uhrzeit, Ort und Notizen.
+
+In der Karte steht dann eine Zeile "Termin geändert: Datum, Ort"; aufgeklappt
+stehen die Werte gegenübergestellt ("21.10.–05.11. → 21.10.–16.11.") und
+darunter der Knopf **Neuen Stand übernehmen**. Der füllt das Formular mit dem
+neuen Stand — aber nur in den Feldern, in denen noch der alte stand. Wer Datum
+oder Ort von Hand angepasst hat, behält seine Fassung; gespeichert wird wie
+immer erst nach Bestätigung. Mit dem Speichern wird auch der Schnappschuss
+aufgefrischt, und der Hinweis verschwindet.
+
+Ist der Termin im Kalender gelöscht, heißt es "Termin nicht mehr im Kalender".
+Die Fahrt bleibt, wie sie ist — löschen ist eine Entscheidung, keine Folge.
+
+Zwei Dinge dabei zu wissen:
+
+- Gemeldet wird nur, wenn der Kalender auch wirklich gelesen wurde. Klemmt der
+  Feed, gilt kein Termin als verschwunden.
+- Für Zeilen aus der Zeit vor `20260923_calendar_link_details.sql` (nur die
+  UID) gibt es keinen alten Stand, für die vor
+  `20260923_calendar_link_description.sql` keine alten Notizen. Unbekannt heißt
+  "keine Änderung": sonst meldete jede ältere Fahrt eine, die keine ist.
+
 ### Grenzen
 
-- **Einmalige Übernahme, keine Synchronisation.** Wird der Termin im Kalender
-  später geändert, zieht die Überführung nicht nach.
+- **Kein Nachziehen von selbst.** Eine geänderte Fahrt wird gemeldet, nicht
+  überschrieben — sie kann von Hand angepasst worden sein.
 - **Serientermine** werden markiert, aber nicht aufgelöst; übernommen wird nur
   der erste Eintrag.
 - Uhrzeiten werden in `Europe/Berlin` gelesen.
