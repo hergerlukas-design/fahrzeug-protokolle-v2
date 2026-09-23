@@ -74,7 +74,14 @@ function formatDayMonth(value: string, lang: string): string {
  */
 function dayLabel(value: string, lang: string): string {
   const currentYear = String(new Date().getFullYear())
-  return value.slice(0, 4) === currentYear ? formatDayMonth(value, lang) : formatDate(value, lang)
+  if (value.slice(0, 4) === currentYear) return formatDayMonth(value, lang)
+
+  const d = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(d.getTime())) return value
+  // Zweistellig, damit "08.12. – 04.01.27, 17:00" neben dem Status noch passt.
+  return d.toLocaleDateString(lang.startsWith('en') ? 'en-GB' : 'de-DE', {
+    day: '2-digit', month: '2-digit', year: '2-digit',
+  })
 }
 
 /** Postgres liefert "08:30:00" – für die Anzeige reichen Stunde und Minute. */
@@ -95,12 +102,12 @@ function dateRange(tr: Transfer, lang: string): string {
   if (sameDay) {
     // Am selben Tag genügt die zweite Uhrzeit ohne Datumswiederholung.
     const end = formatTime(tr.time_to)
-    return end ? `${from} – ${end}` : from
+    return end ? `${from}–${end}` : from
   }
 
   const endDay = dayLabel(tr.date_to!, lang)
   const endTime = formatTime(tr.time_to)
-  return `${from} – ${endTime ? `${endDay}, ${endTime}` : endDay}`
+  return `${from}–${endTime ? `${endDay}, ${endTime}` : endDay}`
 }
 
 const STATUS_STYLES: Record<TransferStatus, string> = {
@@ -214,10 +221,41 @@ function TransferCard({
           {/* Der Termin steht oben: danach wird in der Liste gesucht. Darunter
               die Beschriftung der Fahrt, zuletzt Kennzeichen und Fahrzeug. */}
           <div className="flex items-center gap-2">
-            <p className="font-bold text-gray-900 truncate">{dateRange(transfer, i18n.language)}</p>
+            <p className="font-bold text-[15px] text-gray-900 truncate">{dateRange(transfer, i18n.language)}</p>
             <StatusBadge status={transfer.status} />
           </div>
           {title && <p className="text-sm text-gray-600 truncate">{title}</p>}
+
+          {/* Ort und Telefon stehen schon hier – dieselbe Vorschau wie bei den
+              Terminen aus dem Kalender. Angerufen wird aufgeklappt. */}
+          {(transfer.location_from || transfer.location_to) && (
+            <p className="text-xs text-gray-500 mt-0.5 flex items-start gap-1">
+              <MapPin size={12} className="text-gray-400 flex-shrink-0 mt-0.5" />
+              <span className="line-clamp-2">
+                {transfer.location_from && transfer.location_to ? (
+                  <>
+                    {transfer.location_from}
+                    <span className="text-gray-400"> → </span>
+                    <span className="font-medium text-gray-700">{transfer.location_to}</span>
+                  </>
+                ) : (
+                  transfer.location_to || transfer.location_from
+                )}
+              </span>
+            </p>
+          )}
+
+          {(transfer.contact_name || transfer.contact_phone) && (
+            <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+              <Phone size={12} className="text-gray-400 flex-shrink-0" />
+              <span className="truncate">
+                {transfer.contact_name}
+                {transfer.contact_name && transfer.contact_phone && <span className="text-gray-400"> · </span>}
+                {transfer.contact_phone}
+              </span>
+            </p>
+          )}
+
           <p className="text-xs text-gray-400 mt-0.5 truncate">
             <span className="font-semibold text-gray-500">{plate}</span>
             {v?.brand_model
@@ -232,31 +270,18 @@ function TransferCard({
 
       {expanded && (
         <div className="border-t border-gray-100 px-4 py-3 space-y-3">
-          <Row icon={<MapPin size={16} />}>
-            {transfer.location_from || transfer.location_to ? (
-              <span>
-                {transfer.location_from || '—'}
-                <span className="text-gray-400"> → </span>
-                <span className="font-semibold text-gray-900">{transfer.location_to || '—'}</span>
-              </span>
-            ) : (
-              <span className="text-gray-400 italic">{t('transfers.no_route')}</span>
-            )}
-          </Row>
-
           {transfer.driver_name && (
             <Row icon={<User size={16} />}>{transfer.driver_name}</Row>
           )}
 
-          {(transfer.contact_name || transfer.contact_phone) && (
+          {/* Oben steht die Nummer schon – hier ist sie wählbar. In der
+              zugeklappten Karte ginge das nicht: ein Link in der Schaltfläche,
+              die die Karte öffnet. */}
+          {transfer.contact_phone && (
             <Row icon={<Phone size={16} />}>
-              {transfer.contact_name}
-              {transfer.contact_name && transfer.contact_phone && <span className="text-gray-400"> · </span>}
-              {transfer.contact_phone && (
-                <a href={`tel:${transfer.contact_phone}`} className="text-brand-600 font-medium">
-                  {transfer.contact_phone}
-                </a>
-              )}
+              <a href={`tel:${transfer.contact_phone}`} className="text-brand-600 font-medium">
+                {transfer.contact_phone}
+              </a>
             </Row>
           )}
 
