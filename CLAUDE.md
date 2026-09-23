@@ -155,6 +155,12 @@ steht — dafür bekommt `extractContact` den Ort als `exclude` mitgegeben.
 Datumsangaben und Auftragsnummern gelten weiterhin nicht als Rufnummer. Auch das ist ein Vorschlag: beides landet im Formular und ist dort
 änderbar.
 
+Die Seite hat dafür zwei Tabs: **Überführungen** (die Arbeitsliste, darunter
+aufklappbar die abgeschlossenen) und **Kalender** (der Zulauf). Untereinander
+schob der Kalender die Liste immer weiter nach unten. Am Tab steht, wie viele
+Fahrten bzw. Termine dort warten; nach dem Übernehmen springt die Ansicht auf
+die Fahrten, wo die neue steht.
+
 Die Liste der Termine zeigt voreingestellt alles ab heute — der Feed liefert
 den ganzen Kalender samt Vergangenheit. Über die Felder **Von**/**Bis** lässt
 sich der Zeitraum ändern, **Alle** hebt den Filter auf.

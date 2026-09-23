@@ -37,7 +37,10 @@ import {
   type LinkableProtocol,
 } from '../lib/transfers'
 import { extractContact } from '../lib/calendarContact'
-import { groupCalendarEvents, mergeEvents, classifyEvent, isUnconfirmed, swapTitles } from '../lib/calendarPairs'
+import {
+  groupCalendarEvents, mergeEvents, classifyEvent, isUnconfirmed, swapTitles,
+  type CalendarGroup,
+} from '../lib/calendarPairs'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -1171,8 +1174,7 @@ function DeleteConfirm({
 function TransferPicker({
   transfer,
   candidates,
-  events,
-  vehicles,
+  groups,
   onPick,
   onPickEvents,
   onCancel,
@@ -1180,9 +1182,8 @@ function TransferPicker({
 }: {
   transfer: Transfer
   candidates: Transfer[]
-  /** Termine, aus denen noch keine Fahrt geworden ist. */
-  events: CalendarEvent[]
-  vehicles: Vehicle[]
+  /** Termine, aus denen noch keine Fahrt geworden ist – schon gebündelt. */
+  groups: CalendarGroup<Vehicle>[]
   onPick: (other: Transfer) => void
   /** Einen Termin übernehmen und die neue Fahrt gleich verbinden. */
   onPickEvents: (events: CalendarEvent[], vehicle: Vehicle | null) => void
@@ -1205,11 +1206,6 @@ function TransferPicker({
   // Verbunden werden soll oft mit einer Fahrt, die es noch gar nicht gibt –
   // die Abholung steht dann noch als Termin im Kalender. Also stehen die hier
   // mit zur Wahl; übernommen wird sie im Formular, verbunden beim Speichern.
-  const groups = useMemo(
-    () => groupCalendarEvents(events, (ev) => matchVehicleByPlate(ev.summary, vehicles)),
-    [events, vehicles]
-  )
-
   const openGroups = useMemo(() => {
     if (!needle) return groups
     return groups.filter((g) =>
@@ -1425,14 +1421,15 @@ function ProtocolPicker({
 // ─────────────────────────────────────────────────────────────────────────────
 
 function CalendarSection({
-  events,
+  groups,
   loading,
   error,
   vehicles,
   onImport,
   onReload,
 }: {
-  events: CalendarEvent[]
+  /** Schon gebündelt: Abholung und Überführung desselben Fahrzeugs als eine Fahrt. */
+  groups: CalendarGroup<Vehicle>[]
   loading: boolean
   error: string | null
   vehicles: Vehicle[]
@@ -1440,21 +1437,12 @@ function CalendarSection({
   onReload: () => void
 }) {
   const { t, i18n } = useTranslation()
-  const [open, setOpen] = useState(true)
 
   // Der Feed liefert den ganzen Kalender, also auch alles Vergangene.
   // Voreingestellt ist deshalb "ab heute"; beide Grenzen lassen sich ändern
   // oder ganz aufheben, wenn ein älterer Termin nachgetragen werden soll.
   const [from, setFrom] = useState(todayISO)
   const [to, setTo] = useState('')
-
-  // Abholung und Überführung desselben Fahrzeugs gehören zusammen – erst
-  // bündeln, dann filtern. Andersherum könnte der Filter eine Hälfte
-  // wegschneiden und aus einem Paar zwei Einzelfahrten machen.
-  const groups = useMemo(
-    () => groupCalendarEvents(events, (ev) => matchVehicleByPlate(ev.summary, vehicles)),
-    [events, vehicles]
-  )
 
   const visible = useMemo(
     () =>
@@ -1470,26 +1458,19 @@ function CalendarSection({
     [groups, from, to]
   )
 
-  // Nichts anzuzeigen und nichts zu melden: die Sektion bleibt ganz weg,
-  // statt einen leeren Kasten zu hinterlassen. Ein leerer Filter reicht dafür
-  // nicht – sonst verschwände mit dem letzten Treffer auch der Filter selbst.
-  if (!loading && !error && events.length === 0) return null
-
   const filtered = visible.length !== groups.length
 
   return (
     <section>
-      <div className="flex items-center gap-2 mb-2">
-        <button
-          onClick={() => setOpen((v) => !v)}
-          className="flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wide active:text-gray-600"
-        >
-          <CalendarDays size={14} />
-          <span>
-            {t('transfers.calendar_section')} ({filtered ? `${visible.length}/${groups.length}` : groups.length})
+      {/* Die Überschrift steht schon im Tab – hier genügt, was der Filter
+          gerade wegnimmt, und der Knopf zum Neuladen. */}
+      <div className="flex items-center gap-2 mb-2 min-h-[1.25rem]">
+        {filtered && (
+          <span className="flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wide">
+            <CalendarDays size={14} />
+            {visible.length}/{groups.length}
           </span>
-          {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-        </button>
+        )}
         <button
           onClick={onReload}
           disabled={loading}
@@ -1507,7 +1488,7 @@ function CalendarSection({
         </div>
       )}
 
-      {open && !error && (
+      {!error && (
         <div className="flex items-end gap-2 mb-2">
           <label className="flex-1 min-w-0">
             <span className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
@@ -1543,11 +1524,15 @@ function CalendarSection({
         </div>
       )}
 
-      {open && !error && visible.length === 0 && (
-        <p className="text-sm text-gray-400 py-2">{t('transfers.calendar_filter_empty')}</p>
+      {!error && loading && groups.length === 0 && <SkeletonList count={2} />}
+
+      {!error && !loading && visible.length === 0 && (
+        <p className="text-sm text-gray-400 py-2">
+          {t(groups.length === 0 ? 'transfers.calendar_empty' : 'transfers.calendar_filter_empty')}
+        </p>
       )}
 
-      {open && !error && (
+      {!error && (
         <div className="space-y-2">
           {visible.map((group) => {
             const merged = mergeEvents(group.events)
@@ -1686,6 +1671,10 @@ export default function Ueberfuehrungen() {
   const [closed, setClosed] = useState<Transfer[]>([])
   const [loading, setLoading] = useState(true)
   const [showClosed, setShowClosed] = useState(false)
+  // Zwei Tabs statt zweier Abschnitte untereinander: die Fahrten sind die
+  // Arbeitsliste, der Kalender der Zulauf. Abgeschlossene stehen weiter unter
+  // den Fahrten.
+  const [tab, setTab] = useState<'transfers' | 'calendar'>('transfers')
   const [expanded, setExpanded] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -1981,10 +1970,14 @@ export default function Ueberfuehrungen() {
     if (swapNext) {
       setSwapFirst(saved)
       setSwapNext(null)
+      // Der zweite Teil des Tauschs kommt sofort, also erst danach umschalten.
       openForm({
         preset: swapNext,
         note: `${t('transfers.swap_step', { step: 2 })} · ${t('transfers.swap_hint_pick')}`,
       })
+    } else {
+      // Die gespeicherte Fahrt steht in der Liste, nicht im Kalender.
+      setTab('transfers')
     }
 
     await load()
@@ -2020,6 +2013,14 @@ export default function Ueberfuehrungen() {
       setBusyId(null)
     }
   }
+
+  // Abholung und Überführung desselben Fahrzeugs gehören zusammen. Einmal
+  // gebündelt reicht: der Zähler am Tab, die Liste und die Auswahl beim
+  // Verknüpfen zeigen dasselbe.
+  const calendarGroups = useMemo(
+    () => groupCalendarEvents(calendarEvents, (ev) => matchVehicleByPlate(ev.summary, vehicles)),
+    [calendarEvents, vehicles]
+  )
 
   // Die Gruppenmitglieder stehen schon in den geladenen Listen – offene und
   // abgeschlossene Fahrten sind beide da, eine eigene Abfrage wäre überflüssig.
@@ -2069,6 +2070,7 @@ export default function Ueberfuehrungen() {
 
   /** Eine verbundene Fahrt aufklappen und in den Blick holen. */
   function handleOpenTransfer(id: string) {
+    setTab('transfers')
     setExpanded(id)
     // Nach dem Rendern, sonst steht die Karte noch zugeklappt an alter Stelle.
     setTimeout(() => {
@@ -2148,23 +2150,47 @@ export default function Ueberfuehrungen() {
           </div>
         )}
 
-        {loading ? (
+        {/* Zwei Tabs: die Fahrten und der Kalender, aus dem sie entstehen.
+            Untereinander schob der Kalender die Liste immer weiter nach unten. */}
+        <div className="flex gap-1 p-1 bg-gray-100 rounded-xl">
+          {(['transfers', 'calendar'] as const).map((id) => {
+            const active = tab === id
+            const count = id === 'transfers' ? open.length : calendarGroups.length
+            return (
+              <button
+                key={id}
+                onClick={() => setTab(id)}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  active ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 active:text-gray-700'
+                }`}
+              >
+                {t(id === 'transfers' ? 'transfers.tab_transfers' : 'transfers.tab_calendar')}
+                {count > 0 && (
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                    active ? 'bg-brand-50 text-brand-700' : 'bg-gray-200 text-gray-500'
+                  }`}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+
+        {tab === 'calendar' ? (
+          <CalendarSection
+            groups={calendarGroups}
+            loading={calendarLoading}
+            error={calendarError}
+            vehicles={vehicles}
+            onImport={handleImportEvents}
+            onReload={loadCalendar}
+          />
+        ) : loading ? (
           <SkeletonList count={3} />
         ) : (
           <>
-            <CalendarSection
-              events={calendarEvents}
-              loading={calendarLoading}
-              error={calendarError}
-              vehicles={vehicles}
-              onImport={handleImportEvents}
-              onReload={loadCalendar}
-            />
-
             <section>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-                {t('transfers.section_open')}
-              </p>
               {open.length === 0 ? (
                 <div className="text-center py-12 text-gray-400">
                   <RouteIcon size={36} className="mx-auto mb-3 opacity-30" />
@@ -2211,8 +2237,7 @@ export default function Ueberfuehrungen() {
         <TransferPicker
           transfer={transferLinkTarget}
           candidates={candidatesFor(transferLinkTarget)}
-          events={calendarEvents}
-          vehicles={vehicles}
+          groups={calendarGroups}
           onPick={handleLinkTransfer}
           onPickEvents={(events, vehicle) => {
             // Der Termin wird übernommen wie aus dem Kalenderbereich – die
