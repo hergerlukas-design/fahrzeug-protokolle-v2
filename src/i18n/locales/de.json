@@ -298,6 +298,9 @@
     "calendar_filter_to": "Bis",
     "calendar_filter_reset": "Alle",
     "calendar_filter_empty": "Keine Termine im gewählten Zeitraum.",
+    "calendar_pair": "2 Termine · eine Fahrt",
+    "calendar_import_pair": "Zusammen übernehmen",
+    "calendar_import_single": "Nur diesen Termin übernehmen",
     "calendar_error": "Kalender konnte nicht gelesen werden.",
     "form_title_import": "Termin übernehmen"
   },

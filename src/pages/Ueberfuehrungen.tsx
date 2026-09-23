@@ -35,6 +35,7 @@ import {
   type LinkableProtocol,
 } from '../lib/transfers'
 import { extractContact } from '../lib/calendarContact'
+import { groupCalendarEvents, mergeEvents } from '../lib/calendarPairs'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -528,6 +529,9 @@ function TransferForm({
         // Bleibt beim Bearbeiten erhalten, damit derselbe Termin nicht
         // ein zweites Mal als neu erscheint.
         calendar_uid: target?.calendar_uid ?? preset?.calendar_uid ?? null,
+        // Ein Paar bringt zwei Termine mit – beide müssen als übernommen
+        // vermerkt werden, sonst taucht der zweite gleich wieder als neu auf.
+        calendar_uids: preset?.calendar_uids,
       }
       if (target) await updateTransfer(target.id, values)
       else await createTransfer(values)
@@ -973,7 +977,7 @@ function CalendarSection({
   loading: boolean
   error: string | null
   vehicles: Vehicle[]
-  onImport: (event: CalendarEvent, vehicle: Vehicle | null) => void
+  onImport: (events: CalendarEvent[], vehicle: Vehicle | null) => void
   onReload: () => void
 }) {
   const { t, i18n } = useTranslation()
@@ -985,16 +989,26 @@ function CalendarSection({
   const [from, setFrom] = useState(todayISO)
   const [to, setTo] = useState('')
 
+  // Abholung und Überführung desselben Fahrzeugs gehören zusammen – erst
+  // bündeln, dann filtern. Andersherum könnte der Filter eine Hälfte
+  // wegschneiden und aus einem Paar zwei Einzelfahrten machen.
+  const groups = useMemo(
+    () => groupCalendarEvents(events, (ev) => matchVehicleByPlate(ev.summary, vehicles)),
+    [events, vehicles]
+  )
+
   const visible = useMemo(
     () =>
-      events.filter((ev) => {
+      groups.filter((g) => {
+        const start = g.events[0].date_from
+        const last = g.events[g.events.length - 1]
         // Ein mehrtägiger Termin zählt, solange er nicht komplett vorbei ist.
-        const end = ev.date_to || ev.date_from
+        const end = last.date_to || last.date_from
         if (from && end < from) return false
-        if (to && ev.date_from > to) return false
+        if (to && start > to) return false
         return true
       }),
-    [events, from, to]
+    [groups, from, to]
   )
 
   // Nichts anzuzeigen und nichts zu melden: die Sektion bleibt ganz weg,
@@ -1002,7 +1016,7 @@ function CalendarSection({
   // nicht – sonst verschwände mit dem letzten Treffer auch der Filter selbst.
   if (!loading && !error && events.length === 0) return null
 
-  const filtered = visible.length !== events.length
+  const filtered = visible.length !== groups.length
 
   return (
     <section>
@@ -1013,7 +1027,7 @@ function CalendarSection({
         >
           <CalendarDays size={14} />
           <span>
-            {t('transfers.calendar_section')} ({filtered ? `${visible.length}/${events.length}` : events.length})
+            {t('transfers.calendar_section')} ({filtered ? `${visible.length}/${groups.length}` : groups.length})
           </span>
           {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </button>
@@ -1076,24 +1090,50 @@ function CalendarSection({
 
       {open && !error && (
         <div className="space-y-2">
-          {visible.map((ev) => {
-            const vehicle = matchVehicleByPlate(ev.summary, vehicles)
-            const contact = extractContact(ev.description)
+          {visible.map((group) => {
+            const merged = mergeEvents(group.events)
+            const contact = extractContact(merged.notes)
+            const vehicle = group.vehicle
+            const pair = group.events.length > 1
             return (
-              <div key={ev.uid} className="bg-white rounded-2xl border border-dashed border-gray-300 shadow-sm px-4 py-3">
-                <p className="font-semibold text-gray-900 text-sm">{ev.summary || t('transfers.calendar_untitled')}</p>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {withTime(ev.date_from, ev.time_from, i18n.language)}
-                  {ev.date_to && ` – ${withTime(ev.date_to, ev.time_to, i18n.language)}`}
-                </p>
-                {ev.location && (
-                  <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
-                    <MapPin size={12} className="text-gray-400 flex-shrink-0" /> {ev.location}
-                  </p>
-                )}
+              <div key={group.key} className="bg-white rounded-2xl border border-dashed border-gray-300 shadow-sm px-4 py-3">
+                {group.events.map((ev, idx) => (
+                  <div
+                    key={ev.uid}
+                    className={idx > 0 ? 'mt-2 pt-2 border-t border-dashed border-gray-200' : ''}
+                  >
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 text-sm">
+                          {ev.summary || t('transfers.calendar_untitled')}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {withTime(ev.date_from, ev.time_from, i18n.language)}
+                          {ev.date_to && ` – ${withTime(ev.date_to, ev.time_to, i18n.language)}`}
+                        </p>
+                        {ev.location && (
+                          <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                            <MapPin size={12} className="text-gray-400 flex-shrink-0" /> {ev.location}
+                          </p>
+                        )}
+                      </div>
+                      {/* Falls das Paar doch nicht zusammengehört: einzeln übernehmen. */}
+                      {pair && (
+                        <button
+                          onClick={() => onImport([ev], vehicle)}
+                          aria-label={t('transfers.calendar_import_single')}
+                          className="p-1.5 text-gray-300 active:text-gray-600 flex-shrink-0"
+                        >
+                          <Download size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
                 {/* Aus den Notizen gelesen – wird beim Übernehmen vorgeschlagen. */}
                 {(contact.name || contact.phone) && (
-                  <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-x-3 gap-y-0.5 flex-wrap">
+                  <p className="text-xs text-gray-500 mt-1 flex items-center gap-x-3 gap-y-0.5 flex-wrap">
                     {contact.name && (
                       <span className="flex items-center gap-1">
                         <User size={12} className="text-gray-400 flex-shrink-0" /> {contact.name}
@@ -1107,7 +1147,7 @@ function CalendarSection({
                   </p>
                 )}
 
-                <div className="flex items-center gap-2 mt-2">
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
                   {vehicle ? (
                     <span className="text-[10px] font-semibold uppercase tracking-wide bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
                       {vehicle.license_plate}
@@ -1117,16 +1157,22 @@ function CalendarSection({
                       {t('transfers.calendar_no_match')}
                     </span>
                   )}
-                  {ev.recurring && (
+                  {pair && (
+                    <span className="text-[10px] font-semibold uppercase tracking-wide bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full">
+                      {t('transfers.calendar_pair')}
+                    </span>
+                  )}
+                  {group.events.some((e) => e.recurring) && (
                     <span className="text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
                       {t('transfers.calendar_recurring')}
                     </span>
                   )}
                   <button
-                    onClick={() => onImport(ev, vehicle)}
+                    onClick={() => onImport(group.events, vehicle)}
                     className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-600 text-white text-xs font-semibold active:bg-brand-700"
                   >
-                    <Download size={13} /> {t('transfers.calendar_import')}
+                    <Download size={13} />
+                    {pair ? t('transfers.calendar_import_pair') : t('transfers.calendar_import')}
                   </button>
                 </div>
               </div>
@@ -1134,6 +1180,7 @@ function CalendarSection({
           })}
         </div>
       )}
+
     </section>
   )
 }
@@ -1278,27 +1325,32 @@ export default function Ueberfuehrungen() {
     }
   }
 
-  /** Termin ins Formular übernehmen – gespeichert wird erst nach Bestätigung. */
-  function handleImportEvent(event: CalendarEvent, vehicle: Vehicle | null) {
+  /**
+   * Termine ins Formular übernehmen – ein einzelner oder ein Paar aus Abholung
+   * und Überführung. Gespeichert wird erst nach Bestätigung.
+   */
+  function handleImportEvents(events: CalendarEvent[], vehicle: Vehicle | null) {
+    const merged = mergeEvents(events)
     // Ansprechpartner und Telefon stehen, wenn überhaupt, in den Notizen –
     // der Titel trägt das Kennzeichen und sonst nichts Verlässliches.
-    const contact = extractContact(event.description)
+    const contact = extractContact(merged.notes)
     setEditTarget(null)
     setFormPreset({
       vehicle_id: vehicle?.id ?? '',
       // Der Termintitel bleibt der Titel der Überführung – in den Notizen wäre
       // er in der Liste nicht mehr zu sehen.
-      title: event.summary || null,
-      date_from: event.date_from,
-      date_to: event.date_to,
-      time_from: event.time_from,
-      time_to: event.time_to,
-      // Der Ort im Termin ist das Ziel der Fahrt, nicht der Start.
-      location_to: event.location,
+      title: merged.title || null,
+      date_from: merged.date_from,
+      date_to: merged.date_to,
+      time_from: merged.time_from,
+      time_to: merged.time_to,
+      location_from: merged.location_from,
+      location_to: merged.location_to,
       contact_name: contact.name,
       contact_phone: contact.phone,
-      notes: event.description,
-      calendar_uid: event.uid,
+      notes: merged.notes,
+      calendar_uid: merged.uids[0],
+      calendar_uids: merged.uids,
     })
     setFormOpen(true)
   }
@@ -1447,7 +1499,7 @@ export default function Ueberfuehrungen() {
               loading={calendarLoading}
               error={calendarError}
               vehicles={vehicles}
-              onImport={handleImportEvent}
+              onImport={handleImportEvents}
               onReload={loadCalendar}
             />
 

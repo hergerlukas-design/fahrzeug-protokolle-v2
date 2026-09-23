@@ -153,6 +153,27 @@ Die Liste der Termine zeigt voreingestellt alles ab heute — der Feed liefert
 den ganzen Kalender samt Vergangenheit. Über die Felder **Von**/**Bis** lässt
 sich der Zeitraum ändern, **Alle** hebt den Filter auf.
 
+### Abholung und Überführung als eine Fahrt
+
+Im Kalender steht eine Fahrt meist als zwei Termine: die Abholung und die
+Überführung desselben Fahrzeugs, wenige Tage auseinander. `calendarPairs.ts`
+bündelt sie zu einem Vorschlag — erkannt am Fahrzeug (Kennzeichen im Titel),
+am Abstand der Daten (höchstens drei Tage) und an der Art des Termins. Zwei
+gleichartige Termine bleiben getrennt: zweimal "Abholung" sind zwei Fahrten.
+
+Beim Übernehmen gibt der frühere Termin Start und Startort her, der spätere
+Ende und Zielort — unabhängig von der Beschriftung, denn die Uhr ist
+verlässlicher als das Wort. Titel wird der Termin, der nach Überführung
+klingt; die Notizen beider Termine landen zusammen im Feld Notizen.
+
+Die Karte zeigt beide Termine untereinander mit dem Hinweis "2 Termine · eine
+Fahrt". Passt die Paarung nicht, übernimmt das kleine Symbol neben einem
+Termin nur diesen einen.
+
+Welche Termine schon übernommen wurden, steht in `transfer_calendar_links`
+(eine Zeile je Termin, `calendar_uid` als Primärschlüssel). `transfers.calendar_uid`
+bleibt als Herkunftsmerkmal an der Fahrt, trägt aber nur den ersten Termin.
+
 Function deployen:
 
 ```bash

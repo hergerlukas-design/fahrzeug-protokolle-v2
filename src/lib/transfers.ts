@@ -79,6 +79,8 @@ export interface TransferInput {
   contact_phone?: string | null
   notes?: string | null
   calendar_uid?: string | null
+  /** Alle Kalendertermine, aus denen die Fahrt entsteht – meist Abholung und Überführung. */
+  calendar_uids?: string[]
 }
 
 const PROTOCOL_FIELDS = 'id, created_at, status, protocol_type, inspector_name'
@@ -194,8 +196,36 @@ function clean(values: TransferInput) {
     contact_name: values.contact_name?.trim() || null,
     contact_phone: values.contact_phone?.trim() || null,
     notes: values.notes?.trim() || null,
-    calendar_uid: values.calendar_uid || null,
+    // Die erste UID bleibt als Herkunftsmerkmal an der Fahrt; die vollständige
+    // Liste steht in transfer_calendar_links.
+    calendar_uid: values.calendar_uid || values.calendar_uids?.[0] || null,
   }
+}
+
+/** Alle UIDs, die zu dieser Eingabe gehören – ohne Dopplungen. */
+function uidsOf(values: TransferInput): string[] {
+  const all = [...(values.calendar_uids ?? []), values.calendar_uid ?? '']
+  return [...new Set(all.filter(Boolean))] as string[]
+}
+
+/**
+ * Kalendertermine als übernommen vermerken.
+ *
+ * Bewusst nicht weitergeworfen: die Überführung ist an dieser Stelle schon
+ * gespeichert. Schlägt der Vermerk fehl, erscheint der Termin wieder als neu –
+ * ärgerlich, aber kein Grund, einen Fehler über eine gelungene Speicherung zu
+ * legen.
+ *
+ * ignoreDuplicates, damit ein erneutes Speichern einen Termin nicht einer
+ * anderen Fahrt wegnimmt.
+ */
+async function linkCalendarUids(transferId: string, uids: string[]): Promise<void> {
+  if (uids.length === 0) return
+  const rows = uids.map((calendar_uid) => ({ calendar_uid, transfer_id: transferId }))
+  const { error } = await supabase
+    .from('transfer_calendar_links')
+    .upsert(rows, { onConflict: 'calendar_uid', ignoreDuplicates: true })
+  if (error) console.warn('Kalendertermine konnten nicht vermerkt werden:', error.message)
 }
 
 export async function createTransfer(values: TransferInput): Promise<Transfer> {
@@ -206,7 +236,9 @@ export async function createTransfer(values: TransferInput): Promise<Transfer> {
     .select(SELECT)
     .single()
   if (error) throw error
-  return normalize(data)
+  const row = normalize(data)
+  await linkCalendarUids(row.id, uidsOf(values))
+  return row
 }
 
 export async function updateTransfer(id: string, values: TransferInput): Promise<Transfer> {
@@ -218,7 +250,9 @@ export async function updateTransfer(id: string, values: TransferInput): Promise
     .select(SELECT)
     .single()
   if (error) throw error
-  return normalize(data)
+  const row = normalize(data)
+  await linkCalendarUids(row.id, uidsOf(values))
+  return row
 }
 
 export async function deleteTransfer(id: string): Promise<void> {
@@ -520,14 +554,25 @@ export async function fetchCalendarEvents(): Promise<CalendarEvent[]> {
   return ((data as { events?: CalendarEvent[] })?.events ?? [])
 }
 
-/** UIDs der Termine, aus denen schon eine Überführung entstanden ist. */
+/**
+ * UIDs der Termine, aus denen schon eine Überführung entstanden ist.
+ *
+ * Gefragt sind beide Quellen: die Verknüpfungstabelle (eine Fahrt kann aus
+ * Abholung und Überführung entstehen) und die alte Spalte an der Fahrt selbst,
+ * falls dort einmal etwas ohne Eintrag in der Tabelle landet.
+ */
 export async function fetchImportedCalendarUids(): Promise<Set<string>> {
-  const { data, error } = await supabase
-    .from('transfers')
-    .select('calendar_uid')
-    .not('calendar_uid', 'is', null)
-  if (error) throw error
-  return new Set((data ?? []).map((r: { calendar_uid: string }) => r.calendar_uid))
+  const [links, legacy] = await Promise.all([
+    supabase.from('transfer_calendar_links').select('calendar_uid'),
+    supabase.from('transfers').select('calendar_uid').not('calendar_uid', 'is', null),
+  ])
+  if (links.error) throw links.error
+  if (legacy.error) throw legacy.error
+
+  const uids = new Set<string>()
+  for (const r of (links.data ?? []) as { calendar_uid: string }[]) uids.add(r.calendar_uid)
+  for (const r of (legacy.data ?? []) as { calendar_uid: string }[]) uids.add(r.calendar_uid)
+  return uids
 }
 
 /**
