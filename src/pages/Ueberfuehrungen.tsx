@@ -206,7 +206,6 @@ function VehicleState({ vehicle }: { vehicle: NonNullable<Transfer['vehicle']> }
 function TransferCard({
   transfer,
   related,
-  relatedOffList,
   expanded,
   onToggle,
   onStatus,
@@ -222,13 +221,8 @@ function TransferCard({
   busy,
 }: {
   transfer: Transfer
-  /** Die anderen Fahrten derselben Gruppe – aufgeklappt zum Verwalten. */
+  /** Die anderen Fahrten derselben Gruppe. */
   related: Transfer[]
-  /**
-   * Davon die, die gerade nicht als eigene Karte in der Liste stehen. Nur die
-   * bekommen einen Block: sonst stünde derselbe Termin zweimal untereinander.
-   */
-  relatedOffList: Transfer[]
   expanded: boolean
   onToggle: () => void
   onStatus: (status: TransferStatus) => void
@@ -317,24 +311,22 @@ function TransferCard({
           </p>
         )}
 
-        {/* Verbundene Fahrten stehen als weitere Blöcke darunter – wie ein
-            zweiter Termin, nur mit Kette statt Trennstrich: es ist eine eigene
-            Fahrt mit eigenem Status. Steht sie ohnehin als eigene Karte in der
-            Liste, bleibt der Block weg; sie wäre sonst doppelt zu sehen. */}
-        {relatedOffList.map((r) => {
-          const rTitle = r.title?.trim() || r.vehicle?.license_plate || t('transfers.vehicle_missing')
-          return (
-            <div key={r.id} className="mt-2 pt-2 border-t border-dashed border-gray-200">
-              <div className="flex items-center gap-1.5">
-                <Link2 size={13} className="text-gray-400 flex-shrink-0" />
-                <p className="font-semibold text-gray-700 text-sm truncate flex-1 min-w-0">{rTitle}</p>
-                <StatusBadge status={r.status} />
-              </div>
-              <p className="text-xs text-gray-400 mt-0.5">{dateRange(r, i18n.language)}</p>
-              <LocationLine from={r.location_from} to={r.location_to} />
-            </div>
-          )
-        })}
+        {/* Eine Zeile genügt: dass eine Verbindung besteht und mit wem. Der
+            ganze Termin stünde sonst doppelt in der Liste – einmal als eigene
+            Karte, einmal hier. Alles Weitere steht aufgeklappt. */}
+        {related.length > 0 && (
+          <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+            <Link2 size={12} className="flex-shrink-0" />
+            <span className="truncate">
+              {t(related.length > 1 ? 'transfers.linked_hint_more' : 'transfers.linked_hint', {
+                what: related[0].title?.trim()
+                  || related[0].vehicle?.license_plate
+                  || t('transfers.vehicle_missing'),
+                rest: related.length - 1,
+              })}
+            </span>
+          </p>
+        )}
 
         <div className="flex items-center gap-2 mt-2 flex-wrap">
           <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${
@@ -1515,16 +1507,6 @@ export default function Ueberfuehrungen() {
   // abgeschlossene Fahrten sind beide da, eine eigene Abfrage wäre überflüssig.
   const all = useMemo(() => [...open, ...closed], [open, closed])
 
-  /**
-   * Welche Fahrten gerade als eigene Karte in der Liste stehen. Die
-   * abgeschlossenen zählen nur mit, solange ihr Abschnitt aufgeklappt ist.
-   */
-  const visibleIds = useMemo(() => {
-    const ids = new Set(open.map((t) => t.id))
-    if (showClosed) for (const t of closed) ids.add(t.id)
-    return ids
-  }, [open, closed, showClosed])
-
   /** Die anderen Fahrten derselben Gruppe. */
   function relatedOf(transfer: Transfer): Transfer[] {
     if (!transfer.group_id) return []
@@ -1600,7 +1582,6 @@ export default function Ueberfuehrungen() {
         onStatus={(status) => handleStatus(transfer, status)}
         onCreateProtocol={(role) => handleCreateProtocol(transfer, role)}
         related={relatedOf(transfer)}
-        relatedOffList={relatedOf(transfer).filter((r) => !visibleIds.has(r.id))}
         onLinkTransfer={() => setTransferLinkTarget(transfer)}
         onUnlinkTransfer={(other) => handleUnlinkTransfer(transfer, other)}
         onOpenTransfer={handleOpenTransfer}
