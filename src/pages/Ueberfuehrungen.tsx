@@ -245,6 +245,32 @@ function TransferCard({
           </p>
         )}
 
+        {/* Verbundene Fahrten stehen als weitere Blöcke darunter – wie ein
+            zweiter Termin, nur mit Kette statt Trennstrich: es ist eine eigene
+            Fahrt mit eigenem Status. */}
+        {related.map((r) => {
+          const rTitle = r.title?.trim() || r.vehicle?.license_plate || t('transfers.vehicle_missing')
+          const rRoute = r.location_from && r.location_to
+            ? `${r.location_from} → ${r.location_to}`
+            : r.location_to || r.location_from || null
+          return (
+            <div key={r.id} className="mt-2 pt-2 border-t border-dashed border-gray-200">
+              <div className="flex items-center gap-1.5">
+                <Link2 size={13} className="text-gray-400 flex-shrink-0" />
+                <p className="font-semibold text-gray-700 text-sm truncate flex-1 min-w-0">{rTitle}</p>
+                <StatusBadge status={r.status} />
+              </div>
+              <p className="text-xs text-gray-400 mt-0.5">{dateRange(r, i18n.language)}</p>
+              {rRoute && (
+                <p className="text-xs text-gray-500 mt-0.5 flex items-start gap-1">
+                  <MapPin size={12} className="text-gray-400 flex-shrink-0 mt-0.5" />
+                  <span>{rRoute}</span>
+                </p>
+              )}
+            </div>
+          )
+        })}
+
         <div className="flex items-center gap-2 mt-2 flex-wrap">
           <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${
             v ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
@@ -252,11 +278,6 @@ function TransferCard({
             {plate}
           </span>
           <StatusBadge status={transfer.status} />
-          {blocks.length > 1 && (
-            <span className="text-[10px] font-semibold uppercase tracking-wide bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full">
-              {t('transfers.calendar_pair')}
-            </span>
-          )}
           {v?.brand_model && <span className="text-[11px] text-gray-400 truncate">{v.brand_model}</span>}
         </div>
         </div>

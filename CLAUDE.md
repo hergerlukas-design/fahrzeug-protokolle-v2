@@ -180,9 +180,11 @@ Ansprechpartner und Telefon durchsucht. Steht in beiden Terminen derselbe Ort,
 ist das der **Startort** und der Zielort bleibt leer — wohin die Fahrt geht,
 sagt der Kalender dann nicht.
 
-Die Karte zeigt beide Termine untereinander mit dem Hinweis "2 Termine · eine
-Fahrt". Passt die Paarung nicht, übernimmt das kleine Symbol neben einem
-Termin nur diesen einen.
+Die Karte im Kalenderbereich zeigt beide Termine untereinander mit dem Hinweis
+"2 Termine · eine Fahrt". Passt die Paarung nicht, übernimmt das kleine Symbol
+neben einem Termin nur diesen einen. In der übernommenen Fahrt fällt der
+Hinweis weg — dass zwei Termine zu einer Fahrt wurden, zeigen dort die beiden
+Blöcke selbst.
 
 **Nach der Übernahme bleibt die Karte, wie sie war** — nur der Knopf
 "Übernehmen" weicht dem Pfeil zum Aufklappen. Dafür speichert
@@ -230,10 +232,12 @@ versehentlich angehängtes Protokoll soll die Fahrt nicht zurückwerfen.
 
 Hin mit dem einen Fahrzeug, zurück mit dem anderen, oder mehrere Etappen an
 einem Tag: solche Überführungen gehören zusammen, bleiben aber eigene Fahrten
-mit eigenem Status und eigenen Protokollen. In der aufgeklappten Überführung
-steht dafür **Verbundene Fahrten** — verknüpfte Fahrten sind dort anzutippen
-(die Karte klappt auf und wird angesprungen), und "Fahrt verknüpfen" öffnet die
-Auswahl.
+mit eigenem Status und eigenen Protokollen. Verknüpfte Fahrten stehen als eigener Block in der Karte — wie ein zweiter
+Termin, nur mit Kettensymbol statt Trennstrich und mit eigenem Status, denn es
+ist eine eigene Fahrt. Verwaltet werden sie aufgeklappt unter **Verbundene
+Fahrten**: dort sind sie anzutippen (die Karte klappt auf und wird
+angesprungen), je Zeile löst ein Symbol die Verbindung, und "Fahrt verknüpfen"
+öffnet die Auswahl.
 
 Technisch ist das kein Paar, sondern eine gemeinsame `transfers.group_id`:
 damit passt auch die dritte Fahrt noch dazu. Wird eine Fahrt aus einer Gruppe
