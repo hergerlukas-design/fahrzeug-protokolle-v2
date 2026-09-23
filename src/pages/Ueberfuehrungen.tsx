@@ -1970,15 +1970,14 @@ export default function Ueberfuehrungen() {
     if (swapNext) {
       setSwapFirst(saved)
       setSwapNext(null)
-      // Der zweite Teil des Tauschs kommt sofort, also erst danach umschalten.
       openForm({
         preset: swapNext,
         note: `${t('transfers.swap_step', { step: 2 })} · ${t('transfers.swap_hint_pick')}`,
       })
-    } else {
-      // Die gespeicherte Fahrt steht in der Liste, nicht im Kalender.
-      setTab('transfers')
     }
+    // Der Tab bleibt, wo er ist: wer dreißig Termine übernimmt, will nach
+    // jedem den nächsten sehen und nicht erst zurückwechseln. Der übernommene
+    // verschwindet ohnehin aus der Liste.
 
     await load()
     loadCalendar()
