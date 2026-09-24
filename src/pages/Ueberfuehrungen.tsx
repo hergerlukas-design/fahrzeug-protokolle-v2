@@ -1292,8 +1292,36 @@ function TransferForm({
                     className={`${field} pl-9 bg-gray-50`}
                   />
                 </div>
+                {/* Gleich unter der Suche, nicht unter der Liste – dort sähe
+                    sie auf dem Telefon niemand. Neu anlegen nur bei einer
+                    neuen Fahrt: beim Bearbeiten gehört die Annahme längst zu
+                    einer anderen. */}
+                <div className={`mt-2 grid gap-2 ${target ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                  {!target && (
+                    <button
+                      type="button"
+                      onClick={() => setFresh({ license_plate: vehicleSearch.trim().toUpperCase(), brand_model: '' })}
+                      className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-gray-300 text-sm text-gray-600 text-left active:bg-gray-50"
+                    >
+                      <Plus size={16} className="text-gray-400 flex-shrink-0" />
+                      {t('transfers.new_vehicle_add')}
+                    </button>
+                  )}
+                  {/* Abholung, bevor das Kennzeichen feststeht. */}
+                  <button
+                    type="button"
+                    onClick={() => setPending({
+                      count: expected?.count ?? 1,
+                      model: expected?.model || vehicleSearch.trim(),
+                    })}
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-blue-300 bg-blue-50 text-sm font-medium text-blue-700 text-left active:bg-blue-100"
+                  >
+                    <HelpCircle size={16} className="text-blue-500 flex-shrink-0" />
+                    {t('transfers.pending_add')}
+                  </button>
+                </div>
                 {filtered.length > 0 && (
-                  <ul className="mt-1 border border-gray-200 rounded-xl divide-y divide-gray-100 overflow-hidden">
+                  <ul className="mt-2 border border-gray-200 rounded-xl divide-y divide-gray-100 overflow-hidden">
                     {filtered.map((v) => (
                       <li key={v.id}>
                         <button
@@ -1311,31 +1339,6 @@ function TransferForm({
                     ))}
                   </ul>
                 )}
-                {/* Kommt das Fahrzeug erst mit dieser Fahrt, steht es noch
-                    nicht in der Liste. Beim Bearbeiten nicht: dort gehört die
-                    Abnahme längst zu einer anderen Fahrt. */}
-                {!target && (
-                  <button
-                    type="button"
-                    onClick={() => setFresh({ license_plate: vehicleSearch.trim().toUpperCase(), brand_model: '' })}
-                    className="mt-1 w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-gray-300 text-sm text-gray-600 active:bg-gray-50"
-                  >
-                    <Plus size={16} className="text-gray-400 flex-shrink-0" />
-                    {t('transfers.new_vehicle_add')}
-                  </button>
-                )}
-                {/* Abholung, bevor das Kennzeichen feststeht. */}
-                <button
-                  type="button"
-                  onClick={() => setPending({
-                    count: expected?.count ?? 1,
-                    model: expected?.model || vehicleSearch.trim(),
-                  })}
-                  className="mt-1 w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-gray-300 text-sm text-gray-600 active:bg-gray-50"
-                >
-                  <HelpCircle size={16} className="text-gray-400 flex-shrink-0" />
-                  {t('transfers.pending_add')}
-                </button>
               </>
             )}
           </div>
