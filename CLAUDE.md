@@ -284,7 +284,9 @@ steht der Hinweis "Unbestätigt".
 
 Steht im Titel ein Kennzeichen, das es in der Flotte noch nicht gibt, trägt die
 Terminkarte ein gelbes "Neu: DPG98A". `src/lib/calendarPlate.ts` findet es:
-zuerst ein deutsches Kennzeichen mit Trenner (`WI-L 8957E`), sonst eine
+zuerst ein deutsches Kennzeichen mit Trenner (`WI-L 8957E`, `M AB 1234` —
+mit Leerzeichen als Trenner auch vor den Ziffern, sonst wären "BMW M3" oder
+"VW T6" Kennzeichen), sonst eine
 zusammengeschriebene Folge aus Buchstaben und Ziffern ab fünf Zeichen
 (`DPG98A`) — kürzere wie `MY27` und Modelljahre (`MY2027`) nicht. Das Modell
 sind bis zu drei Wörter davor ("LYNK 02"). Beim Bündeln zählt das neue
@@ -311,6 +313,36 @@ Fahrzeug einmal angelegt, finden alle weiteren Termine es von selbst.
 
 Beim Tausch wird weiterhin nur geteilt, wenn beide Kennzeichen schon in der
 Flotte stehen.
+
+### Fahrten mit noch unbekanntem Fahrzeug
+
+Eine Abholung steht oft fest, bevor das Kennzeichen bekannt ist: "Abholung 2x
+BMW M3 in München". Kennzeichen und Annahmeprotokoll entstehen erst vor Ort.
+
+Im Formular steht dafür unter der Fahrzeugsuche **Fahrzeug noch unbekannt**:
+eingetragen wird nur, was abgeholt wird ("BMW M3"), und wie viele. Die Fahrt hat
+dann kein Fahrzeug (`transfers.vehicle_id` ist leer), sondern
+`transfers.vehicle_hint` — `20260924_transfer_vehicle_pending.sql`, die
+voraussetzt, dass `20260924_transfer_acceptance_required.sql` schon lief. Bei
+mehreren Fahrzeugen entsteht je Fahrzeug eine Fahrt, alle über die `group_id`
+verbunden: jede bekommt vor Ort ihr eigenes Kennzeichen, ihre eigene Annahme und
+ihren eigenen Status.
+
+Aus dem Kalender liest `expectedVehicles` (`calendarPlate.ts`) Anzahl und Modell
+aus Titeln ohne Kennzeichen. Eine Anzahl zählt nur mit Einheit ("2x", "2 ×",
+"2 Stk.", "3 Fahrzeuge") oder als Wort ("zwei") — eine nackte Ziffer gehört
+meist zum Modell ("LYNK 02"). Nennt der Titel eine Anzahl, trägt die
+Terminkarte "2× BMW M3 · Kennzeichen offen", der Knopf heißt "Als 2 Fahrten
+übernehmen", und das Formular steht gleich auf "noch unbekannt". Ohne Anzahl
+bleibt es bei "Fahrzeug offen": das ist eher ein Fahrzeug der Flotte, dessen
+Kennzeichen nur nicht im Titel steht.
+
+In der Karte steht statt des Kennzeichens "BMW M3 · Kennzeichen offen" und
+statt des Protokolls **Fahrzeug erfassen**. Dort wird vor Ort das Kennzeichen
+eingetragen. Ist es neu, wird das Fahrzeug angelegt, die Fahrt bekommt es samt
+`acceptance_required`, und das Annahmeprotokoll öffnet sich sofort. Gibt es
+das Kennzeichen schon, bekommt die Fahrt das vorhandene Fahrzeug und sonst
+nichts.
 
 ### Adressen und Telefonnummern
 

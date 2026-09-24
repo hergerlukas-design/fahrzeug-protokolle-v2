@@ -22,8 +22,12 @@ export interface NewVehicle {
  * Deutsches Kennzeichen: Ort, Trenner, ein bis zwei Buchstaben, Ziffern,
  * dahinter optional E (elektrisch) oder H (historisch) – "WI-L 8957E".
  * Der Trenner ist Pflicht: ohne ihn sähe auch "MY27" wie eines aus.
+ *
+ * Mit Bindestrich darf das Leerzeichen vor den Ziffern fehlen ("M-AB1234"),
+ * mit Leerzeichen nicht ("M AB 1234"): sonst wären "BMW M3" oder "VW T6"
+ * Kennzeichen.
  */
-const GERMAN = /\b[A-ZÄÖÜ]{1,3}[- ][A-Z]{1,2} ?\d{1,4}[EH]?\b/
+const GERMAN = /\b[A-ZÄÖÜ]{1,3}(?:-[A-Z]{1,2} ?| [A-Z]{1,2} )\d{1,4}[EH]?\b/
 
 /**
  * Alles andere, was zusammengeschrieben aus Buchstaben und Ziffern besteht –
@@ -83,4 +87,69 @@ export function unknownPlate(
   if (vehicles.some((v) => normalizeKennzeichen(v.license_plate ?? '') === key)) return null
 
   return { license_plate: plate, brand_model: modelBefore(summary ?? '', plate) }
+}
+
+/** Was eine Abholung erwartet, bevor ein Kennzeichen feststeht. */
+export interface ExpectedVehicles {
+  /** Wie viele Fahrzeuge – "2x", "2 Fahrzeuge", "zwei". */
+  count: number
+  /** Was es ist, so gut der Titel es sagt – "BMW M3". Kann leer sein. */
+  model: string
+}
+
+const NUMBER_WORDS: Record<string, number> = {
+  ein: 1, eine: 1, zwei: 2, drei: 3, vier: 4, 'fünf': 5, fuenf: 5,
+  sechs: 6, sieben: 7, acht: 8, neun: 9, zehn: 10,
+}
+
+/** "2x", "2 ×", "2 Stk.", "2 Fahrzeuge", "zwei Fahrzeuge", "zwei x". */
+const COUNT = new RegExp(
+  '(?:^|\\s)(\\d{1,2}|' + Object.keys(NUMBER_WORDS).join('|') + ')' +
+  '\\s*(x|×|stk\\.?|stück|fahrzeuge?|fzg\\.?|autos?)?(?=\\s|$|[,:])',
+  'gi'
+)
+
+/** Wo nach dem Modell der Ort oder das Datum beginnt. */
+const MODEL_END = /\s(?:in|nach|von|bei|aus|ab|am|für|fuer)\s|\s\d{1,2}\.\d{1,2}\.|[,(?]|\s[-–]\s/i
+
+/**
+ * Wie viele Fahrzeuge welcher Art der Titel nennt – für Termine ohne
+ * Kennzeichen: "Abholung 2x BMW M3 in München".
+ *
+ * Eine Zahl zählt nur mit Einheit ("2x", "2 Fahrzeuge") oder als Wort
+ * ("zwei"): eine nackte Ziffer ist meist Teil des Modells ("LYNK 02").
+ * `explicit` sagt, ob der Titel überhaupt eine Anzahl nennt – ohne sie ist
+ * es eher ein Fahrzeug aus der Flotte, dessen Kennzeichen nur nicht im Titel
+ * steht.
+ */
+export function expectedVehicles(
+  summary: string | null | undefined
+): ExpectedVehicles & { explicit: boolean } {
+  let text = (summary ?? '').replace(LEAD, '').trim()
+  let count = 1
+  let explicit = false
+
+  for (const m of text.matchAll(COUNT)) {
+    const raw = m[1].toLowerCase()
+    const word = NUMBER_WORDS[raw]
+    const n = word ?? (m[2] ? Number(raw) : NaN)
+    // "ein BMW" nennt keine Anzahl, sondern nur das Fahrzeug.
+    if (!Number.isFinite(n) || n < 1 || (n === 1 && !m[2])) continue
+    count = n
+    explicit = true
+    text = (text.slice(0, m.index) + ' ' + text.slice(m.index + m[0].length)).trim()
+    break
+  }
+
+  const end = text.search(MODEL_END)
+  const model = (end >= 0 ? text.slice(0, end) : text)
+    .replace(/\b(?:neue[nrs]?|fahrzeuge?|autos?)\b/gi, '')
+    .replace(/^\s*(?:ein|eine[nr]?)\s+/i, '')
+    .replace(/^[\s:–-]+|[\s:–-]+$/g, '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 4)
+    .join(' ')
+
+  return { count, model, explicit }
 }

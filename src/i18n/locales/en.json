@@ -337,7 +337,22 @@
     "new_vehicle_model": "Make / model",
     "new_vehicle_hint": "Created on save. An intake protocol is then due.",
     "new_vehicle_exists": "{{plate}} already exists – the transfer uses that vehicle.",
-    "new_vehicle_earlier": "{{plate}} is already in the calendar on {{date}}. The intake belongs to the first transfer – better import the earlier event first."
+    "new_vehicle_earlier": "{{plate}} is already in the calendar on {{date}}. The intake belongs to the first transfer – better import the earlier event first.",
+    "pending_badge": "{{model}} · plate unknown",
+    "pending_vehicles": "vehicles",
+    "pending_add": "Vehicle not known yet",
+    "pending_title": "Vehicle not known yet",
+    "pending_model": "What is being picked up? (e.g. BMW M3)",
+    "pending_count": "Number of vehicles",
+    "pending_hint": "Plate and intake protocol are added on site via “Capture vehicle”.",
+    "pending_hint_many": "{{count}} linked transfers will be created, one per vehicle. Plates and intake protocols are added on site.",
+    "capture_vehicle": "Capture vehicle",
+    "capture_hint": "Enter the plate on site – the intake protocol follows.",
+    "capture_title": "Capture vehicle",
+    "capture_sheet_hint": "If the plate is new, the vehicle is created and the intake protocol opens.",
+    "capture_submit": "Continue to intake",
+    "calendar_pending": "{{count}}× {{model}} · plate unknown",
+    "calendar_import_many": "Import as {{count}} transfers"
   },
   "annahme": {
     "title": "Intake Protocol",

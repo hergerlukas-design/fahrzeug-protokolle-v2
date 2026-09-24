@@ -49,7 +49,11 @@ export interface TransferCalendarLink {
 
 export interface Transfer {
   id: string
-  vehicle_id: string
+  /** Leer, solange das Fahrzeug erst vor Ort erfasst wird – dann steht in
+      vehicle_hint, was erwartet wird. */
+  vehicle_id: string | null
+  /** Was abgeholt wird, bevor das Kennzeichen feststeht – etwa "BMW M3". */
+  vehicle_hint: string | null
   /** Beschriftung der Fahrt – bei Kalenderübernahmen der Termintitel. */
   title: string | null
   date_from: string
@@ -85,7 +89,8 @@ export interface Transfer {
 }
 
 export interface TransferInput {
-  vehicle_id: string
+  vehicle_id: string | null
+  vehicle_hint?: string | null
   title?: string | null
   date_from: string
   date_to?: string | null
@@ -114,7 +119,7 @@ const PROTOCOL_FIELDS =
 // Beide Protokollspalten zeigen auf dieselbe Tabelle – PostgREST braucht
 // deshalb den Constraint-Namen, um die Einbettungen auseinanderzuhalten.
 const SELECT =
-  'id, vehicle_id, title, date_from, date_to, time_from, time_to, location_from, location_to, status, picked_up_at, arrived_at, ' +
+  'id, vehicle_id, vehicle_hint, title, date_from, date_to, time_from, time_to, location_from, location_to, status, picked_up_at, arrived_at, ' +
   'driver_name, contact_name, contact_phone, notes, pickup_protocol_id, dropoff_protocol_id, calendar_uid, group_id, acceptance_required, created_at, ' +
   'vehicle:vehicles(id, license_plate, brand_model, availability, cleanliness_interior, cleanliness_exterior, is_fueled, is_charged, current_odometer), ' +
   `pickup_protocol:protocols!transfers_pickup_protocol_id_fkey(${PROTOCOL_FIELDS}), ` +
@@ -213,7 +218,10 @@ export async function findOverlappingTransfers(
 
 function clean(values: TransferInput) {
   return {
-    vehicle_id: values.vehicle_id,
+    vehicle_id: values.vehicle_id || null,
+    // Nur solange kein Fahrzeug feststeht – danach sagt das Fahrzeug selbst,
+    // was es ist.
+    vehicle_hint: values.vehicle_id ? null : values.vehicle_hint?.trim() || null,
     title: values.title?.trim() || null,
     date_from: values.date_from,
     date_to: values.date_to || null,
@@ -347,7 +355,7 @@ export async function deleteTransfer(id: string): Promise<void> {
 export async function setTransferStatus(
   id: string,
   status: TransferStatus,
-  vehicleId: string
+  vehicleId: string | null
 ): Promise<Transfer> {
   requireOnline()
 
@@ -423,6 +431,26 @@ export async function linkProtocolToTransfer(
 }
 
 /**
+ * Einer Fahrt das Fahrzeug geben, das erst vor Ort erfasst wurde.
+ *
+ * Ist es mit dieser Fahrt neu dazugekommen, verlangt die Fahrt danach ein
+ * Annahmeprotokoll – wie eine, mit der das Fahrzeug aus dem Kalender angelegt
+ * wurde.
+ */
+export async function assignTransferVehicle(
+  transferId: string,
+  vehicleId: string,
+  acceptanceRequired: boolean
+): Promise<void> {
+  requireOnline()
+  const { error } = await supabase
+    .from('transfers')
+    .update({ vehicle_id: vehicleId, vehicle_hint: null, acceptance_required: acceptanceRequired })
+    .eq('id', transferId)
+  if (error) throw error
+}
+
+/**
  * Ein Protokoll wieder von der Überführung lösen.
  *
  * Der Status bleibt, wo er ist: er kann von Hand gesetzt worden sein, und ein
@@ -443,7 +471,7 @@ export async function detachProtocolFromTransfer(
 
 /** Verfügbarkeit des Fahrzeugs an den Überführungsstatus angleichen. */
 export async function syncVehicleAvailability(
-  vehicleId: string,
+  vehicleId: string | null,
   status: TransferStatus
 ): Promise<void> {
   if (!vehicleId) return

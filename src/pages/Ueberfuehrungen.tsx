@@ -6,7 +6,7 @@ import {
   Route as RouteIcon, ChevronDown, ChevronRight, MapPin, User, Phone, StickyNote,
   Car, Search, AlertTriangle, X, Pencil, Trash2, Truck, CheckCircle2, RotateCcw,
   FileText, FilePlus, CalendarDays, RefreshCw, Download, Link2, Unlink,
-  Sparkles, Droplets, Fuel, Zap, CircleCheck, Navigation, ClipboardCheck, Plus,
+  Sparkles, Droplets, Fuel, Zap, CircleCheck, Navigation, ClipboardCheck, Plus, HelpCircle, Minus,
 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { SkeletonList } from '../components/Skeleton'
@@ -27,6 +27,7 @@ import {
   detachProtocolFromTransfer,
   linkTransfers,
   unlinkTransfer,
+  assignTransferVehicle,
   matchVehicleByPlate,
   matchVehiclesByPlate,
   type Transfer,
@@ -43,7 +44,7 @@ import {
   groupCalendarEvents, mergeEvents, classifyEvent, isUnconfirmed, swapTitles,
   type CalendarGroup,
 } from '../lib/calendarPairs'
-import { unknownPlate, type NewVehicle } from '../lib/calendarPlate'
+import { unknownPlate, expectedVehicles, type NewVehicle, type ExpectedVehicles } from '../lib/calendarPlate'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -242,6 +243,8 @@ type ImportGroup = CalendarGroup<Vehicle> & {
   fresh: NewVehicle | null
   /** Datum eines früheren Termins mit demselben neuen Kennzeichen, falls es einen gibt. */
   freshEarlier: string | null
+  /** Ganz ohne Kennzeichen: was der Titel über die erwarteten Fahrzeuge sagt. */
+  expected: (ExpectedVehicles & { explicit: boolean }) | null
 }
 
 /**
@@ -306,7 +309,7 @@ function blocksOf(transfer: Transfer, t: TFunction, lang: string): CardBlock[] {
 
   return [{
     key: transfer.id,
-    title: transfer.title?.trim() || transfer.vehicle?.license_plate || t('transfers.vehicle_missing'),
+    title: transfer.title?.trim() || transfer.vehicle?.license_plate || transfer.vehicle_hint || t('transfers.vehicle_missing'),
     when: dateRange(transfer, lang),
     from: transfer.location_from,
     to: transfer.location_to,
@@ -336,7 +339,10 @@ function TransferHead({
 }) {
   const { t, i18n } = useTranslation()
   const v = transfer.vehicle
-  const plate = v?.license_plate ?? t('transfers.vehicle_missing')
+  // Noch ohne Fahrzeug: was erwartet wird, bis es vor Ort erfasst ist.
+  const plate = v?.license_plate ?? (transfer.vehicle_hint
+    ? t('transfers.pending_badge', { model: transfer.vehicle_hint })
+    : t('transfers.vehicle_missing'))
   const blocks = blocksOf(transfer, t, i18n.language)
 
   return (
@@ -398,7 +404,7 @@ function TransferHead({
 
         <div className="flex items-center gap-2 mt-2 flex-wrap">
           <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${
-            v ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+            v ? 'bg-green-100 text-green-700' : transfer.vehicle_hint ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'
           }`}>
             {plate}
           </span>
@@ -428,6 +434,7 @@ function TransferDetails({
   onStatus,
   onCreateProtocol,
   onCreateAcceptance,
+  onCaptureVehicle,
   onLinkProtocol,
   onUnlinkProtocol,
   onOpenProtocol,
@@ -449,6 +456,8 @@ function TransferDetails({
   onCreateProtocol: () => void
   /** Abnahmeprotokoll für ein Fahrzeug, das mit dieser Fahrt neu dazukam. */
   onCreateAcceptance: () => void
+  /** Das Fahrzeug vor Ort erfassen – für Fahrten, die noch keines haben. */
+  onCaptureVehicle: () => void
   onLinkProtocol: () => void
   onUnlinkProtocol: (role: ProtocolRole) => void
   onOpenProtocol: (protocolId: string) => void
@@ -469,7 +478,8 @@ function TransferDetails({
   // Ein neues Fahrzeug braucht zuerst die Abnahme – sie ist dann das
   // Protokoll dieser Fahrt, die leere Zeile für ein gewöhnliches entfällt.
   const acceptance = needsAcceptance(transfer)
-  const rows = attached.length > 0 || acceptance ? attached : (['pickup'] as ProtocolRole[])
+  // Ohne Fahrzeug gibt es noch nichts zu protokollieren – zuerst wird es erfasst.
+  const rows = attached.length > 0 || acceptance || !v ? attached : (['pickup'] as ProtocolRole[])
 
   /** Ein Feld des Termins, wie es sich lesen lässt. */
   const valueOf = (field: ChangeKey, from: DateSpan & { summary: string | null; location: string | null }) => {
@@ -679,6 +689,23 @@ function TransferDetails({
               )
             })}
 
+            {!v && (
+              <>
+                <button
+                  onClick={() => onCaptureVehicle()}
+                  disabled={busy}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-blue-300 bg-blue-50 text-left active:bg-blue-100 disabled:opacity-50"
+                >
+                  <Car size={15} className="text-blue-600 flex-shrink-0" />
+                  <span className="flex-1 min-w-0 text-sm font-medium text-blue-800 truncate">
+                    {t('transfers.capture_vehicle')}
+                  </span>
+                  <ChevronRight size={15} className="text-blue-300 flex-shrink-0" />
+                </button>
+                <p className="text-xs text-blue-700 px-1">{t('transfers.capture_hint')}</p>
+              </>
+            )}
+
             {acceptance && (
               <>
                 <div className="flex items-center gap-1 pr-1 rounded-xl border border-dashed border-amber-300 bg-amber-50">
@@ -792,6 +819,7 @@ function TransferCard({
   onStatus,
   onCreateProtocol,
   onCreateAcceptance,
+  onCaptureVehicle,
   onLinkProtocol,
   onUnlinkProtocol,
   onOpenProtocol,
@@ -815,6 +843,7 @@ function TransferCard({
   onStatus: (transfer: Transfer, status: TransferStatus) => void
   onCreateProtocol: (transfer: Transfer) => void
   onCreateAcceptance: (transfer: Transfer) => void
+  onCaptureVehicle: (transfer: Transfer) => void
   onLinkProtocol: (transfer: Transfer) => void
   onUnlinkProtocol: (transfer: Transfer, role: ProtocolRole) => void
   onOpenProtocol: (protocolId: string) => void
@@ -834,6 +863,7 @@ function TransferCard({
       onStatus={(status) => onStatus(x, status)}
       onCreateProtocol={() => onCreateProtocol(x)}
       onCreateAcceptance={() => onCreateAcceptance(x)}
+      onCaptureVehicle={() => onCaptureVehicle(x)}
       onLinkProtocol={() => onLinkProtocol(x)}
       onUnlinkProtocol={(role) => onUnlinkProtocol(x, role)}
       onOpenProtocol={onOpenProtocol}
@@ -890,6 +920,7 @@ function TransferForm({
   candidates = [],
   presetLinks,
   newVehicle,
+  expected,
   note,
   onSaved,
   onCancel,
@@ -904,6 +935,9 @@ function TransferForm({
   presetLinks?: Transfer[]
   /** Ein Kennzeichen aus dem Termin, das es in der Flotte noch nicht gibt. */
   newVehicle?: NewVehicle | null
+  /** Ganz ohne Kennzeichen: was der Termin über die Fahrzeuge sagt. Nennt er
+      eine Anzahl, steht das Formular gleich auf "noch unbekannt". */
+  expected?: (ExpectedVehicles & { explicit: boolean }) | null
   /** Hinweis über dem Formular – etwa welcher Schritt eines Tauschs das ist. */
   note?: string | null
   /** Die gespeicherte Fahrt und die Fahrten, mit denen sie verbunden werden soll. */
@@ -927,6 +961,14 @@ function TransferForm({
   // Speichern danach scheiterte. Ein zweiter Versuch legt es nicht noch einmal
   // an und behält die Abnahme.
   const [createdVehicleId, setCreatedVehicleId] = useState<string | null>(null)
+  // Fahrzeug noch unbekannt: vorgemerkt wird nur, was abgeholt wird und wie
+  // viele. Kennzeichen und Annahme kommen vor Ort; bei mehreren entsteht je
+  // Fahrzeug eine eigene, verbundene Fahrt.
+  const [pending, setPending] = useState<ExpectedVehicles | null>(() => {
+    if (target) return target.vehicle_id ? null : { count: 1, model: target.vehicle_hint ?? '' }
+    if (init?.vehicle_id || newVehicle) return null
+    return expected?.explicit ? { count: expected.count, model: expected.model } : null
+  })
   const [title, setTitle] = useState(init?.title ?? '')
   const [dateFrom, setDateFrom] = useState(init?.date_from ?? '')
   const [dateTo, setDateTo] = useState(init?.date_to ?? '')
@@ -1001,7 +1043,7 @@ function TransferForm({
       )
   }, [candidates, links, linkSearch])
 
-  const hasVehicle = !!vehicleId || !!fresh?.license_plate.trim()
+  const hasVehicle = !!vehicleId || !!fresh?.license_plate.trim() || !!pending?.model.trim()
   const valid = hasVehicle && !!dateFrom && (!dateTo || dateTo >= dateFrom)
 
   async function handleSubmit(e: React.FormEvent) {
@@ -1036,7 +1078,8 @@ function TransferForm({
       }
 
       const values = {
-        vehicle_id: id,
+        vehicle_id: id || null,
+        vehicle_hint: id ? null : pending?.model ?? null,
         ...(!target && { acceptance_required: acceptance }),
         title,
         date_from: dateFrom,
@@ -1057,7 +1100,19 @@ function TransferForm({
         calendar_uids: preset?.calendar_uids,
         calendar_events: preset?.calendar_events,
       }
-      const saved = target ? await updateTransfer(target.id, values) : await createTransfer(values)
+      let saved = target ? await updateTransfer(target.id, values) : await createTransfer(values)
+
+      // Mehrere unbekannte Fahrzeuge: je eines eine Fahrt, alle in einer
+      // Gruppe – vor Ort bekommt jede ihr eigenes Kennzeichen und ihre Annahme.
+      const count = !target && !id && pending ? pending.count : 1
+      if (count > 1) {
+        let group: string | null = null
+        for (let i = 1; i < count; i++) {
+          const more = await createTransfer(values)
+          group = await linkTransfers({ id: saved.id, group_id: group }, more)
+        }
+        saved = { ...saved, group_id: group }
+      }
       // Verbunden wird erst danach – vorher gibt es keine ID, an der die
       // Gruppe hängen könnte.
       onSaved(saved, links)
@@ -1130,6 +1185,61 @@ function TransferForm({
                 >
                   <X size={16} />
                 </button>
+              </div>
+            ) : pending ? (
+              // Noch kein Kennzeichen – erfasst wird es vor Ort.
+              <div className="border border-blue-300 bg-blue-50 rounded-xl p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <HelpCircle size={16} className="text-blue-600 flex-shrink-0" />
+                  <p className="flex-1 min-w-0 text-sm font-semibold text-blue-800">
+                    {t('transfers.pending_title')}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setPending(null)}
+                    aria-label={t('common.cancel')}
+                    className="text-blue-500 active:text-blue-700 flex-shrink-0"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={pending.model}
+                  onChange={(e) => setPending({ ...pending, model: e.target.value })}
+                  placeholder={t('transfers.pending_model')}
+                  aria-label={t('transfers.pending_model')}
+                  className={`${field} bg-white`}
+                />
+                {/* Die Anzahl nur beim Anlegen – danach ist jede Fahrt eine. */}
+                {!target && (
+                  <div className="flex items-center gap-3">
+                    <span className="flex-1 text-sm text-blue-800">{t('transfers.pending_count')}</span>
+                    <button
+                      type="button"
+                      onClick={() => setPending({ ...pending, count: Math.max(1, pending.count - 1) })}
+                      disabled={pending.count <= 1}
+                      aria-label="−"
+                      className="w-9 h-9 flex items-center justify-center rounded-xl border border-blue-200 bg-white text-blue-700 disabled:opacity-40"
+                    >
+                      <Minus size={16} />
+                    </button>
+                    <span className="w-6 text-center font-semibold text-blue-900">{pending.count}</span>
+                    <button
+                      type="button"
+                      onClick={() => setPending({ ...pending, count: Math.min(20, pending.count + 1) })}
+                      aria-label="+"
+                      className="w-9 h-9 flex items-center justify-center rounded-xl border border-blue-200 bg-white text-blue-700"
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                )}
+                <p className="text-xs text-blue-700">
+                  {pending.count > 1 && !target
+                    ? t('transfers.pending_hint_many', { count: pending.count })
+                    : t('transfers.pending_hint')}
+                </p>
               </div>
             ) : fresh ? (
               // Steht noch nicht in der Flotte – wird mit der Fahrt angelegt.
@@ -1214,6 +1324,18 @@ function TransferForm({
                     {t('transfers.new_vehicle_add')}
                   </button>
                 )}
+                {/* Abholung, bevor das Kennzeichen feststeht. */}
+                <button
+                  type="button"
+                  onClick={() => setPending({
+                    count: expected?.count ?? 1,
+                    model: expected?.model || vehicleSearch.trim(),
+                  })}
+                  className="mt-1 w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-gray-300 text-sm text-gray-600 active:bg-gray-50"
+                >
+                  <HelpCircle size={16} className="text-gray-400 flex-shrink-0" />
+                  {t('transfers.pending_add')}
+                </button>
               </>
             )}
           </div>
@@ -1420,6 +1542,87 @@ function TransferForm({
 // ─────────────────────────────────────────────────────────────────────────────
 // Delete confirm
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Kennzeichen einer Fahrt erfassen, die bisher kein Fahrzeug hatte – vor Ort,
+ * wenn das Auto vor einem steht. Danach geht es ins Annahmeprotokoll.
+ */
+function CaptureVehicleSheet({
+  transfer,
+  onSubmit,
+  onCancel,
+}: {
+  transfer: Transfer
+  onSubmit: (plate: string, model: string) => Promise<void>
+  onCancel: () => void
+}) {
+  const { t } = useTranslation()
+  const [plate, setPlate] = useState('')
+  const [model, setModel] = useState(transfer.vehicle_hint ?? '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!plate.trim()) return
+    setSaving(true)
+    setError(null)
+    try {
+      await onSubmit(plate, model)
+    } catch (err) {
+      setError(errorText(err, t('common.error')))
+      setSaving(false)
+    }
+  }
+
+  const field = 'w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400'
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-30" onClick={onCancel} />
+      <form
+        onSubmit={handleSubmit}
+        className="fixed bottom-0 left-0 right-0 z-40 bg-white rounded-t-2xl shadow-2xl max-w-2xl mx-auto px-4 pt-5 pb-[calc(4rem+env(safe-area-inset-bottom))] space-y-3"
+      >
+        <h2 className="text-lg font-bold text-gray-900">{t('transfers.capture_title')}</h2>
+        <p className="text-sm text-gray-500 -mt-1">{t('transfers.capture_sheet_hint')}</p>
+        {error && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-start gap-2">
+            <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" /> {error}
+          </div>
+        )}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            {t('transfers.new_vehicle_plate')} <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            value={plate}
+            onChange={(e) => setPlate(e.target.value)}
+            autoFocus
+            className={`${field} uppercase`}
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('transfers.new_vehicle_model')}</label>
+          <input type="text" value={model} onChange={(e) => setModel(e.target.value)} className={field} />
+        </div>
+        <div className="flex gap-3 pt-2">
+          <button type="button" onClick={onCancel} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm">
+            {t('common.cancel')}
+          </button>
+          <button
+            type="submit"
+            disabled={saving || !plate.trim()}
+            className="flex-1 py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm disabled:opacity-50"
+          >
+            {saving ? t('common.loading') : t('transfers.capture_submit')}
+          </button>
+        </div>
+      </form>
+    </>
+  )
+}
 
 function DeleteConfirm({
   transfer,
@@ -1628,7 +1831,9 @@ function ProtocolPicker({
 
   useEffect(() => {
     let cancelled = false
-    fetchUnlinkedProtocols(transfer.vehicle_id)
+    // Ohne Fahrzeug gibt es auch keine Protokolle dazu.
+    const vehicleId = transfer.vehicle_id
+    ;(vehicleId ? fetchUnlinkedProtocols(vehicleId) : Promise.resolve([]))
       .then((r) => { if (!cancelled) setRows(r) })
       .catch((e) => {
         if (cancelled) return
@@ -1899,6 +2104,15 @@ function CalendarSection({
                         {v.license_plate}
                       </span>
                     ))
+                  ) : group.expected?.explicit ? (
+                    // Kein Kennzeichen, aber eine Anzahl: die Fahrzeuge werden
+                    // erst vor Ort erfasst.
+                    <span className="text-[10px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                      {t('transfers.calendar_pending', {
+                        count: group.expected.count,
+                        model: group.expected.model || t('transfers.pending_vehicles'),
+                      })}
+                    </span>
                   ) : group.fresh ? (
                     // Das Kennzeichen gibt es noch nicht – übernommen wird
                     // das Fahrzeug gleich mit, und es braucht eine Abnahme.
@@ -1937,6 +2151,8 @@ function CalendarSection({
                     <Download size={13} />
                     {splitSwapImport
                       ? t('transfers.calendar_import_swap')
+                      : group.expected?.explicit && group.expected.count > 1
+                        ? t('transfers.calendar_import_many', { count: group.expected.count })
                       : pair
                         ? t('transfers.calendar_import_pair')
                         : t('transfers.calendar_import')}
@@ -1981,6 +2197,8 @@ export default function Ueberfuehrungen() {
   const [formLinks, setFormLinks] = useState<Transfer[]>([])
   // Ein Kennzeichen aus dem Termin, das es noch nicht gibt.
   const [formFresh, setFormFresh] = useState<NewVehicle | null>(null)
+  // Ohne Kennzeichen: was der Termin über die Fahrzeuge sagt.
+  const [formExpected, setFormExpected] = useState<ImportGroup['expected']>(null)
   // Zählt jedes Öffnen mit: Der zweite Teil eines Tauschs geht in dasselbe
   // Formular, das ohne neuen key die Felder des ersten behielte.
   const [formSeq, setFormSeq] = useState(0)
@@ -2004,6 +2222,9 @@ export default function Ueberfuehrungen() {
   // Vorhandenes Protokoll anhängen
   const [linkTarget, setLinkTarget] = useState<{ transfer: Transfer; role: ProtocolRole } | null>(null)
   const [linking, setLinking] = useState(false)
+
+  // Fahrzeug vor Ort erfassen
+  const [captureTarget, setCaptureTarget] = useState<Transfer | null>(null)
 
   // Fahrt mit einer anderen verbinden
   const [transferLinkTarget, setTransferLinkTarget] = useState<Transfer | null>(null)
@@ -2063,12 +2284,14 @@ export default function Ueberfuehrungen() {
       note?: string | null
       links?: Transfer[]
       fresh?: NewVehicle | null
+      expected?: ImportGroup['expected']
     } = {}) => {
       setEditTarget(opts.target ?? null)
       setFormPreset(opts.preset ?? null)
       setFormNote(opts.note ?? null)
       setFormLinks(opts.links ?? [])
       setFormFresh(opts.fresh ?? null)
+      setFormExpected(opts.expected ?? null)
       setFormSeq((n) => n + 1)
       setFormOpen(true)
     },
@@ -2083,6 +2306,7 @@ export default function Ueberfuehrungen() {
     setFormNote(null)
     setFormLinks([])
     setFormFresh(null)
+    setFormExpected(null)
     setSwapNext(null)
     setSwapFirst(null)
   }, [])
@@ -2125,7 +2349,7 @@ export default function Ueberfuehrungen() {
     setBusyId(transfer.id)
     setError(null)
     try {
-      const vehicle = await fetchVehicleById(transfer.vehicle_id)
+      const vehicle = transfer.vehicle_id ? await fetchVehicleById(transfer.vehicle_id) : null
       if (!vehicle) throw new Error(t('transfers.vehicle_missing'))
       navigate('/ueberfuehrung', {
         state: {
@@ -2136,7 +2360,7 @@ export default function Ueberfuehrungen() {
           known_damages: vehicle.known_damages ?? [],
           transfer: {
             id: transfer.id,
-            vehicle_id: transfer.vehicle_id,
+            vehicle_id: vehicle.id,
             status: transfer.status,
             role,
             transfer_type: protocolKindOf(transfer),
@@ -2164,7 +2388,7 @@ export default function Ueberfuehrungen() {
     setBusyId(transfer.id)
     setError(null)
     try {
-      const vehicle = await fetchVehicleById(transfer.vehicle_id)
+      const vehicle = transfer.vehicle_id ? await fetchVehicleById(transfer.vehicle_id) : null
       if (!vehicle) throw new Error(t('transfers.vehicle_missing'))
       navigate('/annahme', {
         state: {
@@ -2175,7 +2399,7 @@ export default function Ueberfuehrungen() {
           known_damages: vehicle.known_damages ?? [],
           transfer: {
             id: transfer.id,
-            vehicle_id: transfer.vehicle_id,
+            vehicle_id: vehicle.id,
             status: transfer.status,
             role,
             driver_name: transfer.driver_name,
@@ -2188,6 +2412,32 @@ export default function Ueberfuehrungen() {
       setError(errorText(e, t('common.error')))
       setBusyId(null)
     }
+  }
+
+  /**
+   * Das Fahrzeug einer Fahrt erfassen, die bisher nur wusste, was kommt.
+   *
+   * Gibt es das Kennzeichen schon, bekommt die Fahrt das vorhandene Fahrzeug
+   * und sonst nichts. Ist es neu, wird es angelegt, und es geht gleich weiter
+   * ins Annahmeprotokoll – dafür wurde es ja erfasst.
+   */
+  async function handleCaptureVehicle(transfer: Transfer, plate: string, model: string) {
+    const fleet = await fetchVehicles()
+    const key = normalizeKennzeichen(plate)
+    const existing = fleet.find((v) => normalizeKennzeichen(v.license_plate) === key) ?? null
+    const vehicle = existing ?? await createVehicle({
+      license_plate: plate.trim().toUpperCase(),
+      brand_model: model.trim(),
+      vin: '',
+    })
+    await assignTransferVehicle(transfer.id, vehicle.id, !existing)
+    setCaptureTarget(null)
+
+    if (existing) {
+      await load()
+      return
+    }
+    await handleCreateAcceptance({ ...transfer, vehicle_id: vehicle.id, vehicle_hint: null, acceptance_required: true })
   }
 
   /**
@@ -2291,6 +2541,7 @@ export default function Ueberfuehrungen() {
       preset: { ...base, vehicle_id: vehicle?.id ?? '' },
       links,
       fresh,
+      expected: vehicle || fresh ? null : group.expected,
       note: fresh && group.freshEarlier
         ? t('transfers.new_vehicle_earlier', {
             plate: fresh.license_plate,
@@ -2402,7 +2653,13 @@ export default function Ueberfuehrungen() {
         freshEarlier = firstSeen.get(g.vehicle.id) ?? null
         if (!freshEarlier) firstSeen.set(g.vehicle.id, g.events[0].date_from)
       }
-      return { key: g.key, events: g.events, vehicle: g.vehicle?.vehicle ?? null, fresh, freshEarlier }
+      // Weder Fahrzeug noch Kennzeichen: vielleicht nennt der Titel, was und
+      // wie viele abgeholt werden ("Abholung 2x BMW M3").
+      const expected = g.vehicle
+        ? null
+        : g.events.map((e) => expectedVehicles(e.summary)).find((x) => x.explicit) ??
+          expectedVehicles(g.events[0].summary)
+      return { key: g.key, events: g.events, vehicle: g.vehicle?.vehicle ?? null, fresh, freshEarlier, expected }
     })
   }, [calendarEvents, importedUids, vehicles])
 
@@ -2588,6 +2845,7 @@ export default function Ueberfuehrungen() {
         onStatus={handleStatus}
         onCreateProtocol={handleCreateProtocol}
         onCreateAcceptance={handleCreateAcceptance}
+        onCaptureVehicle={(x) => setCaptureTarget(x)}
         onLinkTransfer={(x) => setTransferLinkTarget(x)}
         onUnlinkTransfer={handleUnlinkTransfer}
         onOpenTransfer={handleOpenTransfer}
@@ -2692,6 +2950,7 @@ export default function Ueberfuehrungen() {
           candidates={editTarget ? candidatesFor(editTarget) : all}
           presetLinks={formLinks}
           newVehicle={formFresh}
+          expected={formExpected}
           note={formNote}
           onSaved={handleFormSaved}
           onCancel={closeForm}
@@ -2714,6 +2973,14 @@ export default function Ueberfuehrungen() {
           }}
           onCancel={() => setTransferLinkTarget(null)}
           linking={linking}
+        />
+      )}
+
+      {captureTarget && (
+        <CaptureVehicleSheet
+          transfer={captureTarget}
+          onSubmit={(plate, model) => handleCaptureVehicle(captureTarget, plate, model)}
+          onCancel={() => setCaptureTarget(null)}
         />
       )}
 

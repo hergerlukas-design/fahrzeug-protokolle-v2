@@ -337,7 +337,22 @@
     "new_vehicle_model": "Marke / Modell",
     "new_vehicle_hint": "Wird beim Speichern angelegt. Danach ist ein Annahmeprotokoll fällig.",
     "new_vehicle_exists": "{{plate}} gibt es schon – die Fahrt bekommt das vorhandene Fahrzeug.",
-    "new_vehicle_earlier": "{{plate}} steht schon am {{date}} im Kalender. Die Annahme gehört zur ersten Fahrt – besser den früheren Termin zuerst übernehmen."
+    "new_vehicle_earlier": "{{plate}} steht schon am {{date}} im Kalender. Die Annahme gehört zur ersten Fahrt – besser den früheren Termin zuerst übernehmen.",
+    "pending_badge": "{{model}} · Kennzeichen offen",
+    "pending_vehicles": "Fahrzeuge",
+    "pending_add": "Fahrzeug noch unbekannt",
+    "pending_title": "Fahrzeug noch unbekannt",
+    "pending_model": "Was wird abgeholt? (z. B. BMW M3)",
+    "pending_count": "Anzahl Fahrzeuge",
+    "pending_hint": "Kennzeichen und Annahmeprotokoll entstehen vor Ort über „Fahrzeug erfassen“.",
+    "pending_hint_many": "Es werden {{count}} verbundene Fahrten angelegt, eine je Fahrzeug. Kennzeichen und Annahmeprotokoll entstehen vor Ort.",
+    "capture_vehicle": "Fahrzeug erfassen",
+    "capture_hint": "Kennzeichen vor Ort eintragen – danach folgt das Annahmeprotokoll.",
+    "capture_title": "Fahrzeug erfassen",
+    "capture_sheet_hint": "Ist das Kennzeichen neu, wird das Fahrzeug angelegt und das Annahmeprotokoll geöffnet.",
+    "capture_submit": "Weiter zur Annahme",
+    "calendar_pending": "{{count}}× {{model}} · Kennzeichen offen",
+    "calendar_import_many": "Als {{count}} Fahrten übernehmen"
   },
   "annahme": {
     "title": "Annahmeprotokoll",
