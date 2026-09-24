@@ -325,7 +325,19 @@
     "swap_pick": "Pick up {{what}}",
     "swap_hint_bring": "First leg: this vehicle is delivered.",
     "swap_hint_pick": "Now the return leg: this vehicle is picked up. Both trips will be linked.",
-    "link_new_hint": "Does this trip belong to another one? They are linked when you save."
+    "link_new_hint": "Does this trip belong to another one? They are linked when you save.",
+    "acceptance_due": "Intake due",
+    "acceptance_protocol": "Intake protocol",
+    "create_acceptance": "Create intake protocol",
+    "acceptance_hint": "This vehicle joined the fleet with this transfer.",
+    "calendar_new_vehicle": "New: {{plate}}",
+    "new_vehicle_add": "Add new vehicle",
+    "new_vehicle_title": "New vehicle",
+    "new_vehicle_plate": "License plate",
+    "new_vehicle_model": "Make / model",
+    "new_vehicle_hint": "Created on save. An intake protocol is then due.",
+    "new_vehicle_exists": "{{plate}} already exists – the transfer uses that vehicle.",
+    "new_vehicle_earlier": "{{plate}} is already in the calendar on {{date}}. The intake belongs to the first transfer – better import the earlier event first."
   },
   "annahme": {
     "title": "Intake Protocol",
@@ -383,7 +395,8 @@
     "damage_position_placeholder": "Select position …",
     "damage_type_placeholder": "Type …",
     "damage_intensity_placeholder": "Intensity …",
-    "photo_picker_label": "Select photo — {{label}}"
+    "photo_picker_label": "Select photo — {{label}}",
+    "to_transfers": "To transfer"
   },
   "ueberfuehrung": {
     "title": "Transfer Protocol",

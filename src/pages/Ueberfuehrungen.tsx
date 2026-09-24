@@ -6,12 +6,12 @@ import {
   Route as RouteIcon, ChevronDown, ChevronRight, MapPin, User, Phone, StickyNote,
   Car, Search, AlertTriangle, X, Pencil, Trash2, Truck, CheckCircle2, RotateCcw,
   FileText, FilePlus, CalendarDays, RefreshCw, Download, Link2, Unlink,
-  Sparkles, Droplets, Fuel, Zap, CircleCheck, Navigation,
+  Sparkles, Droplets, Fuel, Zap, CircleCheck, Navigation, ClipboardCheck, Plus,
 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { SkeletonList } from '../components/Skeleton'
 import { errorText } from '../lib/supabase'
-import { fetchVehicles, fetchVehicleById, type Vehicle } from '../lib/vehicles'
+import { fetchVehicles, fetchVehicleById, createVehicle, normalizeKennzeichen, type Vehicle } from '../lib/vehicles'
 import {
   fetchOpenTransfers,
   fetchClosedTransfers,
@@ -43,6 +43,7 @@ import {
   groupCalendarEvents, mergeEvents, classifyEvent, isUnconfirmed, swapTitles,
   type CalendarGroup,
 } from '../lib/calendarPairs'
+import { unknownPlate, type NewVehicle } from '../lib/calendarPlate'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -223,6 +224,27 @@ function protocolKindOf(transfer: Transfer): string {
 }
 
 /**
+ * Mit dieser Fahrt ist das Fahrzeug neu dazugekommen, und die Abnahme fehlt
+ * noch. Erledigt ist sie, sobald ein Annahmeprotokoll an der Fahrt hängt –
+ * frisch erstellt oder nachträglich verknüpft.
+ */
+function needsAcceptance(transfer: Transfer): boolean {
+  return !!transfer.acceptance_required &&
+    ![transfer.pickup_protocol, transfer.dropoff_protocol].some((p) => p?.protocol_type === 'annahme')
+}
+
+/**
+ * Eine Terminkarte im Kalender. Zum Fahrzeug aus der Flotte kommt, falls der
+ * Titel ein Kennzeichen trägt, das es noch nicht gibt, das neue Fahrzeug.
+ */
+type ImportGroup = CalendarGroup<Vehicle> & {
+  /** Kennzeichen ohne Fahrzeug – wird beim Übernehmen angelegt. */
+  fresh: NewVehicle | null
+  /** Datum eines früheren Termins mit demselben neuen Kennzeichen, falls es einen gibt. */
+  freshEarlier: string | null
+}
+
+/**
  * Ein übernommener Termin, der im Kalender inzwischen anders aussieht – oder
  * gar nicht mehr da ist (`event: null`).
  */
@@ -381,6 +403,11 @@ function TransferHead({
             {plate}
           </span>
           <StatusBadge status={transfer.status} />
+          {needsAcceptance(transfer) && (
+            <span className="text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+              {t('transfers.acceptance_due')}
+            </span>
+          )}
           {v?.brand_model && <span className="text-[11px] text-gray-400 truncate">{v.brand_model}</span>}
         </div>
         </div>
@@ -400,6 +427,7 @@ function TransferDetails({
   onReimport,
   onStatus,
   onCreateProtocol,
+  onCreateAcceptance,
   onLinkProtocol,
   onUnlinkProtocol,
   onOpenProtocol,
@@ -419,6 +447,8 @@ function TransferDetails({
   onReimport: () => void
   onStatus: (status: TransferStatus) => void
   onCreateProtocol: () => void
+  /** Abnahmeprotokoll für ein Fahrzeug, das mit dieser Fahrt neu dazukam. */
+  onCreateAcceptance: () => void
   onLinkProtocol: () => void
   onUnlinkProtocol: (role: ProtocolRole) => void
   onOpenProtocol: (protocolId: string) => void
@@ -436,6 +466,10 @@ function TransferDetails({
   const attached = (['pickup', 'dropoff'] as ProtocolRole[]).filter((role) =>
     role === 'pickup' ? transfer.pickup_protocol : transfer.dropoff_protocol
   )
+  // Ein neues Fahrzeug braucht zuerst die Abnahme – sie ist dann das
+  // Protokoll dieser Fahrt, die leere Zeile für ein gewöhnliches entfällt.
+  const acceptance = needsAcceptance(transfer)
+  const rows = attached.length > 0 || acceptance ? attached : (['pickup'] as ProtocolRole[])
 
   /** Ein Feld des Termins, wie es sich lesen lässt. */
   const valueOf = (field: ChangeKey, from: DateSpan & { summary: string | null; location: string | null }) => {
@@ -573,9 +607,11 @@ function TransferDetails({
             {t(attached.length > 1 ? 'transfers.protocols' : 'transfers.protocol_single')}
           </p>
           <div className="space-y-1.5">
-            {(attached.length > 0 ? attached : (['pickup'] as ProtocolRole[])).map((role) => {
+            {rows.map((role) => {
               const proto = role === 'pickup' ? transfer.pickup_protocol : transfer.dropoff_protocol
-              const label = t('transfers.protocol_single')
+              const label = proto?.protocol_type === 'annahme'
+                ? t('transfers.acceptance_protocol')
+                : t('transfers.protocol_single')
               if (proto) {
                 // Zeile mit zwei Zielen: öffnen und wieder lösen. Deshalb ein
                 // div mit zwei Schaltflächen statt einer verschachtelten.
@@ -642,6 +678,35 @@ function TransferDetails({
                 </div>
               )
             })}
+
+            {acceptance && (
+              <>
+                <div className="flex items-center gap-1 pr-1 rounded-xl border border-dashed border-amber-300 bg-amber-50">
+                  <button
+                    onClick={() => onCreateAcceptance()}
+                    disabled={!v}
+                    className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 text-left active:bg-amber-100 disabled:opacity-50 rounded-l-xl"
+                  >
+                    <ClipboardCheck size={15} className="text-amber-600 flex-shrink-0" />
+                    <span className="flex-1 min-w-0 text-sm font-medium text-amber-800 truncate">
+                      {t('transfers.create_acceptance')}
+                    </span>
+                  </button>
+                  {/* Eine schon vorhandene Abnahme – etwa über die Fahrzeugliste angelegt. */}
+                  {attached.length < 2 && (
+                    <button
+                      onClick={() => onLinkProtocol()}
+                      disabled={!v}
+                      aria-label={t('transfers.link_protocol')}
+                      className="p-2 text-amber-500 active:text-amber-700 disabled:opacity-50 flex-shrink-0"
+                    >
+                      <Link2 size={15} />
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-amber-700 px-1">{t('transfers.acceptance_hint')}</p>
+              </>
+            )}
           </div>
         </div>
 
@@ -726,6 +791,7 @@ function TransferCard({
   onToggle,
   onStatus,
   onCreateProtocol,
+  onCreateAcceptance,
   onLinkProtocol,
   onUnlinkProtocol,
   onOpenProtocol,
@@ -748,6 +814,7 @@ function TransferCard({
   onToggle: (transferId: string) => void
   onStatus: (transfer: Transfer, status: TransferStatus) => void
   onCreateProtocol: (transfer: Transfer) => void
+  onCreateAcceptance: (transfer: Transfer) => void
   onLinkProtocol: (transfer: Transfer) => void
   onUnlinkProtocol: (transfer: Transfer, role: ProtocolRole) => void
   onOpenProtocol: (protocolId: string) => void
@@ -766,6 +833,7 @@ function TransferCard({
       onReimport={() => onReimport(x)}
       onStatus={(status) => onStatus(x, status)}
       onCreateProtocol={() => onCreateProtocol(x)}
+      onCreateAcceptance={() => onCreateAcceptance(x)}
       onLinkProtocol={() => onLinkProtocol(x)}
       onUnlinkProtocol={(role) => onUnlinkProtocol(x, role)}
       onOpenProtocol={onOpenProtocol}
@@ -821,6 +889,7 @@ function TransferForm({
   preset,
   candidates = [],
   presetLinks,
+  newVehicle,
   note,
   onSaved,
   onCancel,
@@ -833,6 +902,8 @@ function TransferForm({
   /** Schon vorgemerkte Verbindungen – etwa die Fahrt, aus der heraus der
       Termin übernommen wurde. */
   presetLinks?: Transfer[]
+  /** Ein Kennzeichen aus dem Termin, das es in der Flotte noch nicht gibt. */
+  newVehicle?: NewVehicle | null
   /** Hinweis über dem Formular – etwa welcher Schritt eines Tauschs das ist. */
   note?: string | null
   /** Die gespeicherte Fahrt und die Fahrten, mit denen sie verbunden werden soll. */
@@ -849,6 +920,13 @@ function TransferForm({
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [vehicleId, setVehicleId] = useState(init?.vehicle_id ?? '')
   const [vehicleSearch, setVehicleSearch] = useState('')
+  // Ein Fahrzeug, das es noch nicht gibt: angelegt wird es erst beim
+  // Speichern, und die Fahrt verlangt danach eine Abnahme.
+  const [fresh, setFresh] = useState<NewVehicle | null>(init?.vehicle_id ? null : newVehicle ?? null)
+  // Schon angelegt, die Fahrt aber noch nicht gespeichert – etwa weil das
+  // Speichern danach scheiterte. Ein zweiter Versuch legt es nicht noch einmal
+  // an und behält die Abnahme.
+  const [createdVehicleId, setCreatedVehicleId] = useState<string | null>(null)
   const [title, setTitle] = useState(init?.title ?? '')
   const [dateFrom, setDateFrom] = useState(init?.date_from ?? '')
   const [dateTo, setDateTo] = useState(init?.date_to ?? '')
@@ -894,6 +972,13 @@ function TransferForm({
 
   const selected = vehicles.find((v) => v.id === vehicleId) ?? null
 
+  // Gibt es das Kennzeichen doch schon, wird kein zweites Fahrzeug angelegt.
+  const freshExisting = fresh?.license_plate.trim()
+    ? vehicles.find(
+        (v) => normalizeKennzeichen(v.license_plate) === normalizeKennzeichen(fresh.license_plate)
+      ) ?? null
+    : null
+
   const filtered = useMemo(() => {
     const upper = vehicleSearch.toUpperCase()
     if (!upper) return vehicles.slice(0, 8)
@@ -916,19 +1001,43 @@ function TransferForm({
       )
   }, [candidates, links, linkSearch])
 
-  const valid = !!vehicleId && !!dateFrom && (!dateTo || dateTo >= dateFrom)
+  const hasVehicle = !!vehicleId || !!fresh?.license_plate.trim()
+  const valid = hasVehicle && !!dateFrom && (!dateTo || dateTo >= dateFrom)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!valid) {
-      setError(!vehicleId ? t('transfers.vehicle_required') : t('transfers.date_invalid'))
+      setError(!hasVehicle ? t('transfers.vehicle_required') : t('transfers.date_invalid'))
       return
     }
     setSaving(true)
     setError(null)
     try {
+      // Frisch angelegt heißt: das Fahrzeug kommt mit dieser Fahrt zum
+      // ersten Mal – dafür braucht es ein Abnahmeprotokoll.
+      let id = vehicleId
+      let acceptance = !!id && id === createdVehicleId
+      if (!id && fresh) {
+        if (freshExisting) {
+          id = freshExisting.id
+        } else {
+          const created = await createVehicle({
+            license_plate: fresh.license_plate.trim().toUpperCase(),
+            brand_model: fresh.brand_model.trim(),
+            vin: '',
+          })
+          id = created.id
+          acceptance = true
+          setVehicles((prev) => [...prev, created])
+          setVehicleId(created.id)
+          setCreatedVehicleId(created.id)
+          setFresh(null)
+        }
+      }
+
       const values = {
-        vehicle_id: vehicleId,
+        vehicle_id: id,
+        ...(!target && { acceptance_required: acceptance }),
         title,
         date_from: dateFrom,
         date_to: dateTo || null,
@@ -1022,6 +1131,45 @@ function TransferForm({
                   <X size={16} />
                 </button>
               </div>
+            ) : fresh ? (
+              // Steht noch nicht in der Flotte – wird mit der Fahrt angelegt.
+              <div className="border border-amber-300 bg-amber-50 rounded-xl p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Plus size={16} className="text-amber-600 flex-shrink-0" />
+                  <p className="flex-1 min-w-0 text-sm font-semibold text-amber-800">
+                    {t('transfers.new_vehicle_title')}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setFresh(null)}
+                    aria-label={t('common.cancel')}
+                    className="text-amber-500 active:text-amber-700 flex-shrink-0"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={fresh.license_plate}
+                  onChange={(e) => setFresh({ ...fresh, license_plate: e.target.value })}
+                  placeholder={t('transfers.new_vehicle_plate')}
+                  aria-label={t('transfers.new_vehicle_plate')}
+                  className={`${field} bg-white uppercase`}
+                />
+                <input
+                  type="text"
+                  value={fresh.brand_model}
+                  onChange={(e) => setFresh({ ...fresh, brand_model: e.target.value })}
+                  placeholder={t('transfers.new_vehicle_model')}
+                  aria-label={t('transfers.new_vehicle_model')}
+                  className={`${field} bg-white`}
+                />
+                <p className="text-xs text-amber-700">
+                  {freshExisting
+                    ? t('transfers.new_vehicle_exists', { plate: freshExisting.license_plate })
+                    : t('transfers.new_vehicle_hint')}
+                </p>
+              </div>
             ) : (
               <>
                 <div className="relative">
@@ -1052,6 +1200,19 @@ function TransferForm({
                       </li>
                     ))}
                   </ul>
+                )}
+                {/* Kommt das Fahrzeug erst mit dieser Fahrt, steht es noch
+                    nicht in der Liste. Beim Bearbeiten nicht: dort gehört die
+                    Abnahme längst zu einer anderen Fahrt. */}
+                {!target && (
+                  <button
+                    type="button"
+                    onClick={() => setFresh({ license_plate: vehicleSearch.trim().toUpperCase(), brand_model: '' })}
+                    className="mt-1 w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-gray-300 text-sm text-gray-600 active:bg-gray-50"
+                  >
+                    <Plus size={16} className="text-gray-400 flex-shrink-0" />
+                    {t('transfers.new_vehicle_add')}
+                  </button>
                 )}
               </>
             )}
@@ -1310,10 +1471,10 @@ function TransferPicker({
   transfer: Transfer
   candidates: Transfer[]
   /** Termine, aus denen noch keine Fahrt geworden ist – schon gebündelt. */
-  groups: CalendarGroup<Vehicle>[]
+  groups: ImportGroup[]
   onPick: (other: Transfer) => void
   /** Einen Termin übernehmen und die neue Fahrt gleich verbinden. */
-  onPickEvents: (events: CalendarEvent[], vehicle: Vehicle | null) => void
+  onPickEvents: (events: CalendarEvent[], group: ImportGroup) => void
   onCancel: () => void
   linking: boolean
 }) {
@@ -1338,7 +1499,7 @@ function TransferPicker({
     return groups.filter((g) =>
       g.events.some((e) =>
         [e.summary, e.location].some((f) => (f ?? '').toUpperCase().includes(needle))
-      ) || (g.vehicle?.license_plate ?? '').toUpperCase().includes(needle)
+      ) || (g.vehicle?.license_plate ?? g.fresh?.license_plate ?? '').toUpperCase().includes(needle)
     )
   }, [groups, needle])
 
@@ -1405,10 +1566,11 @@ function TransferPicker({
                 {openGroups.slice(0, 30).map((g) => {
                   const first = g.events[0]
                   const last = g.events[g.events.length - 1]
+                  const plate = g.vehicle?.license_plate ?? g.fresh?.license_plate
                   return (
                     <button
                       key={g.key}
-                      onClick={() => onPickEvents(g.events, g.vehicle)}
+                      onClick={() => onPickEvents(g.events, g)}
                       disabled={linking}
                       className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-gray-300 text-left active:bg-gray-50 disabled:opacity-50"
                     >
@@ -1418,7 +1580,7 @@ function TransferPicker({
                           {first.summary || t('transfers.calendar_untitled')}
                         </span>
                         <span className="block text-xs text-gray-400 truncate">
-                          {g.vehicle && `${g.vehicle.license_plate} · `}
+                          {plate && `${plate} · `}
                           {withTime(first.date_from, first.time_from, i18n.language)}
                           {(last.date_to || last.date_from) !== first.date_from &&
                             ` – ${formatDate(last.date_to || last.date_from, i18n.language)}`}
@@ -1556,11 +1718,11 @@ function CalendarSection({
   onReload,
 }: {
   /** Schon gebündelt: Abholung und Überführung desselben Fahrzeugs als eine Fahrt. */
-  groups: CalendarGroup<Vehicle>[]
+  groups: ImportGroup[]
   loading: boolean
   error: string | null
   vehicles: Vehicle[]
-  onImport: (events: CalendarEvent[], vehicle: Vehicle | null) => void
+  onImport: (events: CalendarEvent[], group: ImportGroup) => void
   onReload: () => void
 }) {
   const { t, i18n } = useTranslation()
@@ -1666,7 +1828,6 @@ function CalendarSection({
             // Der Ort des Termins hilft beim Aussortieren: was dort steht, ist
             // kein Ansprechpartner, auch wenn es über der Nummer steht.
             const contact = extractContact(merged.notes, { exclude: locationsOf(group.events) })
-            const vehicle = group.vehicle
             const pair = group.events.length > 1
             // Ein Tausch nennt zwei Fahrzeuge, ein Fragezeichen heißt: noch
             // nicht vom Kunden bestätigt.
@@ -1700,7 +1861,7 @@ function CalendarSection({
                       {/* Falls das Paar doch nicht zusammengehört: einzeln übernehmen. */}
                       {pair && (
                         <button
-                          onClick={() => onImport([ev], vehicle)}
+                          onClick={() => onImport([ev], group)}
                           aria-label={t('transfers.calendar_import_single')}
                           className="p-1.5 text-gray-300 active:text-gray-600 flex-shrink-0"
                         >
@@ -1738,6 +1899,12 @@ function CalendarSection({
                         {v.license_plate}
                       </span>
                     ))
+                  ) : group.fresh ? (
+                    // Das Kennzeichen gibt es noch nicht – übernommen wird
+                    // das Fahrzeug gleich mit, und es braucht eine Abnahme.
+                    <span className="text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                      {t('transfers.calendar_new_vehicle', { plate: group.fresh.license_plate })}
+                    </span>
                   ) : (
                     <span className="text-[10px] font-semibold uppercase tracking-wide bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
                       {t('transfers.calendar_no_match')}
@@ -1764,7 +1931,7 @@ function CalendarSection({
                     </span>
                   )}
                   <button
-                    onClick={() => onImport(group.events, vehicle)}
+                    onClick={() => onImport(group.events, group)}
                     className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-600 text-white text-xs font-semibold active:bg-brand-700"
                   >
                     <Download size={13} />
@@ -1790,7 +1957,7 @@ function CalendarSection({
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function Ueberfuehrungen() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const loc = useLocation()
   const navigate = useNavigate()
 
@@ -1812,6 +1979,8 @@ export default function Ueberfuehrungen() {
   const [formNote, setFormNote] = useState<string | null>(null)
   // Beim Übernehmen aus einer anderen Fahrt heraus schon vorgemerkt.
   const [formLinks, setFormLinks] = useState<Transfer[]>([])
+  // Ein Kennzeichen aus dem Termin, das es noch nicht gibt.
+  const [formFresh, setFormFresh] = useState<NewVehicle | null>(null)
   // Zählt jedes Öffnen mit: Der zweite Teil eines Tauschs geht in dasselbe
   // Formular, das ohne neuen key die Felder des ersten behielte.
   const [formSeq, setFormSeq] = useState(0)
@@ -1893,11 +2062,13 @@ export default function Ueberfuehrungen() {
       preset?: TransferInput | null
       note?: string | null
       links?: Transfer[]
+      fresh?: NewVehicle | null
     } = {}) => {
       setEditTarget(opts.target ?? null)
       setFormPreset(opts.preset ?? null)
       setFormNote(opts.note ?? null)
       setFormLinks(opts.links ?? [])
+      setFormFresh(opts.fresh ?? null)
       setFormSeq((n) => n + 1)
       setFormOpen(true)
     },
@@ -1911,6 +2082,7 @@ export default function Ueberfuehrungen() {
     setFormPreset(null)
     setFormNote(null)
     setFormLinks([])
+    setFormFresh(null)
     setSwapNext(null)
     setSwapFirst(null)
   }, [])
@@ -1981,6 +2153,44 @@ export default function Ueberfuehrungen() {
   }
 
   /**
+   * Abnahmeprotokoll für ein Fahrzeug, das mit dieser Fahrt neu dazukam.
+   *
+   * Es hängt danach an der Fahrt wie jedes andere Protokoll – bevorzugt in der
+   * Spalte fürs Abholprotokoll: mit der Abnahme wird das Fahrzeug übernommen.
+   * Ist die schon belegt, kommt es in die zweite, ohne den Status zu ziehen.
+   */
+  async function handleCreateAcceptance(transfer: Transfer) {
+    const role: ProtocolRole = transfer.pickup_protocol ? 'dropoff' : 'pickup'
+    setBusyId(transfer.id)
+    setError(null)
+    try {
+      const vehicle = await fetchVehicleById(transfer.vehicle_id)
+      if (!vehicle) throw new Error(t('transfers.vehicle_missing'))
+      navigate('/annahme', {
+        state: {
+          vehicle_id: vehicle.id,
+          license_plate: vehicle.license_plate,
+          brand_model: vehicle.brand_model ?? '',
+          vin: vehicle.vin ?? '',
+          known_damages: vehicle.known_damages ?? [],
+          transfer: {
+            id: transfer.id,
+            vehicle_id: transfer.vehicle_id,
+            status: transfer.status,
+            role,
+            driver_name: transfer.driver_name,
+            location_from: transfer.location_from,
+            location_to: transfer.location_to,
+          },
+        },
+      })
+    } catch (e) {
+      setError(errorText(e, t('common.error')))
+      setBusyId(null)
+    }
+  }
+
+  /**
    * Termine ins Formular übernehmen – ein einzelner oder ein Paar aus Abholung
    * und Überführung. Gespeichert wird erst nach Bestätigung.
    *
@@ -1994,7 +2204,8 @@ export default function Ueberfuehrungen() {
    * erst hinbrachte) zur Fahrt des geholten. Bekämen beide alles, stünde jeder
    * Termin zweimal in derselben Karte.
    */
-  function handleImportEvents(events: CalendarEvent[], vehicle: Vehicle | null, links: Transfer[] = []) {
+  function handleImportEvents(events: CalendarEvent[], group: ImportGroup, links: Transfer[] = []) {
+    const vehicle = group.vehicle
     const merged = mergeEvents(events)
     // Ansprechpartner und Telefon stehen, wenn überhaupt, in den Notizen –
     // der Titel trägt das Kennzeichen und sonst nichts Verlässliches.
@@ -2072,7 +2283,21 @@ export default function Ueberfuehrungen() {
       return
     }
 
-    openForm({ preset: { ...base, vehicle_id: vehicle?.id ?? '' }, links })
+    // Ein Kennzeichen, das es noch nicht gibt, bringt das Fahrzeug gleich mit.
+    // Die Abnahme gehört zur ersten Fahrt – steht ein früherer Termin noch
+    // aus, sagt das Formular es.
+    const fresh = vehicle ? null : group.fresh
+    openForm({
+      preset: { ...base, vehicle_id: vehicle?.id ?? '' },
+      links,
+      fresh,
+      note: fresh && group.freshEarlier
+        ? t('transfers.new_vehicle_earlier', {
+            plate: fresh.license_plate,
+            date: formatDate(group.freshEarlier, i18n.language),
+          })
+        : null,
+    })
   }
 
   /**
@@ -2123,7 +2348,9 @@ export default function Ueberfuehrungen() {
     setLinking(true)
     setError(null)
     try {
-      await linkProtocolToTransfer(transfer, role, protocolId)
+      // Die zweite Spalte nimmt hier nur eine Abnahme auf – die beendet die
+      // Fahrt nicht.
+      await linkProtocolToTransfer(transfer, role, protocolId, role === 'pickup')
       setLinkTarget(null)
       await load()
     } catch (e) {
@@ -2149,14 +2376,35 @@ export default function Ueberfuehrungen() {
   // Abholung und Überführung desselben Fahrzeugs gehören zusammen. Einmal
   // gebündelt reicht: der Zähler am Tab, die Liste und die Auswahl beim
   // Verknüpfen zeigen dasselbe.
-  const calendarGroups = useMemo(
-    () =>
-      groupCalendarEvents(
-        calendarEvents.filter((e) => !importedUids.has(e.uid)),
-        (ev) => matchVehicleByPlate(ev.summary, vehicles)
-      ),
-    [calendarEvents, importedUids, vehicles]
-  )
+  //
+  // Ein Kennzeichen, das es noch nicht gibt, zählt beim Bündeln wie ein
+  // Fahrzeug – sonst fänden Abholung und Überführung eines neuen Fahrzeugs
+  // nicht zusammen. Die Gruppen kommen chronologisch; der erste Termin eines
+  // neuen Kennzeichens ist der, mit dem das Fahrzeug angelegt werden sollte.
+  const calendarGroups = useMemo<ImportGroup[]>(() => {
+    const groups = groupCalendarEvents(
+      calendarEvents.filter((e) => !importedUids.has(e.uid)),
+      (ev) => {
+        const vehicle = matchVehicleByPlate(ev.summary, vehicles)
+        if (vehicle) return { id: vehicle.id, vehicle, fresh: null }
+        const fresh = unknownPlate(ev.summary, vehicles)
+        return fresh
+          ? { id: `neu:${normalizeKennzeichen(fresh.license_plate)}`, vehicle: null, fresh }
+          : null
+      }
+    )
+
+    const firstSeen = new Map<string, string>()
+    return groups.map((g) => {
+      const fresh = g.vehicle?.fresh ?? null
+      let freshEarlier: string | null = null
+      if (fresh && g.vehicle) {
+        freshEarlier = firstSeen.get(g.vehicle.id) ?? null
+        if (!freshEarlier) firstSeen.set(g.vehicle.id, g.events[0].date_from)
+      }
+      return { key: g.key, events: g.events, vehicle: g.vehicle?.vehicle ?? null, fresh, freshEarlier }
+    })
+  }, [calendarEvents, importedUids, vehicles])
 
   /** Der aktuelle Stand jedes Termins, nach UID. */
   const liveEvents = useMemo(
@@ -2339,10 +2587,11 @@ export default function Ueberfuehrungen() {
         onToggle={(id) => setExpanded((cur) => (cur === id ? null : id))}
         onStatus={handleStatus}
         onCreateProtocol={handleCreateProtocol}
+        onCreateAcceptance={handleCreateAcceptance}
         onLinkTransfer={(x) => setTransferLinkTarget(x)}
         onUnlinkTransfer={handleUnlinkTransfer}
         onOpenTransfer={handleOpenTransfer}
-        onLinkProtocol={(x) => setLinkTarget({ transfer: x, role: 'pickup' })}
+        onLinkProtocol={(x) => setLinkTarget({ transfer: x, role: x.pickup_protocol ? 'dropoff' : 'pickup' })}
         onUnlinkProtocol={handleUnlink}
         onOpenProtocol={(protocolId) => navigate('/archiv', { state: { protocol_id: protocolId } })}
         onEdit={(x) => openForm({ target: x })}
@@ -2442,6 +2691,7 @@ export default function Ueberfuehrungen() {
           preset={formPreset}
           candidates={editTarget ? candidatesFor(editTarget) : all}
           presetLinks={formLinks}
+          newVehicle={formFresh}
           note={formNote}
           onSaved={handleFormSaved}
           onCancel={closeForm}
@@ -2454,13 +2704,13 @@ export default function Ueberfuehrungen() {
           candidates={candidatesFor(transferLinkTarget)}
           groups={calendarGroups}
           onPick={handleLinkTransfer}
-          onPickEvents={(events, vehicle) => {
+          onPickEvents={(events, group) => {
             // Der Termin wird übernommen wie aus dem Kalenderbereich – die
             // Fahrt, aus der heraus verknüpft wurde, steht dabei schon im
             // Formular und wird beim Speichern verbunden.
             const target = transferLinkTarget
             setTransferLinkTarget(null)
-            handleImportEvents(events, vehicle, [target])
+            handleImportEvents(events, group, [target])
           }}
           onCancel={() => setTransferLinkTarget(null)}
           linking={linking}

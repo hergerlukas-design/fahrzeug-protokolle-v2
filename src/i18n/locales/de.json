@@ -325,7 +325,19 @@
     "swap_pick": "{{what}} abholen",
     "swap_hint_bring": "Erst die Hinfahrt: Dieses Fahrzeug wird gebracht.",
     "swap_hint_pick": "Jetzt die Rückfahrt: Dieses Fahrzeug wird abgeholt. Beide Fahrten werden verbunden.",
-    "link_new_hint": "Gehört diese Fahrt zu einer anderen? Beim Speichern werden sie verbunden."
+    "link_new_hint": "Gehört diese Fahrt zu einer anderen? Beim Speichern werden sie verbunden.",
+    "acceptance_due": "Annahme fällig",
+    "acceptance_protocol": "Annahmeprotokoll",
+    "create_acceptance": "Annahmeprotokoll erstellen",
+    "acceptance_hint": "Das Fahrzeug ist mit dieser Fahrt neu dazugekommen.",
+    "calendar_new_vehicle": "Neu: {{plate}}",
+    "new_vehicle_add": "Neues Fahrzeug anlegen",
+    "new_vehicle_title": "Neues Fahrzeug",
+    "new_vehicle_plate": "Kennzeichen",
+    "new_vehicle_model": "Marke / Modell",
+    "new_vehicle_hint": "Wird beim Speichern angelegt. Danach ist ein Annahmeprotokoll fällig.",
+    "new_vehicle_exists": "{{plate}} gibt es schon – die Fahrt bekommt das vorhandene Fahrzeug.",
+    "new_vehicle_earlier": "{{plate}} steht schon am {{date}} im Kalender. Die Annahme gehört zur ersten Fahrt – besser den früheren Termin zuerst übernehmen."
   },
   "annahme": {
     "title": "Annahmeprotokoll",
@@ -383,7 +395,8 @@
     "damage_position_placeholder": "Position wählen …",
     "damage_type_placeholder": "Art …",
     "damage_intensity_placeholder": "Intensität …",
-    "photo_picker_label": "Foto auswählen: {{label}}"
+    "photo_picker_label": "Foto auswählen: {{label}}",
+    "to_transfers": "Zur Überführung"
   },
   "ueberfuehrung": {
     "title": "Überführungsprotokoll",

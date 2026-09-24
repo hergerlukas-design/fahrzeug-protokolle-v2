@@ -74,6 +74,8 @@ export interface Transfer {
   calendar_uid: string | null
   /** Fahrten mit derselben group_id gehören zusammen (Hin- und Rückfahrt, Etappen). */
   group_id: string | null
+  /** Das Fahrzeug wurde mit dieser Fahrt angelegt – fällig ist ein Abnahmeprotokoll. */
+  acceptance_required: boolean
   created_at: string
   vehicle?: TransferVehicle | null
   pickup_protocol?: LinkedProtocol | null
@@ -100,6 +102,8 @@ export interface TransferInput {
   calendar_uids?: string[]
   /** Dieselben Termine mit Inhalt, damit die Karte sie später zeigen kann. */
   calendar_events?: CalendarEvent[]
+  /** Nur beim Anlegen gesetzt – ein Bearbeiten lässt die Markierung stehen. */
+  acceptance_required?: boolean
 }
 
 // transfer_type steht in condition_data – PostgREST holt einzelne JSON-Felder
@@ -111,7 +115,7 @@ const PROTOCOL_FIELDS =
 // deshalb den Constraint-Namen, um die Einbettungen auseinanderzuhalten.
 const SELECT =
   'id, vehicle_id, title, date_from, date_to, time_from, time_to, location_from, location_to, status, picked_up_at, arrived_at, ' +
-  'driver_name, contact_name, contact_phone, notes, pickup_protocol_id, dropoff_protocol_id, calendar_uid, group_id, created_at, ' +
+  'driver_name, contact_name, contact_phone, notes, pickup_protocol_id, dropoff_protocol_id, calendar_uid, group_id, acceptance_required, created_at, ' +
   'vehicle:vehicles(id, license_plate, brand_model, availability, cleanliness_interior, cleanliness_exterior, is_fueled, is_charged, current_odometer), ' +
   `pickup_protocol:protocols!transfers_pickup_protocol_id_fkey(${PROTOCOL_FIELDS}), ` +
   `dropoff_protocol:protocols!transfers_dropoff_protocol_id_fkey(${PROTOCOL_FIELDS}), ` +
@@ -224,6 +228,7 @@ function clean(values: TransferInput) {
     // Die erste UID bleibt als Herkunftsmerkmal an der Fahrt; die vollständige
     // Liste steht in transfer_calendar_links.
     calendar_uid: values.calendar_uid || values.calendar_uids?.[0] || null,
+    ...(values.acceptance_required !== undefined && { acceptance_required: values.acceptance_required }),
   }
 }
 
@@ -384,14 +389,19 @@ export async function setTransferStatus(
 export async function linkProtocolToTransfer(
   transfer: Pick<Transfer, 'id' | 'vehicle_id' | 'status'>,
   role: ProtocolRole,
-  protocolId: string
+  protocolId: string,
+  /** false: nur anhängen. Für eine Abnahme, die in der zweiten Spalte landet –
+      sie heißt nicht, dass die Fahrt vorbei ist. */
+  advance: boolean = true
 ): Promise<void> {
   requireOnline()
   const now = new Date().toISOString()
   const patch: Record<string, unknown> = {}
   let nextStatus: TransferStatus | null = null
 
-  if (role === 'pickup') {
+  if (!advance) {
+    patch[role === 'pickup' ? 'pickup_protocol_id' : 'dropoff_protocol_id'] = protocolId
+  } else if (role === 'pickup') {
     patch.pickup_protocol_id = protocolId
     if (transfer.status !== 'unterwegs' && transfer.status !== 'angekommen') {
       nextStatus = 'unterwegs'
