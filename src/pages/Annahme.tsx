@@ -28,6 +28,8 @@ import SignatureCanvas from '../components/SignatureCanvas'
 import PhotoSourceSheet from '../components/PhotoSourceSheet'
 import type { PdfData } from '../lib/generatePdf'
 import { updateVehicle, updateVehicleKnownDamages, type DamageRecord } from '../lib/vehicles'
+import { linkProtocolToTransfer } from '../lib/transfers'
+import type { TransferContext } from './Ueberfuehrung'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -54,6 +56,9 @@ interface PrefillState {
   vin: string
   known_damages: DamageRecord[]
   edit?: AnnahmeEditData
+  /** Aus einer Überführung heraus gestartet – das Fahrzeug kam mit ihr neu dazu.
+      Das Protokoll wird nach dem Speichern an die Fahrt gehängt. */
+  transfer?: TransferContext
 }
 
 interface DamageFormItem extends DamageItem {
@@ -334,8 +339,10 @@ export default function Annahme() {
 
   // ── Form state ─────────────────────────────────────────────────────────────
   const ed = prefill?.edit
-  const [inspector, setInspector] = useState(ed?.inspector_name ?? '')
-  const [standort, setStandort] = useState(ed?.location ?? '')
+  const tr = prefill?.transfer
+  const [inspector, setInspector] = useState(ed?.inspector_name ?? tr?.driver_name ?? '')
+  // Abgenommen wird dort, wo die Fahrt das Fahrzeug übernimmt.
+  const [standort, setStandort] = useState(ed?.location ?? tr?.location_from ?? tr?.location_to ?? '')
   const [conditions, setConditions] = useState<string[]>(ed?.conditions ?? [])
   const [fuel, setFuel] = useState(ed?.fuel ?? 100)
   const [battery, setBattery] = useState(ed?.battery ?? 100)
@@ -396,6 +403,7 @@ export default function Annahme() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [savedPdfData, setSavedPdfData] = useState<PdfData | null>(null)
+  const [linkWarning, setLinkWarning] = useState<string | null>(null)
 
   // ── Step wizard ────────────────────────────────────────────────────────────
   const [step, setStep] = useState(0)
@@ -561,7 +569,16 @@ export default function Annahme() {
         if (ed) {
           await updateProtocol(ed.protocol_id, basePayload)
         } else {
-          await saveProtocol(basePayload)
+          const protocolId = await saveProtocol(basePayload)
+          // Wie beim Überführungsprotokoll: anhängen und den Status ziehen.
+          // Scheitert das, ist das Protokoll trotzdem gespeichert.
+          if (tr) {
+            try {
+              await linkProtocolToTransfer(tr, tr.role, protocolId, tr.role === 'pickup')
+            } catch (linkErr) {
+              setLinkWarning(errorText(linkErr, t('ueberfuehrung.link_failed')))
+            }
+          }
         }
         if (damageRecords.length > 0) {
           const damageRecordsWithPhotos: DamageRecord[] = damages
@@ -604,6 +621,8 @@ export default function Annahme() {
         }
         await saveOffline(offlineEntry)
         window.dispatchEvent(new CustomEvent(OFFLINE_SAVED_EVENT))
+        // Die Offline-Warteschlange kennt keine Überführungen.
+        if (tr) setLinkWarning(t('ueberfuehrung.link_offline'))
         // Build local photo URLs so offline PDF can embed them
         const localPhotos: Record<string, string> = {}
         for (const pk of PHOTO_KEYS) {
@@ -648,6 +667,7 @@ export default function Annahme() {
 
   function resetForm() {
     setSuccess(false)
+    setLinkWarning(null)
     setInspector('')
     setStandort('')
     setConditions([])
@@ -674,19 +694,29 @@ export default function Annahme() {
             {navigator.onLine ? t('annahme.success_online') : t('annahme.success_offline')}
           </p>
         </div>
+        {linkWarning && (
+          <div className="w-full max-w-xs p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm flex items-start gap-2 text-left">
+            <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
+            <span>{linkWarning}</span>
+          </div>
+        )}
         {savedPdfData && <PdfButton data={savedPdfData} accent="brand" />}
         <div className="flex gap-3 w-full max-w-xs">
+          {/* Aus einer Fahrt heraus gibt es genau eine Abnahme – ein zweites
+              Protokoll hinge sich über das erste. Zurück geht es zur Fahrt. */}
+          {!tr && (
+            <button
+              onClick={resetForm}
+              className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm"
+            >
+              {t('annahme.another_protocol')}
+            </button>
+          )}
           <button
-            onClick={resetForm}
-            className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm"
-          >
-            {t('annahme.another_protocol')}
-          </button>
-          <button
-            onClick={() => navigate('/fahrzeuge')}
+            onClick={() => navigate(tr ? '/ueberfuehrungen' : '/fahrzeuge')}
             className="flex-1 py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm"
           >
-            {t('annahme.to_overview')}
+            {tr ? t('annahme.to_transfers') : t('annahme.to_overview')}
           </button>
         </div>
       </div>
