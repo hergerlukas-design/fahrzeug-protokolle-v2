@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
@@ -2172,6 +2172,260 @@ function CalendarSection({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Termine
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Wie viele der anstehenden Termine hervorgehoben werden. */
+const AGENDA_HIGHLIGHT = 3
+
+/**
+ * Das heutige Datum, das sich selbst weiterdreht.
+ *
+ * Ein Timer auf Mitternacht allein genügt nicht: auf dem Telefon schläft die
+ * Seite im Hintergrund, und der Timer feuert erst Stunden später. Deshalb wird
+ * zusätzlich beim Zurückkehren auf die Seite nachgesehen.
+ */
+function useToday(): string {
+  const [today, setToday] = useState(todayISO)
+
+  useEffect(() => {
+    const check = () => setToday(todayISO())
+
+    const now = new Date()
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+    // Eine Sekunde Luft, damit der neue Tag sicher angebrochen ist.
+    const timer = window.setTimeout(check, midnight.getTime() - now.getTime() + 1000)
+
+    const onVisible = () => { if (document.visibilityState === 'visible') check() }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', check)
+    return () => {
+      window.clearTimeout(timer)
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', check)
+    }
+    // Nach jedem Tageswechsel neu: der nächste Timer zielt auf die nächste Mitternacht.
+  }, [today])
+
+  return today
+}
+
+/** Tage zwischen zwei YYYY-MM-DD – über UTC, damit die Zeitumstellung nicht stört. */
+function daysBetween(from: string, to: string): number {
+  const a = Date.UTC(+from.slice(0, 4), +from.slice(5, 7) - 1, +from.slice(8, 10))
+  const b = Date.UTC(+to.slice(0, 4), +to.slice(5, 7) - 1, +to.slice(8, 10))
+  return Math.round((b - a) / 86_400_000)
+}
+
+/** Chronologisch: Tag, ganztägige vor solchen mit Uhrzeit, dann die Uhrzeit. */
+function compareEvents(a: CalendarEvent, b: CalendarEvent): number {
+  if (a.date_from !== b.date_from) return a.date_from < b.date_from ? -1 : 1
+  const ta = a.time_from ?? ''
+  const tb = b.time_from ?? ''
+  if (ta !== tb) return ta < tb ? -1 : 1
+  return a.summary.localeCompare(b.summary)
+}
+
+function endOf(ev: CalendarEvent): string {
+  return ev.date_to || ev.date_from
+}
+
+function AgendaSection({
+  events,
+  importedUids,
+  loading,
+  error,
+  onReload,
+}: {
+  events: CalendarEvent[]
+  importedUids: Set<string>
+  loading: boolean
+  error: string | null
+  onReload: () => void
+}) {
+  const { t, i18n } = useTranslation()
+  const lang = i18n.language
+  const today = useToday()
+  const [showPast, setShowPast] = useState(false)
+
+  // Mit dem neuen Tag auch den Kalender neu lesen – sonst stünde über Nacht
+  // zwar ein anderer Termin vorn, aber aus dem Stand von gestern.
+  const loadedFor = useRef(today)
+  useEffect(() => {
+    if (today === loadedFor.current) return
+    loadedFor.current = today
+    onReload()
+  }, [today, onReload])
+
+  const { past, current, highlighted } = useMemo(() => {
+    const sorted = [...events].sort(compareEvents)
+    // Vorbei ist ein Termin erst, wenn auch sein letzter Tag vorbei ist.
+    const past = sorted.filter((e) => endOf(e) < today)
+    const current = sorted.filter((e) => endOf(e) >= today)
+    // Hervorgehoben werden die nächsten, die noch beginnen – ein Zeitraum, der
+    // schon läuft, steht zwar oben, ist aber nicht mehr "als Nächstes".
+    const highlighted = new Map(
+      current
+        .filter((e) => e.date_from >= today)
+        .slice(0, AGENDA_HIGHLIGHT)
+        .map((e, i) => [e.uid, i + 1])
+    )
+    return { past, current, highlighted }
+  }, [events, today])
+
+  function dayLabel(date: string): string {
+    const d = new Date(`${date}T00:00:00`)
+    const weekday = Number.isNaN(d.getTime())
+      ? ''
+      : d.toLocaleDateString(lang.startsWith('en') ? 'en-GB' : 'de-DE', { weekday: 'short' })
+    const diff = daysBetween(today, date)
+    const rel = diff === 0 ? t('transfers.agenda_today')
+      : diff === 1 ? t('transfers.agenda_tomorrow')
+      : null
+    return [rel, weekday && `${weekday}, ${formatDate(date, lang)}`].filter(Boolean).join(' · ')
+  }
+
+  /** Termine nach Starttag gebündelt, die Reihenfolge bleibt. */
+  function byDay(list: CalendarEvent[]): [string, CalendarEvent[]][] {
+    const out: [string, CalendarEvent[]][] = []
+    for (const ev of list) {
+      const last = out[out.length - 1]
+      if (last && last[0] === ev.date_from) last[1].push(ev)
+      else out.push([ev.date_from, [ev]])
+    }
+    return out
+  }
+
+  function renderEvent(ev: CalendarEvent, dim = false) {
+    const rank = highlighted.get(ev.uid)
+    const running = ev.date_from < today && endOf(ev) >= today
+    const imported = importedUids.has(ev.uid)
+    const diff = daysBetween(today, ev.date_from)
+    return (
+      <div
+        key={ev.uid}
+        className={`rounded-2xl px-4 py-3 flex items-start gap-3 ${
+          rank
+            ? 'bg-brand-50 border-2 border-brand-400 shadow-sm'
+            : 'bg-white border border-gray-200 shadow-sm'
+        } ${dim ? 'opacity-60' : ''}`}
+      >
+        {rank && (
+          <span className="w-6 h-6 rounded-full bg-brand-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+            {rank}
+          </span>
+        )}
+        <div className="flex-1 min-w-0">
+          <p className={`font-semibold text-sm ${rank ? 'text-brand-900' : 'text-gray-900'}`}>
+            {ev.summary || t('transfers.calendar_untitled')}
+          </p>
+          <p className={`text-xs mt-0.5 ${rank ? 'text-brand-700 font-medium' : 'text-gray-400'}`}>
+            {withTime(ev.date_from, ev.time_from, lang)}
+            {ev.date_to && ev.date_to !== ev.date_from
+              ? ` – ${withTime(ev.date_to, ev.time_to, lang)}`
+              : ev.time_to && ev.time_to !== ev.time_from ? ` – ${formatTime(ev.time_to)}` : ''}
+            {rank && diff > 1 && ` · ${t('transfers.agenda_in_days', { count: diff })}`}
+          </p>
+          <LocationLine to={ev.location} />
+          {(rank === 1 || running || imported || isUnconfirmed(ev.summary) || ev.recurring) && (
+            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+              {rank === 1 && (
+                <span className="text-[10px] font-semibold uppercase tracking-wide bg-brand-600 text-white px-2 py-0.5 rounded-full">
+                  {t('transfers.agenda_next')}
+                </span>
+              )}
+              {running && (
+                <span className="text-[10px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                  {t('transfers.agenda_running')}
+                </span>
+              )}
+              {imported && (
+                <span className="text-[10px] font-semibold uppercase tracking-wide bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                  {t('transfers.agenda_imported')}
+                </span>
+              )}
+              {isUnconfirmed(ev.summary) && (
+                <span className="text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                  {t('transfers.calendar_unconfirmed')}
+                </span>
+              )}
+              {ev.recurring && (
+                <span className="text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                  {t('transfers.calendar_recurring')}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  function renderDays(list: CalendarEvent[], dim = false) {
+    return byDay(list).map(([date, dayEvents]) => (
+      <div key={date}>
+        <p className={`text-xs font-semibold uppercase tracking-wide mb-1.5 ${
+          date === today ? 'text-brand-700' : 'text-gray-400'
+        }`}>
+          {dayLabel(date)}
+        </p>
+        <div className="space-y-2">{dayEvents.map((ev) => renderEvent(ev, dim))}</div>
+      </div>
+    ))
+  }
+
+  return (
+    <section>
+      <div className="flex items-center gap-2 mb-2 min-h-[1.25rem]">
+        {past.length > 0 && !error && (
+          <button
+            onClick={() => setShowPast((v) => !v)}
+            className="flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wide active:text-gray-600"
+          >
+            <span>{t('transfers.agenda_past', { count: past.length })}</span>
+            {showPast ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          </button>
+        )}
+        <button
+          onClick={onReload}
+          disabled={loading}
+          className="ml-auto text-gray-400 active:text-gray-600 disabled:opacity-50"
+          aria-label={t('transfers.calendar_reload')}
+        >
+          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+        </button>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm flex items-start gap-2">
+          <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {!error && loading && events.length === 0 && <SkeletonList count={3} />}
+
+      {!error && !loading && events.length === 0 && (
+        <p className="text-sm text-gray-400 py-2">{t('transfers.agenda_empty')}</p>
+      )}
+
+      {!error && events.length > 0 && (
+        <div className="space-y-4">
+          {/* Vergangenes steht über dem Heute, eingeklappt – sonst müsste man
+              durch den ganzen Kalender scrollen, bevor das Anstehende kommt. */}
+          {showPast && renderDays(past, true)}
+          {current.length === 0 ? (
+            <p className="text-sm text-gray-400 py-2">{t('transfers.agenda_upcoming_empty')}</p>
+          ) : (
+            renderDays(current)
+          )}
+        </div>
+      )}
+    </section>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Page
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -2184,10 +2438,10 @@ export default function Ueberfuehrungen() {
   const [closed, setClosed] = useState<Transfer[]>([])
   const [loading, setLoading] = useState(true)
   const [showClosed, setShowClosed] = useState(false)
-  // Zwei Tabs statt zweier Abschnitte untereinander: die Fahrten sind die
-  // Arbeitsliste, der Kalender der Zulauf. Abgeschlossene stehen weiter unter
-  // den Fahrten.
-  const [tab, setTab] = useState<'transfers' | 'calendar'>('transfers')
+  // Tabs statt Abschnitte untereinander: die Fahrten sind die Arbeitsliste,
+  // der Kalender der Zulauf, die Termine der ganze Kalender der Reihe nach.
+  // Abgeschlossene stehen weiter unter den Fahrten.
+  const [tab, setTab] = useState<'transfers' | 'calendar' | 'agenda'>('transfers')
   const [expanded, setExpanded] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -2875,12 +3129,15 @@ export default function Ueberfuehrungen() {
           </div>
         )}
 
-        {/* Zwei Tabs: die Fahrten und der Kalender, aus dem sie entstehen.
-            Untereinander schob der Kalender die Liste immer weiter nach unten. */}
+        {/* Drei Tabs: die Fahrten, der Kalender, aus dem sie entstehen, und alle
+            Termine der Reihe nach. Untereinander schob der Kalender die Liste
+            immer weiter nach unten. */}
         <div className="flex gap-1 p-1 bg-gray-100 rounded-xl">
-          {(['transfers', 'calendar'] as const).map((id) => {
+          {(['transfers', 'calendar', 'agenda'] as const).map((id) => {
             const active = tab === id
-            const count = id === 'transfers' ? open.length : calendarGroups.length
+            // Am Termine-Tab kein Zähler: dort steht der ganze Kalender, und
+            // eine Zahl, die nur wächst, sagt nichts.
+            const count = id === 'transfers' ? open.length : id === 'calendar' ? calendarGroups.length : 0
             return (
               <button
                 key={id}
@@ -2889,7 +3146,7 @@ export default function Ueberfuehrungen() {
                   active ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 active:text-gray-700'
                 }`}
               >
-                {t(id === 'transfers' ? 'transfers.tab_transfers' : 'transfers.tab_calendar')}
+                {t(`transfers.tab_${id}`)}
                 {count > 0 && (
                   <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
                     active ? 'bg-brand-50 text-brand-700' : 'bg-gray-200 text-gray-500'
@@ -2902,7 +3159,15 @@ export default function Ueberfuehrungen() {
           })}
         </div>
 
-        {tab === 'calendar' ? (
+        {tab === 'agenda' ? (
+          <AgendaSection
+            events={calendarEvents}
+            importedUids={importedUids}
+            loading={calendarLoading}
+            error={calendarError}
+            onReload={loadCalendar}
+          />
+        ) : tab === 'calendar' ? (
           <CalendarSection
             groups={calendarGroups}
             loading={calendarLoading}

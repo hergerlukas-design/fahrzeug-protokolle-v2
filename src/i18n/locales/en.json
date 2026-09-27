@@ -352,7 +352,17 @@
     "capture_sheet_hint": "If the plate is new, the vehicle is created and the intake protocol opens.",
     "capture_submit": "Continue to intake",
     "calendar_pending": "{{count}}× {{model}} · plate unknown",
-    "calendar_import_many": "Import as {{count}} transfers"
+    "calendar_import_many": "Import as {{count}} transfers",
+    "tab_agenda": "Events",
+    "agenda_empty": "No events in the calendar.",
+    "agenda_upcoming_empty": "No upcoming events.",
+    "agenda_past": "Past events ({{count}})",
+    "agenda_today": "Today",
+    "agenda_tomorrow": "Tomorrow",
+    "agenda_in_days": "in {{count}} days",
+    "agenda_next": "Up next",
+    "agenda_running": "Ongoing",
+    "agenda_imported": "Imported"
   },
   "annahme": {
     "title": "Intake Protocol",

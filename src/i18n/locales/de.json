@@ -352,7 +352,17 @@
     "capture_sheet_hint": "Ist das Kennzeichen neu, wird das Fahrzeug angelegt und das Annahmeprotokoll geöffnet.",
     "capture_submit": "Weiter zur Annahme",
     "calendar_pending": "{{count}}× {{model}} · Kennzeichen offen",
-    "calendar_import_many": "Als {{count}} Fahrten übernehmen"
+    "calendar_import_many": "Als {{count}} Fahrten übernehmen",
+    "tab_agenda": "Termine",
+    "agenda_empty": "Keine Termine im Kalender.",
+    "agenda_upcoming_empty": "Keine anstehenden Termine.",
+    "agenda_past": "Vergangene Termine ({{count}})",
+    "agenda_today": "Heute",
+    "agenda_tomorrow": "Morgen",
+    "agenda_in_days": "in {{count}} Tagen",
+    "agenda_next": "Als Nächstes",
+    "agenda_running": "Läuft",
+    "agenda_imported": "Übernommen"
   },
   "annahme": {
     "title": "Annahmeprotokoll",
