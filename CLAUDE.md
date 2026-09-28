@@ -168,7 +168,12 @@ Tagen — auch schon übernommene Termine (Hinweis "Übernommen"). Die nächsten
 drei Termine, die noch beginnen, sind hervorgehoben und nummeriert.
 Vergangene und schon laufende Termine (begonnen, aber noch nicht vorbei) sind
 je für sich eingeklappt — ein laufender stünde sonst unter einem vergangenen
-Datum ganz oben und sähe aus wie ein vergangener. Das "Heute" dreht sich von selbst weiter: um Mitternacht und beim
+Datum ganz oben und sähe aus wie ein vergangener.
+Ein Termin, aus dem schon eine Fahrt wurde, lässt sich aufklappen: darunter
+stehen Status und Protokolle der Fahrt (beim Tausch beider Fahrten), ein
+Antippen öffnet das Protokoll im Archiv, "Zur Fahrt" springt zur Karte — bei
+abgeschlossenen Fahrten klappt dafür auch der Abschnitt auf. Die Zuordnung
+kommt aus `transfer_calendar_links` und `transfers.calendar_uid`. Das "Heute" dreht sich von selbst weiter: um Mitternacht und beim
 Zurückkehren auf die Seite (auf dem Telefon schläft der Timer im Hintergrund),
 und mit dem neuen Tag wird der Kalender neu gelesen.
 

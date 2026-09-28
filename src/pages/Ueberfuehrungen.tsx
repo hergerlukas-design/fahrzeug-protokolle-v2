@@ -37,6 +37,7 @@ import {
   type CalendarEvent,
   type TransferCalendarLink,
   type LinkableProtocol,
+  type LinkedProtocol,
 } from '../lib/transfers'
 import { extractContact } from '../lib/calendarContact'
 import { changedFields, sameText, type ChangeKey } from '../lib/calendarChanges'
@@ -2233,15 +2234,22 @@ function endOf(ev: CalendarEvent): string {
 function AgendaSection({
   events,
   importedUids,
+  transfersByUid,
   loading,
   error,
   onReload,
+  onOpenProtocol,
+  onOpenTransfer,
 }: {
   events: CalendarEvent[]
   importedUids: Set<string>
+  /** Die Fahrten, die aus einem Termin entstanden sind – beim Tausch zwei. */
+  transfersByUid: Map<string, Transfer[]>
   loading: boolean
   error: string | null
   onReload: () => void
+  onOpenProtocol: (protocolId: string) => void
+  onOpenTransfer: (transferId: string) => void
 }) {
   const { t, i18n } = useTranslation()
   const lang = i18n.language
@@ -2250,6 +2258,8 @@ function AgendaSection({
   // ein Zeitraum, der vor zwei Wochen begann und nur noch nicht vorbei ist.
   const [showPast, setShowPast] = useState(false)
   const [showRunning, setShowRunning] = useState(false)
+  // Aufgeklappter Termin: zeigt die Fahrt dazu und ihre Protokolle.
+  const [openUid, setOpenUid] = useState<string | null>(null)
 
   // Mit dem neuen Tag auch den Kalender neu lesen – sonst stünde über Nacht
   // zwar ein anderer Termin vorn, aber aus dem Stand von gestern.
@@ -2304,14 +2314,31 @@ function AgendaSection({
     const running = ev.date_from < today && endOf(ev) >= today
     const imported = importedUids.has(ev.uid)
     const diff = daysBetween(today, ev.date_from)
+    const linked = transfersByUid.get(ev.uid) ?? []
+    // Klickbar ist nur, was eine Fahrt hat – sonst gäbe es nichts zu zeigen.
+    const clickable = linked.length > 0
+    const isOpen = clickable && openUid === ev.uid
+    const toggle = () => setOpenUid((cur) => (cur === ev.uid ? null : ev.uid))
     return (
       <div
         key={ev.uid}
-        className={`rounded-2xl px-4 py-3 flex items-start gap-3 ${
-          rank
-            ? 'bg-brand-50 border-2 border-brand-400 shadow-sm'
-            : 'bg-white border border-gray-200 shadow-sm'
-        } ${dim ? 'opacity-60' : ''}`}
+        className={`rounded-2xl shadow-sm ${
+          rank ? 'bg-brand-50 border-2 border-brand-400' : 'bg-white border border-gray-200'
+        } ${dim && !isOpen ? 'opacity-60' : ''}`}
+      >
+      {/* Kein <button>: im Ort steckt ein Link, und der darf nicht in einer
+          Schaltfläche stehen. */}
+      <div
+        {...(clickable && {
+          role: 'button',
+          tabIndex: 0,
+          'aria-expanded': isOpen,
+          onClick: toggle,
+          onKeyDown: (e: React.KeyboardEvent) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle() }
+          },
+        })}
+        className={`px-4 py-3 flex items-start gap-3 ${clickable ? 'cursor-pointer' : ''}`}
       >
         {rank && (
           <span className="w-6 h-6 rounded-full bg-brand-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -2360,6 +2387,71 @@ function AgendaSection({
             </div>
           )}
         </div>
+        {clickable && (
+          <ChevronDown
+            size={16}
+            className={`text-gray-300 flex-shrink-0 mt-0.5 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          />
+        )}
+      </div>
+      {isOpen && (
+        <div className="px-4 pb-3 space-y-3">
+          {linked.map((tr) => renderTransfer(tr, linked.length > 1))}
+        </div>
+      )}
+      </div>
+    )
+  }
+
+  /** Die Fahrt zum Termin: Status, Protokolle und der Sprung zur Karte. */
+  function renderTransfer(tr: Transfer, labelled: boolean) {
+    const protocols = [tr.pickup_protocol, tr.dropoff_protocol].filter(
+      (p): p is LinkedProtocol => !!p
+    )
+    return (
+      <div key={tr.id} className="border-t border-gray-100 pt-3 space-y-1.5">
+        <div className="flex items-center gap-2">
+          <p className="flex-1 min-w-0 text-xs font-semibold text-gray-400 uppercase tracking-wide truncate">
+            {/* Beim Tausch hängen zwei Fahrten am Termin – dann sagt das
+                Kennzeichen, welche welche ist. */}
+            {labelled && (tr.vehicle?.license_plate || tr.vehicle_hint)
+              ? `${tr.vehicle?.license_plate || tr.vehicle_hint} · `
+              : ''}
+            {t(protocols.length > 1 ? 'transfers.protocols' : 'transfers.protocol_single')}
+          </p>
+          <StatusBadge status={tr.status} />
+        </div>
+        {protocols.length === 0 ? (
+          <p className="text-sm text-gray-400">{t('transfers.agenda_no_protocol')}</p>
+        ) : (
+          protocols.map((proto) => (
+            <button
+              key={proto.id}
+              onClick={() => onOpenProtocol(proto.id)}
+              className="w-full flex items-center gap-2 px-3 py-2 text-left rounded-xl border border-gray-200 bg-white active:bg-gray-50"
+            >
+              <FileText size={15} className="text-gray-400 flex-shrink-0" />
+              <span className="flex-1 min-w-0 text-sm text-gray-700 truncate">
+                {proto.protocol_type === 'annahme' ? t('transfers.acceptance_protocol') : t('transfers.protocol_single')}
+                {proto.transfer_type && <span className="text-gray-400"> · {proto.transfer_type}</span>}
+                <span className="text-gray-400"> · {formatDate(proto.created_at.slice(0, 10), lang)}</span>
+              </span>
+              {proto.status === 'draft' && (
+                <span className="text-[10px] font-semibold uppercase text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                  {t('archiv.draft')}
+                </span>
+              )}
+              <ChevronRight size={15} className="text-gray-300 flex-shrink-0" />
+            </button>
+          ))
+        )}
+        <button
+          onClick={() => onOpenTransfer(tr.id)}
+          className="flex items-center gap-1 text-xs font-semibold text-brand-600 active:text-brand-700"
+        >
+          <RouteIcon size={13} />
+          {t('transfers.agenda_open_transfer')}
+        </button>
       </div>
     )
   }
@@ -3014,6 +3106,20 @@ export default function Ueberfuehrungen() {
   // abgeschlossene Fahrten sind beide da, eine eigene Abfrage wäre überflüssig.
   const all = useMemo(() => [...open, ...closed], [open, closed])
 
+  // Welche Fahrten aus einem Termin entstanden sind – für den Termine-Tab.
+  // Aus beiden Quellen: den Momentaufnahmen und der alten Spalte an der Fahrt.
+  const transfersByUid = useMemo(() => {
+    const map = new Map<string, Transfer[]>()
+    for (const tr of all) {
+      const uids = new Set([
+        ...(tr.calendar_links ?? []).map((l) => l.calendar_uid),
+        ...(tr.calendar_uid ? [tr.calendar_uid] : []),
+      ])
+      for (const uid of uids) map.set(uid, [...(map.get(uid) ?? []), tr])
+    }
+    return map
+  }, [all])
+
   /** Die anderen Fahrten derselben Gruppe. */
   function relatedOf(transfer: Transfer): Transfer[] {
     if (!transfer.group_id) return []
@@ -3060,6 +3166,8 @@ export default function Ueberfuehrungen() {
   function handleOpenTransfer(id: string) {
     setTab('transfers')
     setExpanded(id)
+    // Abgeschlossene stehen eingeklappt – aus dem Termine-Tab heraus meist die.
+    if (closed.some((x) => x.id === id)) setShowClosed(true)
     // Nach dem Rendern, sonst steht die Karte noch zugeklappt an alter Stelle.
     setTimeout(() => {
       document.getElementById(`transfer-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -3176,9 +3284,12 @@ export default function Ueberfuehrungen() {
           <AgendaSection
             events={calendarEvents}
             importedUids={importedUids}
+            transfersByUid={transfersByUid}
             loading={calendarLoading}
             error={calendarError}
             onReload={loadCalendar}
+            onOpenProtocol={(protocolId) => navigate('/archiv', { state: { protocol_id: protocolId } })}
+            onOpenTransfer={handleOpenTransfer}
           />
         ) : tab === 'calendar' ? (
           <CalendarSection

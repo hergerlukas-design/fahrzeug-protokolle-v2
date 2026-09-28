@@ -363,7 +363,9 @@
     "agenda_next": "Als Nächstes",
     "agenda_running": "Läuft",
     "agenda_running_toggle": "Laufende Termine ({{count}})",
-    "agenda_imported": "Übernommen"
+    "agenda_imported": "Übernommen",
+    "agenda_no_protocol": "Noch kein Protokoll.",
+    "agenda_open_transfer": "Zur Fahrt"
   },
   "annahme": {
     "title": "Annahmeprotokoll",
