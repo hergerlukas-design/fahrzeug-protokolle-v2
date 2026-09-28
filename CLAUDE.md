@@ -294,6 +294,14 @@ Das **Fragezeichen** heißt: vom Kunden noch nicht bestätigt. Der Termin lässt
 sich trotzdem übernehmen, die Fahrt ist dann eben geplant; in der Terminkarte
 steht der Hinweis "Unbestätigt".
 
+Bestätigen lässt er sich im Tab **Termine**: der Knopf "Bestätigen" steht an
+jedem unbestätigten Termin, der noch nicht vorbei ist. Der Kalender ist nur
+lesbar, das Fragezeichen bleibt dort also stehen; die Bestätigung steht in
+`calendar_confirmations` (`20260928_calendar_confirmations.sql`), je Termin-UID.
+Danach heißt es "Bestätigt" statt "Unbestätigt", auch im Tab Kalender; ein
+Antippen des Hinweises nimmt die Bestätigung zurück. Fehlt die Tabelle noch,
+lädt der Kalender trotzdem — nur das Bestätigen meldet einen Fehler.
+
 ### Neue Fahrzeuge aus dem Kalender
 
 Steht im Titel ein Kennzeichen, das es in der Flotte noch nicht gibt, trägt die

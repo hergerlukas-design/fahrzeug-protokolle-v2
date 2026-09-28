@@ -682,6 +682,32 @@ export async function fetchImportedCalendarUids(): Promise<Set<string>> {
 }
 
 /**
+ * UIDs der Termine, die in der App als bestätigt markiert sind.
+ *
+ * Das Fragezeichen im Titel steht weiter im Kalender – der Feed ist nur
+ * lesbar. Die Bestätigung gilt deshalb neben dem Titel, nicht statt seiner.
+ */
+export async function fetchCalendarConfirmations(): Promise<Set<string>> {
+  const { data, error } = await supabase.from('calendar_confirmations').select('calendar_uid')
+  if (error) throw error
+  return new Set(((data ?? []) as { calendar_uid: string }[]).map((r) => r.calendar_uid))
+}
+
+export async function confirmCalendarEvent(uid: string, summary: string): Promise<void> {
+  requireOnline()
+  const { error } = await supabase
+    .from('calendar_confirmations')
+    .upsert({ calendar_uid: uid, summary }, { onConflict: 'calendar_uid' })
+  if (error) throw error
+}
+
+export async function unconfirmCalendarEvent(uid: string): Promise<void> {
+  requireOnline()
+  const { error } = await supabase.from('calendar_confirmations').delete().eq('calendar_uid', uid)
+  if (error) throw error
+}
+
+/**
  * Sucht im Termintitel nach einem Kennzeichen aus der Fahrzeugliste.
  *
  * Verglichen wird normalisiert, damit "M-AB 1234", "M AB 1234" und "MAB1234"
