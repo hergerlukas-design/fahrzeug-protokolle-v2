@@ -91,6 +91,8 @@ jobs:
       - name: Deploy
         # Eine eigene PIN für die Vorschau ist optional: ist das Secret
         # VITE_APP_PASSWORD_PREVIEW nicht gesetzt, gilt die produktive.
+        # VITE_PREVIEW=1 gibt der Vorschau einen lila Rahmen – sie nutzt
+        # dieselbe Datenbank und soll nicht mit der echten App verwechselt werden.
         run: >-
           flyctl deploy --remote-only
           --config fly.preview.toml
@@ -98,6 +100,7 @@ jobs:
           --build-arg VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}
           --build-arg VITE_SUPABASE_KEY=${{ secrets.VITE_SUPABASE_KEY }}
           --build-arg VITE_APP_PASSWORD=${{ secrets.VITE_APP_PASSWORD_PREVIEW || secrets.VITE_APP_PASSWORD }}
+          --build-arg VITE_PREVIEW=1
 
       - name: URL an den PR schreiben
         env:
