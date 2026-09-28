@@ -706,6 +706,25 @@ export function matchVehicleByPlate<T extends { license_plate: string }>(
  * "WI-L 8957E"), bleibt nur der längere übrig; es ist dasselbe Fahrzeug,
  * einmal knapper geschrieben.
  */
+/**
+ * Das Fahrzeug, das laut Titel gemeint ist – wenn ein anderes gewählt ist.
+ *
+ * Nur bei genau einem Kennzeichen im Titel: ohne eines gibt es nichts zu
+ * vergleichen, und beim Tausch stehen bewusst zwei darin. Ein Hinweis, keine
+ * Sperre – "WI-L 8957E" und "WI-L 8958E" unterscheiden sich in einer Ziffer,
+ * und ob die Abweichung Absicht ist, weiß nur, wer die Fahrt anlegt.
+ */
+export function plateMismatch<T extends { id: string; license_plate: string }>(
+  title: string | null | undefined,
+  vehicleId: string | null | undefined,
+  vehicles: T[]
+): T | null {
+  if (!title || !vehicleId) return null
+  const hits = matchVehiclesByPlate(title, vehicles)
+  if (hits.length !== 1) return null
+  return hits[0].id === vehicleId ? null : hits[0]
+}
+
 export function matchVehiclesByPlate<T extends { license_plate: string }>(
   summary: string,
   vehicles: T[]
