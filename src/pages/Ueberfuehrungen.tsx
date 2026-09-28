@@ -28,8 +28,10 @@ import {
   linkTransfers,
   unlinkTransfer,
   assignTransferVehicle,
+  syncVehicleAvailability,
   matchVehicleByPlate,
   matchVehiclesByPlate,
+  plateMismatch,
   type Transfer,
   type TransferInput,
   type TransferStatus,
@@ -426,11 +428,47 @@ function TransferHead({
   )
 }
 
+/**
+ * Im Titel steht ein anderes Kennzeichen als das der Fahrt – mit einem Knopf,
+ * der das Fahrzeug aus dem Titel nimmt. Im Formular wie in der Karte gleich.
+ */
+function PlateMismatchHint({
+  inTitle,
+  chosen,
+  onFix,
+  busy = false,
+}: {
+  inTitle: string
+  chosen: string
+  onFix: () => void
+  busy?: boolean
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+      <p className="text-sm text-amber-800 flex items-start gap-1.5">
+        <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
+        <span>{t('transfers.plate_mismatch', { inTitle, chosen })}</span>
+      </p>
+      <button
+        type="button"
+        onClick={onFix}
+        disabled={busy}
+        className="w-full mt-2 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-amber-600 text-white text-xs font-semibold active:bg-amber-700 disabled:opacity-50"
+      >
+        <Car size={14} /> {t('transfers.plate_mismatch_fix', { plate: inTitle })}
+      </button>
+    </div>
+  )
+}
+
 /** Alles, was aufgeklappt zu einer Fahrt gehört – Protokolle, Status, Verbindungen. */
 function TransferDetails({
   transfer,
   related,
   changes = [],
+  titleVehicle = null,
+  onFixVehicle,
   onReimport,
   onStatus,
   onCreateProtocol,
@@ -451,6 +489,10 @@ function TransferDetails({
   related: Transfer[]
   /** Termine, die im Kalender inzwischen anders stehen. */
   changes?: CalendarChange[]
+  /** Das Fahrzeug aus dem Titel, wenn die Fahrt an einem anderen hängt. */
+  titleVehicle?: Vehicle | null
+  /** Der Fahrt das Fahrzeug aus dem Titel geben. */
+  onFixVehicle: (vehicle: Vehicle) => void
   /** Den neuen Stand des Termins ins Formular holen. */
   onReimport: () => void
   onStatus: (status: TransferStatus) => void
@@ -496,6 +538,17 @@ function TransferDetails({
 
   return (
       <div className="border-t border-gray-100 px-4 py-3 space-y-3">
+        {/* Titel und Fahrzeug passen nicht zusammen – meist beim Anlegen im
+            Formular vergriffen, die Kennzeichen liegen oft eine Ziffer auseinander. */}
+        {titleVehicle && v && (
+          <PlateMismatchHint
+            inTitle={titleVehicle.license_plate}
+            chosen={v.license_plate}
+            onFix={() => onFixVehicle(titleVehicle)}
+            busy={busy}
+          />
+        )}
+
         {/* Was der Kalender inzwischen anders sagt. Nachgezogen wird nichts von
             selbst: die Fahrt kann von Hand angepasst worden sein. */}
         {changes.length > 0 && (
@@ -814,6 +867,8 @@ function TransferCard({
   members,
   relatedOf,
   changesOf,
+  titleVehicleOf,
+  onFixVehicle,
   onReimport,
   expandedId,
   onToggle,
@@ -838,6 +893,9 @@ function TransferCard({
   relatedOf: (transfer: Transfer) => Transfer[]
   /** Termine dieser Fahrt, die im Kalender inzwischen anders stehen. */
   changesOf: (transfer: Transfer) => CalendarChange[]
+  /** Das Fahrzeug aus dem Titel, wenn die Fahrt an einem anderen hängt. */
+  titleVehicleOf: (transfer: Transfer) => Vehicle | null
+  onFixVehicle: (transfer: Transfer, vehicle: Vehicle) => void
   onReimport: (transfer: Transfer) => void
   expandedId: string | null
   onToggle: (transferId: string) => void
@@ -860,6 +918,8 @@ function TransferCard({
       transfer={x}
       related={relatedOf(x)}
       changes={changesOf(x)}
+      titleVehicle={titleVehicleOf(x)}
+      onFixVehicle={(vehicle) => onFixVehicle(x, vehicle)}
       onReimport={() => onReimport(x)}
       onStatus={(status) => onStatus(x, status)}
       onCreateProtocol={() => onCreateProtocol(x)}
@@ -1014,6 +1074,8 @@ function TransferForm({
   const overlaps = overlapState.key === overlapKey ? overlapState.rows : []
 
   const selected = vehicles.find((v) => v.id === vehicleId) ?? null
+  // Im Titel steht ein anderes Kennzeichen als das gewählte – ein Tipp tauscht.
+  const titleVehicle = plateMismatch(title, vehicleId, vehicles)
 
   // Gibt es das Kennzeichen doch schon, wird kein zweites Fahrzeug angelegt.
   const freshExisting = fresh?.license_plate.trim()
@@ -1173,6 +1235,7 @@ function TransferForm({
               {t('transfers.vehicle_label')} <span className="text-red-500">*</span>
             </label>
             {selected ? (
+              <>
               <div className="flex items-center gap-3 border border-gray-300 rounded-xl px-3 py-2.5">
                 <Car size={18} className="text-gray-400 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
@@ -1187,6 +1250,14 @@ function TransferForm({
                   <X size={16} />
                 </button>
               </div>
+              {titleVehicle && (
+                <PlateMismatchHint
+                  inTitle={titleVehicle.license_plate}
+                  chosen={selected.license_plate}
+                  onFix={() => setVehicleId(titleVehicle.id)}
+                />
+              )}
+              </>
             ) : pending ? (
               // Noch kein Kennzeichen – erfasst wird es vor Ort.
               <div className="border border-blue-300 bg-blue-50 rounded-xl p-3 space-y-2">
@@ -2803,6 +2874,28 @@ export default function Ueberfuehrungen() {
    * und sonst nichts. Ist es neu, wird es angelegt, und es geht gleich weiter
    * ins Annahmeprotokoll – dafür wurde es ja erfasst.
    */
+  /**
+   * Der Fahrt das Fahrzeug aus ihrem Titel geben – wenn sie versehentlich an
+   * einem anderen hängt.
+   *
+   * Ist sie unterwegs, zieht die Verfügbarkeit des richtigen Fahrzeugs mit.
+   * Das bisherige bleibt, wie es ist: es kann von Hand gesetzt oder mit einer
+   * anderen Fahrt unterwegs sein.
+   */
+  async function handleFixVehicle(transfer: Transfer, vehicle: Vehicle) {
+    setBusyId(transfer.id)
+    setError(null)
+    try {
+      await assignTransferVehicle(transfer.id, vehicle.id, transfer.acceptance_required)
+      if (transfer.status === 'unterwegs') await syncVehicleAvailability(vehicle.id, 'unterwegs')
+      await load()
+    } catch (e) {
+      setError(errorText(e, t('common.error')))
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   async function handleCaptureVehicle(transfer: Transfer, plate: string, model: string) {
     const fleet = await fetchVehicles()
     const key = normalizeKennzeichen(plate)
@@ -3248,6 +3341,8 @@ export default function Ueberfuehrungen() {
         members={members}
         relatedOf={relatedOf}
         changesOf={changesOf}
+        titleVehicleOf={(x) => plateMismatch(x.title, x.vehicle_id, vehicles)}
+        onFixVehicle={handleFixVehicle}
         onReimport={handleReimport}
         expandedId={expanded}
         onToggle={(id) => setExpanded((cur) => (cur === id ? null : id))}

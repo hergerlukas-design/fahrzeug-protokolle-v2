@@ -353,6 +353,8 @@
     "capture_submit": "Continue to intake",
     "calendar_pending": "{{count}}× {{model}} · plate unknown",
     "calendar_import_many": "Import as {{count}} transfers",
+    "plate_mismatch": "The title says {{inTitle}}, but the trip has {{chosen}}.",
+    "plate_mismatch_fix": "Use {{plate}}",
     "tab_agenda": "Events",
     "agenda_empty": "No events in the calendar.",
     "agenda_upcoming_empty": "No upcoming events.",

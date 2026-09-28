@@ -377,6 +377,19 @@ eingetragen. Ist es neu, wird das Fahrzeug angelegt, die Fahrt bekommt es samt
 das Kennzeichen schon, bekommt die Fahrt das vorhandene Fahrzeug und sonst
 nichts.
 
+### Kennzeichen im Titel und Fahrzeug der Fahrt
+
+"WI-L 8957E" und "WI-L 8958E" liegen eine Ziffer auseinander; im Formular ist
+schnell das falsche gewählt. Steht im Titel **genau ein** Kennzeichen der
+Flotte und hängt die Fahrt an einem anderen Fahrzeug, zeigt `plateMismatch`
+(`transfers.ts`) einen Hinweis mit Knopf "WI-L 8957E nehmen" — im Formular
+tauscht er die Auswahl (gespeichert wird wie immer erst danach), in der
+aufgeklappten Karte ordnet er das Fahrzeug direkt zu. Ist die Fahrt unterwegs,
+geht das richtige Fahrzeug mit auf "unterwegs"; das bisherige bleibt, wie es
+ist. Kein Hinweis beim Tausch (zwei Kennzeichen im Titel), ohne Kennzeichen im
+Titel und bei Fahrten mit noch unbekanntem Fahrzeug. Ein Hinweis, keine
+Sperre: eine Abweichung kann Absicht sein.
+
 ### Adressen und Telefonnummern
 
 Adressen sind Links in die Karten-App:

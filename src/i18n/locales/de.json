@@ -353,6 +353,8 @@
     "capture_submit": "Weiter zur Annahme",
     "calendar_pending": "{{count}}× {{model}} · Kennzeichen offen",
     "calendar_import_many": "Als {{count}} Fahrten übernehmen",
+    "plate_mismatch": "Im Titel steht {{inTitle}}, die Fahrt hat aber {{chosen}}.",
+    "plate_mismatch_fix": "{{plate}} nehmen",
     "tab_agenda": "Termine",
     "agenda_empty": "Keine Termine im Kalender.",
     "agenda_upcoming_empty": "Keine anstehenden Termine.",
