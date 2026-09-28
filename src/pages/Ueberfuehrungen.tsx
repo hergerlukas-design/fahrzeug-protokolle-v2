@@ -2246,7 +2246,10 @@ function AgendaSection({
   const { t, i18n } = useTranslation()
   const lang = i18n.language
   const today = useToday()
+  // Beides eingeklappt: oben stehen soll, was heute und danach kommt – nicht
+  // ein Zeitraum, der vor zwei Wochen begann und nur noch nicht vorbei ist.
   const [showPast, setShowPast] = useState(false)
+  const [showRunning, setShowRunning] = useState(false)
 
   // Mit dem neuen Tag auch den Kalender neu lesen – sonst stünde über Nacht
   // zwar ein anderer Termin vorn, aber aus dem Stand von gestern.
@@ -2257,20 +2260,20 @@ function AgendaSection({
     onReload()
   }, [today, onReload])
 
-  const { past, current, highlighted } = useMemo(() => {
+  const { past, running, upcoming, highlighted } = useMemo(() => {
     const sorted = [...events].sort(compareEvents)
     // Vorbei ist ein Termin erst, wenn auch sein letzter Tag vorbei ist.
     const past = sorted.filter((e) => endOf(e) < today)
-    const current = sorted.filter((e) => endOf(e) >= today)
+    // Begonnen, aber noch nicht vorbei: steht unter einem vergangenen Datum
+    // und sähe offen wie ein vergangener Termin aus.
+    const running = sorted.filter((e) => e.date_from < today && endOf(e) >= today)
+    const upcoming = sorted.filter((e) => e.date_from >= today)
     // Hervorgehoben werden die nächsten, die noch beginnen – ein Zeitraum, der
-    // schon läuft, steht zwar oben, ist aber nicht mehr "als Nächstes".
+    // schon läuft, ist nicht mehr "als Nächstes".
     const highlighted = new Map(
-      current
-        .filter((e) => e.date_from >= today)
-        .slice(0, AGENDA_HIGHLIGHT)
-        .map((e, i) => [e.uid, i + 1])
+      upcoming.slice(0, AGENDA_HIGHLIGHT).map((e, i) => [e.uid, i + 1])
     )
-    return { past, current, highlighted }
+    return { past, running, upcoming, highlighted }
   }, [events, today])
 
   function dayLabel(date: string): string {
@@ -2376,7 +2379,7 @@ function AgendaSection({
 
   return (
     <section>
-      <div className="flex items-center gap-2 mb-2 min-h-[1.25rem]">
+      <div className="flex items-center gap-x-4 gap-y-1 mb-2 min-h-[1.25rem] flex-wrap">
         {past.length > 0 && !error && (
           <button
             onClick={() => setShowPast((v) => !v)}
@@ -2384,6 +2387,15 @@ function AgendaSection({
           >
             <span>{t('transfers.agenda_past', { count: past.length })}</span>
             {showPast ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          </button>
+        )}
+        {running.length > 0 && !error && (
+          <button
+            onClick={() => setShowRunning((v) => !v)}
+            className="flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wide active:text-gray-600"
+          >
+            <span>{t('transfers.agenda_running_toggle', { count: running.length })}</span>
+            {showRunning ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
           </button>
         )}
         <button
@@ -2414,10 +2426,11 @@ function AgendaSection({
           {/* Vergangenes steht über dem Heute, eingeklappt – sonst müsste man
               durch den ganzen Kalender scrollen, bevor das Anstehende kommt. */}
           {showPast && renderDays(past, true)}
-          {current.length === 0 ? (
+          {showRunning && renderDays(running)}
+          {upcoming.length === 0 ? (
             <p className="text-sm text-gray-400 py-2">{t('transfers.agenda_upcoming_empty')}</p>
           ) : (
-            renderDays(current)
+            renderDays(upcoming)
           )}
         </div>
       )}

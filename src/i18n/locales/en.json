@@ -362,6 +362,7 @@
     "agenda_in_days": "in {{count}} days",
     "agenda_next": "Up next",
     "agenda_running": "Ongoing",
+    "agenda_running_toggle": "Ongoing events ({{count}})",
     "agenda_imported": "Imported"
   },
   "annahme": {

@@ -165,9 +165,10 @@ Sprung zu einer verbundenen Fahrt wechselt zu den Fahrten.
 
 Ein dritter Tab, **Termine**, zeigt den ganzen Kalender chronologisch nach
 Tagen — auch schon übernommene Termine (Hinweis "Übernommen"). Die nächsten
-drei Termine, die noch beginnen, sind hervorgehoben und nummeriert; ein
-Zeitraum, der schon läuft, steht darüber mit "Läuft". Vergangenes ist
-eingeklappt. Das "Heute" dreht sich von selbst weiter: um Mitternacht und beim
+drei Termine, die noch beginnen, sind hervorgehoben und nummeriert.
+Vergangene und schon laufende Termine (begonnen, aber noch nicht vorbei) sind
+je für sich eingeklappt — ein laufender stünde sonst unter einem vergangenen
+Datum ganz oben und sähe aus wie ein vergangener. Das "Heute" dreht sich von selbst weiter: um Mitternacht und beim
 Zurückkehren auf die Seite (auf dem Telefon schläft der Timer im Hintergrund),
 und mit dem neuen Tag wird der Kalender neu gelesen.
 

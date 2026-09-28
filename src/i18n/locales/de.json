@@ -362,6 +362,7 @@
     "agenda_in_days": "in {{count}} Tagen",
     "agenda_next": "Als Nächstes",
     "agenda_running": "Läuft",
+    "agenda_running_toggle": "Laufende Termine ({{count}})",
     "agenda_imported": "Übernommen"
   },
   "annahme": {
