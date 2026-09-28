@@ -7,7 +7,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'))
 
 // Nur der Vorschau-Deploy setzt VITE_PREVIEW=1 (preview.yml). Dann bekommt die
-// App das Icon mit lila Rahmen – auf dem Startbildschirm sonst nicht von der
+// App das Icon mit lila Hintergrund – auf dem Startbildschirm sonst nicht von der
 // echten App zu unterscheiden, obwohl beide dieselben Daten ändern.
 const preview = process.env.VITE_PREVIEW === '1'
 const icon = preview ? 'logo-preview.webp' : 'logo.webp'
@@ -18,7 +18,7 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    // Auch der Tab im Browser zeigt in der Vorschau das Icon mit Rahmen.
+    // Auch der Tab im Browser zeigt in der Vorschau das lila Icon.
     {
       name: 'preview-favicon',
       transformIndexHtml: (html: string) =>
@@ -39,9 +39,9 @@ export default defineConfig({
         icons: [
           { src: icon, sizes: '192x192', type: 'image/webp' },
           { src: icon, sizes: '512x512', type: 'image/webp' },
-          // Android schneidet Icons rund oder als Squircle zu – der eckige
-          // Rahmen fiele dort weg. Das maskable Icon ist ganz lila, das Logo
-          // steht in der sicheren Mitte: bei jeder Form bleibt ein lila Rand.
+          // Android schneidet Icons rund oder als Squircle zu. Im maskable
+          // Icon steht das Logo deshalb kleiner in der sicheren Mitte, damit
+          // der Zuschnitt nichts davon abschneidet.
           ...(preview
             ? [
                 { src: 'logo-preview-maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },

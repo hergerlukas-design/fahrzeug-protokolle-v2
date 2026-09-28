@@ -111,10 +111,11 @@ an, falls sie fehlen (die gemeinsame IPv4 ist kostenlos).
   `VITE_APP_PASSWORD_PREVIEW` hinterlegen; ohne das Secret gilt die produktive.
 - PRs aus Forks bekommen keine Vorschau — GitHub gibt dort keine Secrets frei.
 - Die Vorschau hat einen **lila Rahmen** um den ganzen Bildschirm und ein
-  Icon mit lila Rahmen (`public/logo-preview.webp`, im Manifest und im
+  Icon mit lila Hintergrund (`public/logo-preview.webp`, im Manifest und im
   Browser-Tab), damit sie nicht mit der echten App verwechselt wird. Android
   schneidet Icons rund zu; dafür gibt es `logo-preview-maskable-*.png`
-  (`purpose: 'maskable'`): ganz lila, das Logo in der sicheren Mitte. Der
+  (`purpose: 'maskable'`): ebenfalls lila, das Logo kleiner in der sicheren
+  Mitte, damit der Zuschnitt nichts davon abschneidet. Der
   Workflow baut sie mit `--build-arg VITE_PREVIEW=1`; ohne das Argument
   (produktiv, lokal) bleibt alles wie gehabt. Ein schon installiertes Icon
   aktualisiert das Telefon nicht immer — dann einmal neu zum Startbildschirm
