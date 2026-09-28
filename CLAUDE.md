@@ -163,8 +163,8 @@ wer dreißig Termine übernimmt, will den nächsten sehen und nicht erst
 zurückwechseln; der übernommene verschwindet ohnehin aus der Liste. Nur der
 Sprung zu einer verbundenen Fahrt wechselt zu den Fahrten.
 
-Ein dritter Tab, **Termine**, zeigt den ganzen Kalender chronologisch nach
-Tagen — auch schon übernommene Termine; die tragen dort den grünen Hinweis
+Davor steht als erster Tab — und beim Öffnen der Seite ausgewählt —
+**Termine**: der ganze Kalender chronologisch nach Tagen — auch schon übernommene Termine; die tragen dort den grünen Hinweis
 "Bestätigt". Die nächsten
 drei Termine, die noch beginnen, sind hervorgehoben und nummeriert.
 Vergangene und schon laufende Termine (begonnen, aber noch nicht vorbei) sind

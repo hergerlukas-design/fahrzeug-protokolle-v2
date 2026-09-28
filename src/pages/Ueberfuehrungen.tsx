@@ -2562,10 +2562,11 @@ export default function Ueberfuehrungen() {
   const [closed, setClosed] = useState<Transfer[]>([])
   const [loading, setLoading] = useState(true)
   const [showClosed, setShowClosed] = useState(false)
-  // Tabs statt Abschnitte untereinander: die Fahrten sind die Arbeitsliste,
-  // der Kalender der Zulauf, die Termine der ganze Kalender der Reihe nach.
-  // Abgeschlossene stehen weiter unter den Fahrten.
-  const [tab, setTab] = useState<'transfers' | 'calendar' | 'agenda'>('transfers')
+  // Tabs statt Abschnitte untereinander: die Termine sind der ganze Kalender
+  // der Reihe nach und stehen vorn – dort sieht man, was als Nächstes ansteht.
+  // Die Fahrten sind die Arbeitsliste, der Kalender der Zulauf. Abgeschlossene
+  // stehen weiter unter den Fahrten.
+  const [tab, setTab] = useState<'agenda' | 'transfers' | 'calendar'>('agenda')
   const [expanded, setExpanded] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -3280,11 +3281,11 @@ export default function Ueberfuehrungen() {
           </div>
         )}
 
-        {/* Drei Tabs: die Fahrten, der Kalender, aus dem sie entstehen, und alle
-            Termine der Reihe nach. Untereinander schob der Kalender die Liste
-            immer weiter nach unten. */}
+        {/* Drei Tabs: alle Termine der Reihe nach, die Fahrten und der
+            Kalender, aus dem sie entstehen. Untereinander schob der Kalender
+            die Liste immer weiter nach unten. */}
         <div className="flex gap-1 p-1 bg-gray-100 rounded-xl">
-          {(['transfers', 'calendar', 'agenda'] as const).map((id) => {
+          {(['agenda', 'transfers', 'calendar'] as const).map((id) => {
             const active = tab === id
             // Am Termine-Tab kein Zähler: dort steht der ganze Kalender, und
             // eine Zahl, die nur wächst, sagt nichts.
