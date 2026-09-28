@@ -210,16 +210,21 @@ Protokollen auseinanderlaufen kann.
    Protokollformular.
 4. **Monatsauswertung**: Summen, Export CSV/PDF, Monatsabschluss.
 
-## Offene Fragen
+## Entscheidungen
 
-1. **Wechseltage:** Gilt das Übernachtungsprinzip, oder zählt jeder
-   angebrochene Tag auf dem Campus als Lagertag?
-2. **Extern und unterwegs:** Werden beide gleich behandelt (kein Lagertag),
-   oder wird die Zeit bei Journalistinnen und Journalisten gesondert berechnet?
-3. **Pro Projekt?** Wird je Projekt bzw. Kunde abgerechnet? Sollen im Tool
-   nur Tage stehen oder auch Beträge (Tagessatz je Projekt)?
-4. **Beginn und Ende:** Beginnt die Einlagerung mit der ersten Annahme? Was
-   beendet sie: Rückgabe an den Hersteller, Abmeldung?
-5. **Weitere Standorte:** Ist „Halle 2“ Teil des Campus? Gibt es weitere
-   Lagerorte, die gleich zählen (in den Protokollen taucht z.B.
-   „Lüß, Carhandling Campus“ auf)?
+1. **Wechseltage:** Übernachtungsprinzip wie im Hotel.
+2. **Extern und unterwegs:** beides kein Lagertag, keine gesonderte Berechnung.
+3. **Abrechnung:** je Kunde (Projekt), nur Tage, keine Beträge.
+4. **Weitere Standorte:** Halle 2 und Lüß gehören zum Campus und zählen mit.
+5. **Richtung:** Der Pfeil im Ort entscheidet. „Schleißheimer 231 → Campus“
+   ist eine Fahrt zum Campus, auch wenn im Protokoll „Hinbringen“ steht.
+
+Noch offen ist, womit die Einlagerung **endet** (Rückgabe an den Hersteller,
+Abmeldung). Bis zu Schritt 2 gilt: Sie beginnt mit der ersten Annahme und
+läuft, bis das Fahrzeug den Campus verlässt.
+
+## Stand
+
+Schritt 1 ist umgesetzt: `src/lib/timeline.ts` und die Seite
+`src/pages/Zeitstrahl.tsx` (Menüpunkt „Zeitstrahl“), dazu ein CSV-Export der
+Tage je Kunde und Fahrzeug.

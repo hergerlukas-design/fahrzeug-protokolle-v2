@@ -29,7 +29,8 @@
     "settings": "Settings",
     "menu": "Menu",
     "archive": "Archive",
-    "transfers": "Transfers"
+    "transfers": "Transfers",
+    "timeline": "Timeline"
   },
   "login": {
     "subtitle": "Team Login",
@@ -780,5 +781,42 @@
   },
   "datenschutz": {
     "title": "Privacy Policy"
+  },
+  "timeline": {
+    "title": "Timeline",
+    "previous": "Previous",
+    "next": "Next",
+    "span_month": "Month",
+    "span_quarter": "Quarter",
+    "all_customers": "All customers",
+    "no_customer": "No customer",
+    "only_issues": "Issues only",
+    "legend_campus": "Campus (storage day)",
+    "legend_moving": "moving",
+    "legend_extern": "away",
+    "legend_unclear": "unclear",
+    "nights_campus": "Storage days",
+    "nights_extern": "Days away",
+    "nights_unclear": "Unclear days",
+    "short_campus": "S",
+    "short_extern": "A",
+    "state_campus": "Campus",
+    "state_extern": "Away",
+    "state_unklar": "Unclear",
+    "state_ausserhalb": "Not in stock",
+    "reason_missing_return": "Return to campus missing",
+    "reason_missing_departure": "Departure from campus missing",
+    "reason_unknown_direction": "Direction of the trip unknown",
+    "source_protocol": "Protocol",
+    "source_transfer": "Transfer (plan)",
+    "no_movements": "No movements in this period.",
+    "long_absence": "Away for {{days}} days – is the return protocol missing?",
+    "empty": "No vehicles in this period.",
+    "load_error": "Could not load the timeline.",
+    "export": "Export as CSV",
+    "csv_customer": "Customer",
+    "csv_plate": "License plate",
+    "csv_model": "Model",
+    "footnote": "Nights are counted up to today: a day is a storage day if the vehicle spends the night on campus. Future days are planned transfers and are not counted."
   }
 }

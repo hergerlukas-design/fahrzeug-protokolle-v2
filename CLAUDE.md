@@ -465,6 +465,41 @@ gibt sie beim nächsten Aufruf mit, sonst entstünde eine zweite Gruppe und die
 erste Verbindung fiele wieder heraus. Das Fahrzeug spielt dabei keine
 Rolle: die Rückfahrt mit einem anderen Auto ist der Normalfall.
 
+## Zeitstrahl: Lagertage und Tage draußen
+
+Für die Einlagerung wird abgerechnet. Die Seite **Zeitstrahl** zeigt je
+Fahrzeug, wann es auf dem Campus stand und wann es draußen war, und zählt die
+Tage je Kunde (Projekt). Das Konzept mit allen Entscheidungen steht in
+`docs/konzept-zeitstrahl.md`.
+
+Erfasst wird dafür nichts Neues. `src/lib/timeline.ts` liest die Bewegungen
+aus den Protokollen (Vergangenheit) und den Überführungen (Plan):
+
+- **Annahme** heißt: das Fahrzeug ist im Bestand und auf dem Campus.
+- **Überführungsprotokoll:** Der Pfeil im Ort entscheidet ("A → B"). Nur ohne
+  Pfeil zählt die Art Hinbringen/Rücknahme, denn die bleibt oft auf dem
+  Vorschlag stehen. Ein einzelner Ort ohne Richtung macht den Rest unklar.
+- **Überführung:** eine Abholung bringt das Fahrzeug zurück, alles andere
+  hinaus; mit Zeitraum kommt es am letzten Tag zurück. Liegt ein Protokoll
+  höchstens zwei Tage daneben und zeigt in dieselbe Richtung, zählt das
+  Protokoll.
+- **Campus** ist jede Schreibweise von "Campus"/"CarHandling", "Münchner
+  Straße 60", "Halle 2" und **Lüß** (`isCampus`).
+
+Gezählt wird nach dem **Übernachtungsprinzip**: ein Lagertag ist ein Tag, an
+dessen Ende das Fahrzeug auf dem Campus steht. Unterwegs und extern sind beide
+kein Lagertag. Gezählt wird nur bis heute, die Zukunft ist Plan und blass.
+
+Geht die Kette nicht auf, etwa zweimal hintereinander vom Campus weg, wird der
+Abschnitt dazwischen **unklar** (rot) statt geraten, mit dem Grund
+("Rückfahrt zum Campus fehlt"). Ist ein Fahrzeug länger als 30 Tage draußen,
+steht ein Warnsymbol daneben: meist fehlt das Protokoll der Rücknahme.
+"Nur Hinweise" zeigt genau diese Fahrzeuge.
+
+Ein Fahrzeug in mehreren Projekten steht bei jedem Kunden. Der CSV-Export
+(Symbol oben rechts) enthält Kunde, Kennzeichen, Modell und die drei Summen
+des gewählten Zeitraums.
+
 ## Datenbank-Migrationen
 
 Neue Migrationen liegen unter `supabase/migrations/`. Nach einem neuen
