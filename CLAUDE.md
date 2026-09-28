@@ -112,7 +112,9 @@ an, falls sie fehlen (die gemeinsame IPv4 ist kostenlos).
 - PRs aus Forks bekommen keine Vorschau — GitHub gibt dort keine Secrets frei.
 - Die Vorschau hat einen **lila Rahmen** um den ganzen Bildschirm und ein
   Icon mit lila Rahmen (`public/logo-preview.webp`, im Manifest und im
-  Browser-Tab), damit sie nicht mit der echten App verwechselt wird. Der
+  Browser-Tab), damit sie nicht mit der echten App verwechselt wird. Android
+  schneidet Icons rund zu; dafür gibt es `logo-preview-maskable-*.png`
+  (`purpose: 'maskable'`): ganz lila, das Logo in der sicheren Mitte. Der
   Workflow baut sie mit `--build-arg VITE_PREVIEW=1`; ohne das Argument
   (produktiv, lokal) bleibt alles wie gehabt. Ein schon installiertes Icon
   aktualisiert das Telefon nicht immer — dann einmal neu zum Startbildschirm

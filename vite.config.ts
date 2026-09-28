@@ -39,6 +39,15 @@ export default defineConfig({
         icons: [
           { src: icon, sizes: '192x192', type: 'image/webp' },
           { src: icon, sizes: '512x512', type: 'image/webp' },
+          // Android schneidet Icons rund oder als Squircle zu – der eckige
+          // Rahmen fiele dort weg. Das maskable Icon ist ganz lila, das Logo
+          // steht in der sicheren Mitte: bei jeder Form bleibt ein lila Rand.
+          ...(preview
+            ? [
+                { src: 'logo-preview-maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+                { src: 'logo-preview-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+              ]
+            : []),
         ],
       },
       workbox: {
