@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
@@ -37,6 +37,7 @@ import {
   type CalendarEvent,
   type TransferCalendarLink,
   type LinkableProtocol,
+  type LinkedProtocol,
 } from '../lib/transfers'
 import { extractContact } from '../lib/calendarContact'
 import { changedFields, sameText, type ChangeKey } from '../lib/calendarChanges'
@@ -2172,6 +2173,383 @@ function CalendarSection({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Termine
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Wie viele der anstehenden Termine hervorgehoben werden. */
+const AGENDA_HIGHLIGHT = 3
+
+/**
+ * Das heutige Datum, das sich selbst weiterdreht.
+ *
+ * Ein Timer auf Mitternacht allein genügt nicht: auf dem Telefon schläft die
+ * Seite im Hintergrund, und der Timer feuert erst Stunden später. Deshalb wird
+ * zusätzlich beim Zurückkehren auf die Seite nachgesehen.
+ */
+function useToday(): string {
+  const [today, setToday] = useState(todayISO)
+
+  useEffect(() => {
+    const check = () => setToday(todayISO())
+
+    const now = new Date()
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+    // Eine Sekunde Luft, damit der neue Tag sicher angebrochen ist.
+    const timer = window.setTimeout(check, midnight.getTime() - now.getTime() + 1000)
+
+    const onVisible = () => { if (document.visibilityState === 'visible') check() }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', check)
+    return () => {
+      window.clearTimeout(timer)
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', check)
+    }
+    // Nach jedem Tageswechsel neu: der nächste Timer zielt auf die nächste Mitternacht.
+  }, [today])
+
+  return today
+}
+
+/** Tage zwischen zwei YYYY-MM-DD – über UTC, damit die Zeitumstellung nicht stört. */
+function daysBetween(from: string, to: string): number {
+  const a = Date.UTC(+from.slice(0, 4), +from.slice(5, 7) - 1, +from.slice(8, 10))
+  const b = Date.UTC(+to.slice(0, 4), +to.slice(5, 7) - 1, +to.slice(8, 10))
+  return Math.round((b - a) / 86_400_000)
+}
+
+/** Chronologisch: Tag, ganztägige vor solchen mit Uhrzeit, dann die Uhrzeit. */
+function compareEvents(a: CalendarEvent, b: CalendarEvent): number {
+  if (a.date_from !== b.date_from) return a.date_from < b.date_from ? -1 : 1
+  const ta = a.time_from ?? ''
+  const tb = b.time_from ?? ''
+  if (ta !== tb) return ta < tb ? -1 : 1
+  return a.summary.localeCompare(b.summary)
+}
+
+function endOf(ev: CalendarEvent): string {
+  return ev.date_to || ev.date_from
+}
+
+function AgendaSection({
+  events,
+  importedUids,
+  transfersByUid,
+  loading,
+  error,
+  onReload,
+  onOpenProtocol,
+  onOpenTransfer,
+  onConfirm,
+}: {
+  events: CalendarEvent[]
+  importedUids: Set<string>
+  /** Die Fahrten, die aus einem Termin entstanden sind – beim Tausch zwei. */
+  transfersByUid: Map<string, Transfer[]>
+  loading: boolean
+  error: string | null
+  onReload: () => void
+  onOpenProtocol: (protocolId: string) => void
+  onOpenTransfer: (transferId: string) => void
+  /** Öffnet das Übernehmen-Formular – bestätigt ist erst, was gespeichert ist. */
+  onConfirm: (ev: CalendarEvent) => void
+}) {
+  const { t, i18n } = useTranslation()
+  const lang = i18n.language
+  const today = useToday()
+  // Beides eingeklappt: oben stehen soll, was heute und danach kommt – nicht
+  // ein Zeitraum, der vor zwei Wochen begann und nur noch nicht vorbei ist.
+  const [showPast, setShowPast] = useState(false)
+  const [showRunning, setShowRunning] = useState(false)
+  // Aufgeklappter Termin: zeigt die Fahrt dazu und ihre Protokolle.
+  const [openUid, setOpenUid] = useState<string | null>(null)
+
+  // Mit dem neuen Tag auch den Kalender neu lesen – sonst stünde über Nacht
+  // zwar ein anderer Termin vorn, aber aus dem Stand von gestern.
+  const loadedFor = useRef(today)
+  useEffect(() => {
+    if (today === loadedFor.current) return
+    loadedFor.current = today
+    onReload()
+  }, [today, onReload])
+
+  const { past, running, upcoming, highlighted } = useMemo(() => {
+    const sorted = [...events].sort(compareEvents)
+    // Vorbei ist ein Termin erst, wenn auch sein letzter Tag vorbei ist.
+    const past = sorted.filter((e) => endOf(e) < today)
+    // Begonnen, aber noch nicht vorbei: steht unter einem vergangenen Datum
+    // und sähe offen wie ein vergangener Termin aus.
+    const running = sorted.filter((e) => e.date_from < today && endOf(e) >= today)
+    const upcoming = sorted.filter((e) => e.date_from >= today)
+    // Hervorgehoben werden die nächsten, die noch beginnen – ein Zeitraum, der
+    // schon läuft, ist nicht mehr "als Nächstes".
+    const highlighted = new Map(
+      upcoming.slice(0, AGENDA_HIGHLIGHT).map((e, i) => [e.uid, i + 1])
+    )
+    return { past, running, upcoming, highlighted }
+  }, [events, today])
+
+  function dayLabel(date: string): string {
+    const d = new Date(`${date}T00:00:00`)
+    const weekday = Number.isNaN(d.getTime())
+      ? ''
+      : d.toLocaleDateString(lang.startsWith('en') ? 'en-GB' : 'de-DE', { weekday: 'short' })
+    const diff = daysBetween(today, date)
+    const rel = diff === 0 ? t('transfers.agenda_today')
+      : diff === 1 ? t('transfers.agenda_tomorrow')
+      : null
+    return [rel, weekday && `${weekday}, ${formatDate(date, lang)}`].filter(Boolean).join(' · ')
+  }
+
+  /** Termine nach Starttag gebündelt, die Reihenfolge bleibt. */
+  function byDay(list: CalendarEvent[]): [string, CalendarEvent[]][] {
+    const out: [string, CalendarEvent[]][] = []
+    for (const ev of list) {
+      const last = out[out.length - 1]
+      if (last && last[0] === ev.date_from) last[1].push(ev)
+      else out.push([ev.date_from, [ev]])
+    }
+    return out
+  }
+
+  function renderEvent(ev: CalendarEvent, dim = false) {
+    const rank = highlighted.get(ev.uid)
+    const running = ev.date_from < today && endOf(ev) >= today
+    const imported = importedUids.has(ev.uid)
+    const diff = daysBetween(today, ev.date_from)
+    const linked = transfersByUid.get(ev.uid) ?? []
+    // Klickbar ist nur, was eine Fahrt hat – sonst gäbe es nichts zu zeigen.
+    const clickable = linked.length > 0
+    const isOpen = clickable && openUid === ev.uid
+    const toggle = () => setOpenUid((cur) => (cur === ev.uid ? null : ev.uid))
+    // Bestätigt ist, was übernommen ist: dafür gehen Termine mit Fragezeichen
+    // durch dasselbe Formular wie im Tab Kalender. Vergangenes nicht mehr.
+    const askable = !imported && isUnconfirmed(ev.summary) && endOf(ev) >= today
+    const unconfirmed = !imported && isUnconfirmed(ev.summary)
+    return (
+      <div
+        key={ev.uid}
+        className={`rounded-2xl shadow-sm ${
+          rank ? 'bg-brand-50 border-2 border-brand-400' : 'bg-white border border-gray-200'
+        } ${dim && !isOpen ? 'opacity-60' : ''}`}
+      >
+      {/* Kein <button>: im Ort steckt ein Link, und der darf nicht in einer
+          Schaltfläche stehen. */}
+      <div
+        {...(clickable && {
+          role: 'button',
+          tabIndex: 0,
+          'aria-expanded': isOpen,
+          onClick: toggle,
+          onKeyDown: (e: React.KeyboardEvent) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle() }
+          },
+        })}
+        className={`px-4 py-3 flex items-start gap-3 ${clickable ? 'cursor-pointer' : ''}`}
+      >
+        {rank && (
+          <span className="w-6 h-6 rounded-full bg-brand-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+            {rank}
+          </span>
+        )}
+        <div className="flex-1 min-w-0">
+          <p className={`font-semibold text-sm ${rank ? 'text-brand-900' : 'text-gray-900'}`}>
+            {ev.summary || t('transfers.calendar_untitled')}
+          </p>
+          <p className={`text-xs mt-0.5 ${rank ? 'text-brand-700 font-medium' : 'text-gray-400'}`}>
+            {withTime(ev.date_from, ev.time_from, lang)}
+            {ev.date_to && ev.date_to !== ev.date_from
+              ? ` – ${withTime(ev.date_to, ev.time_to, lang)}`
+              : ev.time_to && ev.time_to !== ev.time_from ? ` – ${formatTime(ev.time_to)}` : ''}
+            {rank && diff > 1 && ` · ${t('transfers.agenda_in_days', { count: diff })}`}
+          </p>
+          <LocationLine to={ev.location} />
+          {(rank === 1 || running || imported || unconfirmed || ev.recurring) && (
+            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+              {rank === 1 && (
+                <span className="text-[10px] font-semibold uppercase tracking-wide bg-brand-600 text-white px-2 py-0.5 rounded-full">
+                  {t('transfers.agenda_next')}
+                </span>
+              )}
+              {running && (
+                <span className="text-[10px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                  {t('transfers.agenda_running')}
+                </span>
+              )}
+              {/* Übernommen heißt hier bestätigt: aus dem Termin ist eine Fahrt
+                  geworden. Das Fragezeichen im Kalender zählt dann nicht mehr. */}
+              {imported && (
+                <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                  <CheckCircle2 size={11} />
+                  {t('transfers.agenda_confirmed')}
+                </span>
+              )}
+              {unconfirmed && (
+                <span className="text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                  {t('transfers.calendar_unconfirmed')}
+                </span>
+              )}
+              {ev.recurring && (
+                <span className="text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                  {t('transfers.calendar_recurring')}
+                </span>
+              )}
+            </div>
+          )}
+          {askable && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onConfirm(ev) }}
+              className="mt-2 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-600 text-white text-xs font-semibold active:bg-green-700"
+            >
+              <CheckCircle2 size={13} />
+              {t('transfers.agenda_confirm')}
+            </button>
+          )}
+        </div>
+        {clickable && (
+          <ChevronDown
+            size={16}
+            className={`text-gray-300 flex-shrink-0 mt-0.5 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          />
+        )}
+      </div>
+      {isOpen && (
+        <div className="px-4 pb-3 space-y-3">
+          {linked.map((tr) => renderTransfer(tr, linked.length > 1))}
+        </div>
+      )}
+      </div>
+    )
+  }
+
+  /** Die Fahrt zum Termin: Status, Protokolle und der Sprung zur Karte. */
+  function renderTransfer(tr: Transfer, labelled: boolean) {
+    const protocols = [tr.pickup_protocol, tr.dropoff_protocol].filter(
+      (p): p is LinkedProtocol => !!p
+    )
+    return (
+      <div key={tr.id} className="border-t border-gray-100 pt-3 space-y-1.5">
+        <div className="flex items-center gap-2">
+          <p className="flex-1 min-w-0 text-xs font-semibold text-gray-400 uppercase tracking-wide truncate">
+            {/* Beim Tausch hängen zwei Fahrten am Termin – dann sagt das
+                Kennzeichen, welche welche ist. */}
+            {labelled && (tr.vehicle?.license_plate || tr.vehicle_hint)
+              ? `${tr.vehicle?.license_plate || tr.vehicle_hint} · `
+              : ''}
+            {t(protocols.length > 1 ? 'transfers.protocols' : 'transfers.protocol_single')}
+          </p>
+          <StatusBadge status={tr.status} />
+        </div>
+        {protocols.length === 0 ? (
+          <p className="text-sm text-gray-400">{t('transfers.agenda_no_protocol')}</p>
+        ) : (
+          protocols.map((proto) => (
+            <button
+              key={proto.id}
+              onClick={() => onOpenProtocol(proto.id)}
+              className="w-full flex items-center gap-2 px-3 py-2 text-left rounded-xl border border-gray-200 bg-white active:bg-gray-50"
+            >
+              <FileText size={15} className="text-gray-400 flex-shrink-0" />
+              <span className="flex-1 min-w-0 text-sm text-gray-700 truncate">
+                {proto.protocol_type === 'annahme' ? t('transfers.acceptance_protocol') : t('transfers.protocol_single')}
+                {proto.transfer_type && <span className="text-gray-400"> · {proto.transfer_type}</span>}
+                <span className="text-gray-400"> · {formatDate(proto.created_at.slice(0, 10), lang)}</span>
+              </span>
+              {proto.status === 'draft' && (
+                <span className="text-[10px] font-semibold uppercase text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                  {t('archiv.draft')}
+                </span>
+              )}
+              <ChevronRight size={15} className="text-gray-300 flex-shrink-0" />
+            </button>
+          ))
+        )}
+        <button
+          onClick={() => onOpenTransfer(tr.id)}
+          className="flex items-center gap-1 text-xs font-semibold text-brand-600 active:text-brand-700"
+        >
+          <RouteIcon size={13} />
+          {t('transfers.agenda_open_transfer')}
+        </button>
+      </div>
+    )
+  }
+
+  function renderDays(list: CalendarEvent[], dim = false) {
+    return byDay(list).map(([date, dayEvents]) => (
+      <div key={date}>
+        <p className={`text-xs font-semibold uppercase tracking-wide mb-1.5 ${
+          date === today ? 'text-brand-700' : 'text-gray-400'
+        }`}>
+          {dayLabel(date)}
+        </p>
+        <div className="space-y-2">{dayEvents.map((ev) => renderEvent(ev, dim))}</div>
+      </div>
+    ))
+  }
+
+  return (
+    <section>
+      <div className="flex items-center gap-x-4 gap-y-1 mb-2 min-h-[1.25rem] flex-wrap">
+        {past.length > 0 && !error && (
+          <button
+            onClick={() => setShowPast((v) => !v)}
+            className="flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wide active:text-gray-600"
+          >
+            <span>{t('transfers.agenda_past', { count: past.length })}</span>
+            {showPast ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          </button>
+        )}
+        {running.length > 0 && !error && (
+          <button
+            onClick={() => setShowRunning((v) => !v)}
+            className="flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wide active:text-gray-600"
+          >
+            <span>{t('transfers.agenda_running_toggle', { count: running.length })}</span>
+            {showRunning ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          </button>
+        )}
+        <button
+          onClick={onReload}
+          disabled={loading}
+          className="ml-auto text-gray-400 active:text-gray-600 disabled:opacity-50"
+          aria-label={t('transfers.calendar_reload')}
+        >
+          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+        </button>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm flex items-start gap-2">
+          <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {!error && loading && events.length === 0 && <SkeletonList count={3} />}
+
+      {!error && !loading && events.length === 0 && (
+        <p className="text-sm text-gray-400 py-2">{t('transfers.agenda_empty')}</p>
+      )}
+
+      {!error && events.length > 0 && (
+        <div className="space-y-4">
+          {/* Vergangenes steht über dem Heute, eingeklappt – sonst müsste man
+              durch den ganzen Kalender scrollen, bevor das Anstehende kommt. */}
+          {showPast && renderDays(past, true)}
+          {showRunning && renderDays(running)}
+          {upcoming.length === 0 ? (
+            <p className="text-sm text-gray-400 py-2">{t('transfers.agenda_upcoming_empty')}</p>
+          ) : (
+            renderDays(upcoming)
+          )}
+        </div>
+      )}
+    </section>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Page
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -2184,10 +2562,11 @@ export default function Ueberfuehrungen() {
   const [closed, setClosed] = useState<Transfer[]>([])
   const [loading, setLoading] = useState(true)
   const [showClosed, setShowClosed] = useState(false)
-  // Zwei Tabs statt zweier Abschnitte untereinander: die Fahrten sind die
-  // Arbeitsliste, der Kalender der Zulauf. Abgeschlossene stehen weiter unter
-  // den Fahrten.
-  const [tab, setTab] = useState<'transfers' | 'calendar'>('transfers')
+  // Tabs statt Abschnitte untereinander: die Termine sind der ganze Kalender
+  // der Reihe nach und stehen vorn – dort sieht man, was als Nächstes ansteht.
+  // Die Fahrten sind die Arbeitsliste, der Kalender der Zulauf. Abgeschlossene
+  // stehen weiter unter den Fahrten.
+  const [tab, setTab] = useState<'agenda' | 'transfers' | 'calendar'>('agenda')
   const [expanded, setExpanded] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -2555,6 +2934,17 @@ export default function Ueberfuehrungen() {
   }
 
   /**
+   * Bestätigen aus dem Termine-Tab: derselbe Weg wie Übernehmen im Tab
+   * Kalender. Der Termin geht mit seiner Gruppe ins Formular – Abholung und
+   * Überführung bleiben also eine Fahrt –, und bestätigt ist er erst, wenn die
+   * Fahrt gespeichert ist.
+   */
+  function handleConfirmEvent(ev: CalendarEvent) {
+    const group = calendarGroups.find((g) => g.events.some((e) => e.uid === ev.uid))
+    if (group) handleImportEvents(group.events, group)
+  }
+
+  /**
    * Nach dem Speichern: verbinden, was verbunden werden soll, und beim Tausch
    * gleich den zweiten Teil aufschlagen.
    *
@@ -2747,6 +3137,20 @@ export default function Ueberfuehrungen() {
   // abgeschlossene Fahrten sind beide da, eine eigene Abfrage wäre überflüssig.
   const all = useMemo(() => [...open, ...closed], [open, closed])
 
+  // Welche Fahrten aus einem Termin entstanden sind – für den Termine-Tab.
+  // Aus beiden Quellen: den Momentaufnahmen und der alten Spalte an der Fahrt.
+  const transfersByUid = useMemo(() => {
+    const map = new Map<string, Transfer[]>()
+    for (const tr of all) {
+      const uids = new Set([
+        ...(tr.calendar_links ?? []).map((l) => l.calendar_uid),
+        ...(tr.calendar_uid ? [tr.calendar_uid] : []),
+      ])
+      for (const uid of uids) map.set(uid, [...(map.get(uid) ?? []), tr])
+    }
+    return map
+  }, [all])
+
   /** Die anderen Fahrten derselben Gruppe. */
   function relatedOf(transfer: Transfer): Transfer[] {
     if (!transfer.group_id) return []
@@ -2793,6 +3197,8 @@ export default function Ueberfuehrungen() {
   function handleOpenTransfer(id: string) {
     setTab('transfers')
     setExpanded(id)
+    // Abgeschlossene stehen eingeklappt – aus dem Termine-Tab heraus meist die.
+    if (closed.some((x) => x.id === id)) setShowClosed(true)
     // Nach dem Rendern, sonst steht die Karte noch zugeklappt an alter Stelle.
     setTimeout(() => {
       document.getElementById(`transfer-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -2875,12 +3281,15 @@ export default function Ueberfuehrungen() {
           </div>
         )}
 
-        {/* Zwei Tabs: die Fahrten und der Kalender, aus dem sie entstehen.
-            Untereinander schob der Kalender die Liste immer weiter nach unten. */}
+        {/* Drei Tabs: alle Termine der Reihe nach, die Fahrten und der
+            Kalender, aus dem sie entstehen. Untereinander schob der Kalender
+            die Liste immer weiter nach unten. */}
         <div className="flex gap-1 p-1 bg-gray-100 rounded-xl">
-          {(['transfers', 'calendar'] as const).map((id) => {
+          {(['agenda', 'transfers', 'calendar'] as const).map((id) => {
             const active = tab === id
-            const count = id === 'transfers' ? open.length : calendarGroups.length
+            // Am Termine-Tab kein Zähler: dort steht der ganze Kalender, und
+            // eine Zahl, die nur wächst, sagt nichts.
+            const count = id === 'transfers' ? open.length : id === 'calendar' ? calendarGroups.length : 0
             return (
               <button
                 key={id}
@@ -2889,7 +3298,7 @@ export default function Ueberfuehrungen() {
                   active ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 active:text-gray-700'
                 }`}
               >
-                {t(id === 'transfers' ? 'transfers.tab_transfers' : 'transfers.tab_calendar')}
+                {t(`transfers.tab_${id}`)}
                 {count > 0 && (
                   <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
                     active ? 'bg-brand-50 text-brand-700' : 'bg-gray-200 text-gray-500'
@@ -2902,7 +3311,19 @@ export default function Ueberfuehrungen() {
           })}
         </div>
 
-        {tab === 'calendar' ? (
+        {tab === 'agenda' ? (
+          <AgendaSection
+            events={calendarEvents}
+            importedUids={importedUids}
+            transfersByUid={transfersByUid}
+            onConfirm={handleConfirmEvent}
+            loading={calendarLoading}
+            error={calendarError}
+            onReload={loadCalendar}
+            onOpenProtocol={(protocolId) => navigate('/archiv', { state: { protocol_id: protocolId } })}
+            onOpenTransfer={handleOpenTransfer}
+          />
+        ) : tab === 'calendar' ? (
           <CalendarSection
             groups={calendarGroups}
             loading={calendarLoading}

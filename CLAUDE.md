@@ -110,6 +110,16 @@ an, falls sie fehlen (die gemeinsame IPv4 ist kostenlos).
 - Optional lässt sich eine abweichende PIN als Secret
   `VITE_APP_PASSWORD_PREVIEW` hinterlegen; ohne das Secret gilt die produktive.
 - PRs aus Forks bekommen keine Vorschau — GitHub gibt dort keine Secrets frei.
+- Die Vorschau hat einen **lila Rahmen** um den ganzen Bildschirm und ein
+  Icon mit lila Hintergrund (`public/logo-preview.webp`, im Manifest und im
+  Browser-Tab), damit sie nicht mit der echten App verwechselt wird. Android
+  schneidet Icons rund zu; dafür gibt es `logo-preview-maskable-*.png`
+  (`purpose: 'maskable'`): ebenfalls lila, das Logo kleiner in der sicheren
+  Mitte, damit der Zuschnitt nichts davon abschneidet. Der
+  Workflow baut sie mit `--build-arg VITE_PREVIEW=1`; ohne das Argument
+  (produktiv, lokal) bleibt alles wie gehabt. Ein schon installiertes Icon
+  aktualisiert das Telefon nicht immer — dann einmal neu zum Startbildschirm
+  hinzufügen.
 
 ## Kalender-Import für Überführungen
 
@@ -155,7 +165,7 @@ steht — dafür bekommt `extractContact` den Ort als `exclude` mitgegeben.
 Datumsangaben und Auftragsnummern gelten weiterhin nicht als Rufnummer. Auch das ist ein Vorschlag: beides landet im Formular und ist dort
 änderbar.
 
-Die Seite hat dafür zwei Tabs: **Überführungen** (die Arbeitsliste, darunter
+Die Seite hat dafür Tabs: **Überführungen** (die Arbeitsliste, darunter
 aufklappbar die abgeschlossenen) und **Kalender** (der Zulauf). Untereinander
 schob der Kalender die Liste immer weiter nach unten. Am Tab steht, wie viele
 Fahrten bzw. Termine dort warten. Nach dem Übernehmen bleibt der Tab stehen —
@@ -163,7 +173,22 @@ wer dreißig Termine übernimmt, will den nächsten sehen und nicht erst
 zurückwechseln; der übernommene verschwindet ohnehin aus der Liste. Nur der
 Sprung zu einer verbundenen Fahrt wechselt zu den Fahrten.
 
-Die Liste der Termine zeigt voreingestellt alles ab heute — der Feed liefert
+Davor steht als erster Tab — und beim Öffnen der Seite ausgewählt —
+**Termine**: der ganze Kalender chronologisch nach Tagen — auch schon übernommene Termine; die tragen dort den grünen Hinweis
+"Bestätigt". Die nächsten
+drei Termine, die noch beginnen, sind hervorgehoben und nummeriert.
+Vergangene und schon laufende Termine (begonnen, aber noch nicht vorbei) sind
+je für sich eingeklappt — ein laufender stünde sonst unter einem vergangenen
+Datum ganz oben und sähe aus wie ein vergangener.
+Ein Termin, aus dem schon eine Fahrt wurde, lässt sich aufklappen: darunter
+stehen Status und Protokolle der Fahrt (beim Tausch beider Fahrten), ein
+Antippen öffnet das Protokoll im Archiv, "Zur Fahrt" springt zur Karte — bei
+abgeschlossenen Fahrten klappt dafür auch der Abschnitt auf. Die Zuordnung
+kommt aus `transfer_calendar_links` und `transfers.calendar_uid`. Das "Heute" dreht sich von selbst weiter: um Mitternacht und beim
+Zurückkehren auf die Seite (auf dem Telefon schläft der Timer im Hintergrund),
+und mit dem neuen Tag wird der Kalender neu gelesen.
+
+Die Liste der Termine im Tab Kalender zeigt voreingestellt alles ab heute — der Feed liefert
 den ganzen Kalender samt Vergangenheit. Über die Felder **Von**/**Bis** lässt
 sich der Zeitraum ändern, **Alle** hebt den Filter auf.
 
@@ -279,6 +304,14 @@ ist.
 Das **Fragezeichen** heißt: vom Kunden noch nicht bestätigt. Der Termin lässt
 sich trotzdem übernehmen, die Fahrt ist dann eben geplant; in der Terminkarte
 steht der Hinweis "Unbestätigt".
+
+Bestätigen lässt er sich im Tab **Termine**: der Knopf "Bestätigen" steht an
+jedem unbestätigten Termin, der noch nicht vorbei und noch nicht übernommen
+ist. Er geht denselben Weg wie "Übernehmen" im Tab Kalender — mit der ganzen
+Gruppe des Termins, im selben Formular, alles vorher einsehbar und änderbar.
+**Bestätigt ist, was übernommen ist**: erst mit dem Speichern der Fahrt, und
+danach trägt der Termin im Tab Termine "Bestätigt" statt "Unbestätigt". Der
+Kalender ist nur lesbar, das Fragezeichen bleibt dort stehen.
 
 ### Neue Fahrzeuge aus dem Kalender
 
