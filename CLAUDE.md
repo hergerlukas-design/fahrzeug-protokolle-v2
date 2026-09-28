@@ -164,7 +164,8 @@ zurückwechseln; der übernommene verschwindet ohnehin aus der Liste. Nur der
 Sprung zu einer verbundenen Fahrt wechselt zu den Fahrten.
 
 Ein dritter Tab, **Termine**, zeigt den ganzen Kalender chronologisch nach
-Tagen — auch schon übernommene Termine (Hinweis "Übernommen"). Die nächsten
+Tagen — auch schon übernommene Termine; die tragen dort den grünen Hinweis
+"Bestätigt". Die nächsten
 drei Termine, die noch beginnen, sind hervorgehoben und nummeriert.
 Vergangene und schon laufende Termine (begonnen, aber noch nicht vorbei) sind
 je für sich eingeklappt — ein laufender stünde sonst unter einem vergangenen
@@ -295,12 +296,12 @@ sich trotzdem übernehmen, die Fahrt ist dann eben geplant; in der Terminkarte
 steht der Hinweis "Unbestätigt".
 
 Bestätigen lässt er sich im Tab **Termine**: der Knopf "Bestätigen" steht an
-jedem unbestätigten Termin, der noch nicht vorbei ist. Der Kalender ist nur
-lesbar, das Fragezeichen bleibt dort also stehen; die Bestätigung steht in
-`calendar_confirmations` (`20260928_calendar_confirmations.sql`), je Termin-UID.
-Danach heißt es "Bestätigt" statt "Unbestätigt", auch im Tab Kalender; ein
-Antippen des Hinweises nimmt die Bestätigung zurück. Fehlt die Tabelle noch,
-lädt der Kalender trotzdem — nur das Bestätigen meldet einen Fehler.
+jedem unbestätigten Termin, der noch nicht vorbei und noch nicht übernommen
+ist. Er geht denselben Weg wie "Übernehmen" im Tab Kalender — mit der ganzen
+Gruppe des Termins, im selben Formular, alles vorher einsehbar und änderbar.
+**Bestätigt ist, was übernommen ist**: erst mit dem Speichern der Fahrt, und
+danach trägt der Termin im Tab Termine "Bestätigt" statt "Unbestätigt". Der
+Kalender ist nur lesbar, das Fragezeichen bleibt dort stehen.
 
 ### Neue Fahrzeuge aus dem Kalender
 

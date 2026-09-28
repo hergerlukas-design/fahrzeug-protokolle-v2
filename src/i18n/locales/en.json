@@ -363,12 +363,10 @@
     "agenda_next": "Up next",
     "agenda_running": "Ongoing",
     "agenda_running_toggle": "Ongoing events ({{count}})",
-    "agenda_imported": "Imported",
     "agenda_no_protocol": "No protocol yet.",
     "agenda_open_transfer": "Open trip",
     "agenda_confirm": "Confirm",
-    "agenda_confirmed": "Confirmed",
-    "agenda_unconfirm": "Undo confirmation"
+    "agenda_confirmed": "Confirmed"
   },
   "annahme": {
     "title": "Intake Protocol",

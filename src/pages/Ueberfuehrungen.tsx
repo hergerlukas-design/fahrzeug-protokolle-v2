@@ -22,9 +22,6 @@ import {
   findOverlappingTransfers,
   fetchCalendarEvents,
   fetchImportedCalendarUids,
-  fetchCalendarConfirmations,
-  confirmCalendarEvent,
-  unconfirmCalendarEvent,
   fetchUnlinkedProtocols,
   linkProtocolToTransfer,
   detachProtocolFromTransfer,
@@ -1926,7 +1923,6 @@ function CalendarSection({
   loading,
   error,
   vehicles,
-  confirmedUids,
   onImport,
   onReload,
 }: {
@@ -1935,8 +1931,6 @@ function CalendarSection({
   loading: boolean
   error: string | null
   vehicles: Vehicle[]
-  /** Im Termine-Tab bestätigt – das Fragezeichen im Titel zählt dann nicht mehr. */
-  confirmedUids: Set<string>
   onImport: (events: CalendarEvent[], group: ImportGroup) => void
   onReload: () => void
 }) {
@@ -2054,7 +2048,7 @@ function CalendarSection({
             const picked = halves ? matchVehiclesByPlate(halves.pick, vehicles)[0] : undefined
             const brought = halves ? matchVehiclesByPlate(halves.bring, vehicles)[0] : undefined
             const splitSwapImport = !!picked && !!brought && picked.id !== brought.id
-            const unconfirmed = group.events.some((e) => isUnconfirmed(e.summary) && !confirmedUids.has(e.uid))
+            const unconfirmed = group.events.some((e) => isUnconfirmed(e.summary))
             return (
               <div key={group.key} className="bg-white rounded-2xl border border-dashed border-gray-300 shadow-sm px-4 py-3">
                 {group.events.map((ev, idx) => (
@@ -2241,7 +2235,6 @@ function AgendaSection({
   events,
   importedUids,
   transfersByUid,
-  confirmedUids,
   loading,
   error,
   onReload,
@@ -2258,9 +2251,8 @@ function AgendaSection({
   onReload: () => void
   onOpenProtocol: (protocolId: string) => void
   onOpenTransfer: (transferId: string) => void
-  confirmedUids: Set<string>
-  /** Bestätigen (true) oder die Bestätigung zurücknehmen (false). */
-  onConfirm: (ev: CalendarEvent, confirmed: boolean) => Promise<void>
+  /** Öffnet das Übernehmen-Formular – bestätigt ist erst, was gespeichert ist. */
+  onConfirm: (ev: CalendarEvent) => void
 }) {
   const { t, i18n } = useTranslation()
   const lang = i18n.language
@@ -2271,18 +2263,6 @@ function AgendaSection({
   const [showRunning, setShowRunning] = useState(false)
   // Aufgeklappter Termin: zeigt die Fahrt dazu und ihre Protokolle.
   const [openUid, setOpenUid] = useState<string | null>(null)
-  const [confirming, setConfirming] = useState<string | null>(null)
-
-  async function confirm(e: React.MouseEvent, ev: CalendarEvent, value: boolean) {
-    // Die Karte klappt sonst gleich mit auf.
-    e.stopPropagation()
-    setConfirming(ev.uid)
-    try {
-      await onConfirm(ev, value)
-    } finally {
-      setConfirming(null)
-    }
-  }
 
   // Mit dem neuen Tag auch den Kalender neu lesen – sonst stünde über Nacht
   // zwar ein anderer Termin vorn, aber aus dem Stand von gestern.
@@ -2342,11 +2322,10 @@ function AgendaSection({
     const clickable = linked.length > 0
     const isOpen = clickable && openUid === ev.uid
     const toggle = () => setOpenUid((cur) => (cur === ev.uid ? null : ev.uid))
-    // Nur Termine mit Fragezeichen brauchen eine Bestätigung – und nur solange
-    // sie nicht vorbei sind.
-    const askable = isUnconfirmed(ev.summary) && endOf(ev) >= today
-    const confirmed = isUnconfirmed(ev.summary) && confirmedUids.has(ev.uid)
-    const busyConfirm = confirming === ev.uid
+    // Bestätigt ist, was übernommen ist: dafür gehen Termine mit Fragezeichen
+    // durch dasselbe Formular wie im Tab Kalender. Vergangenes nicht mehr.
+    const askable = !imported && isUnconfirmed(ev.summary) && endOf(ev) >= today
+    const unconfirmed = !imported && isUnconfirmed(ev.summary)
     return (
       <div
         key={ev.uid}
@@ -2385,7 +2364,7 @@ function AgendaSection({
             {rank && diff > 1 && ` · ${t('transfers.agenda_in_days', { count: diff })}`}
           </p>
           <LocationLine to={ev.location} />
-          {(rank === 1 || running || imported || isUnconfirmed(ev.summary) || ev.recurring) && (
+          {(rank === 1 || running || imported || unconfirmed || ev.recurring) && (
             <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
               {rank === 1 && (
                 <span className="text-[10px] font-semibold uppercase tracking-wide bg-brand-600 text-white px-2 py-0.5 rounded-full">
@@ -2397,25 +2376,15 @@ function AgendaSection({
                   {t('transfers.agenda_running')}
                 </span>
               )}
+              {/* Übernommen heißt hier bestätigt: aus dem Termin ist eine Fahrt
+                  geworden. Das Fragezeichen im Kalender zählt dann nicht mehr. */}
               {imported && (
-                <span className="text-[10px] font-semibold uppercase tracking-wide bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                  {t('transfers.agenda_imported')}
-                </span>
-              )}
-              {confirmed ? (
-                // Zurücknehmen geht, falls es ein Versehen war – das Fragezeichen
-                // steht ja weiter im Kalender.
-                <button
-                  onClick={(e) => confirm(e, ev, false)}
-                  disabled={busyConfirm}
-                  aria-label={t('transfers.agenda_unconfirm')}
-                  className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide bg-green-100 text-green-700 pl-2 pr-1.5 py-0.5 rounded-full active:bg-green-200 disabled:opacity-50"
-                >
+                <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
                   <CheckCircle2 size={11} />
                   {t('transfers.agenda_confirmed')}
-                  <X size={11} className="text-green-600/60" />
-                </button>
-              ) : isUnconfirmed(ev.summary) && (
+                </span>
+              )}
+              {unconfirmed && (
                 <span className="text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
                   {t('transfers.calendar_unconfirmed')}
                 </span>
@@ -2427,11 +2396,10 @@ function AgendaSection({
               )}
             </div>
           )}
-          {askable && !confirmed && (
+          {askable && (
             <button
-              onClick={(e) => confirm(e, ev, true)}
-              disabled={busyConfirm}
-              className="mt-2 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-600 text-white text-xs font-semibold active:bg-green-700 disabled:opacity-50"
+              onClick={(e) => { e.stopPropagation(); onConfirm(ev) }}
+              className="mt-2 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-600 text-white text-xs font-semibold active:bg-green-700"
             >
               <CheckCircle2 size={13} />
               {t('transfers.agenda_confirm')}
@@ -2629,8 +2597,6 @@ export default function Ueberfuehrungen() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   // Welche Termine schon eine Fahrt haben – die Liste im Kalender lässt sie weg.
   const [importedUids, setImportedUids] = useState<Set<string>>(new Set())
-  // Unbestätigte Termine ("?" im Titel), die in der App bestätigt wurden.
-  const [confirmedUids, setConfirmedUids] = useState<Set<string>>(new Set())
   const [deleteTarget, setDeleteTarget] = useState<Transfer | null>(null)
   const [deleting, setDeleting] = useState(false)
 
@@ -2691,34 +2657,6 @@ export default function Ueberfuehrungen() {
   }, [t])
 
   useEffect(() => { loadCalendar() }, [loadCalendar])
-
-  // Eigener Abruf, damit eine noch nicht ausgeführte Migration
-  // (20260928_calendar_confirmations.sql) den Kalender nicht mitreißt.
-  const loadConfirmations = useCallback(async () => {
-    try {
-      setConfirmedUids(await fetchCalendarConfirmations())
-    } catch {
-      setConfirmedUids(new Set())
-    }
-  }, [])
-
-  useEffect(() => { loadConfirmations() }, [loadConfirmations])
-
-  async function handleConfirm(ev: CalendarEvent, confirmed: boolean) {
-    setError(null)
-    try {
-      if (confirmed) await confirmCalendarEvent(ev.uid, ev.summary)
-      else await unconfirmCalendarEvent(ev.uid)
-      setConfirmedUids((cur) => {
-        const next = new Set(cur)
-        if (confirmed) next.add(ev.uid)
-        else next.delete(ev.uid)
-        return next
-      })
-    } catch (e) {
-      setError(errorText(e, t('common.error')))
-    }
-  }
 
   const openForm = useCallback(
     (opts: {
@@ -2992,6 +2930,17 @@ export default function Ueberfuehrungen() {
           })
         : null,
     })
+  }
+
+  /**
+   * Bestätigen aus dem Termine-Tab: derselbe Weg wie Übernehmen im Tab
+   * Kalender. Der Termin geht mit seiner Gruppe ins Formular – Abholung und
+   * Überführung bleiben also eine Fahrt –, und bestätigt ist er erst, wenn die
+   * Fahrt gespeichert ist.
+   */
+  function handleConfirmEvent(ev: CalendarEvent) {
+    const group = calendarGroups.find((g) => g.events.some((e) => e.uid === ev.uid))
+    if (group) handleImportEvents(group.events, group)
   }
 
   /**
@@ -3366,8 +3315,7 @@ export default function Ueberfuehrungen() {
             events={calendarEvents}
             importedUids={importedUids}
             transfersByUid={transfersByUid}
-            confirmedUids={confirmedUids}
-            onConfirm={handleConfirm}
+            onConfirm={handleConfirmEvent}
             loading={calendarLoading}
             error={calendarError}
             onReload={loadCalendar}
@@ -3380,7 +3328,6 @@ export default function Ueberfuehrungen() {
             loading={calendarLoading}
             error={calendarError}
             vehicles={vehicles}
-            confirmedUids={confirmedUids}
             onImport={handleImportEvents}
             onReload={loadCalendar}
           />

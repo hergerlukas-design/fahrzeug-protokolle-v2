@@ -363,12 +363,10 @@
     "agenda_next": "Als Nächstes",
     "agenda_running": "Läuft",
     "agenda_running_toggle": "Laufende Termine ({{count}})",
-    "agenda_imported": "Übernommen",
     "agenda_no_protocol": "Noch kein Protokoll.",
     "agenda_open_transfer": "Zur Fahrt",
     "agenda_confirm": "Bestätigen",
-    "agenda_confirmed": "Bestätigt",
-    "agenda_unconfirm": "Bestätigung zurücknehmen"
+    "agenda_confirmed": "Bestätigt"
   },
   "annahme": {
     "title": "Annahmeprotokoll",
