@@ -504,6 +504,29 @@ jedem Kunden, im Gesamt zählt es einmal. Der CSV-Export
 (Symbol oben rechts) enthält Kunde, Kennzeichen, Modell und die drei Summen
 des gewählten Zeitraums.
 
+### Korrekturen von Hand
+
+Wo die Kette nicht aufgeht, wird nachgetragen statt geraten:
+`vehicle_location_events` (`20260930_vehicle_location_events.sql`) hält je
+Fahrzeug einen Tag und eine Art: **Zurück am Campus**, **Campus verlassen**,
+**Eingang** und **Abgang**. Eine Korrektur sagt nie, woher das Fahrzeug kam,
+damit sie keine neue Lücke aufreißt. Am selben Tag kommt sie als letzte, für
+die Nacht zählt also, was von Hand eingetragen wurde.
+
+Aufgeklappt trägt ein unklarer Abschnitt den passenden Knopf: "Zurück am Campus
+am …" bei fehlender Rückfahrt, "Campus verlassen am …" bei fehlender Abfahrt,
+beide bei unbekannter Richtung. Das Datum ist auf die Lücke begrenzt. Dasselbe
+gibt es am Warnhinweis für lange Abwesenheit. "Korrektur eintragen" darunter
+lässt die Art frei wählen, auch Eingang und Abgang. Korrekturen stehen in der
+Liste mit Papierkorb und lassen sich wieder löschen.
+
+Der **Abgang** beendet die Einlagerung (Rückgabe, Abmeldung, Verkauf). Danach
+zählt erst ein neuer Eingang oder eine neue Annahme wieder; eine Überführung,
+die noch geplant war, holt das Fahrzeug nicht in den Bestand zurück.
+
+Fehlt die Tabelle noch, lädt der Zeitstrahl trotzdem und nennt oben die
+Migration, die fehlt; die Knöpfe fehlen dann.
+
 ## Datenbank-Migrationen
 
 Neue Migrationen liegen unter `supabase/migrations/`. Nach einem neuen

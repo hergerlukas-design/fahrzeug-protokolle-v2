@@ -177,7 +177,7 @@ und erst in späteren Schritten:
 CREATE TABLE vehicle_location_events (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   vehicle_id  uuid NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
-  occurred_at timestamptz NOT NULL,
+  occurred_on date NOT NULL,
   kind        text NOT NULL CHECK (kind IN ('eingang', 'abgang', 'campus_an', 'campus_ab')),
   note        text,
   created_at  timestamptz NOT NULL DEFAULT now()
@@ -219,12 +219,17 @@ Protokollen auseinanderlaufen kann.
 5. **Richtung:** Der Pfeil im Ort entscheidet. „Schleißheimer 231 → Campus“
    ist eine Fahrt zum Campus, auch wenn im Protokoll „Hinbringen“ steht.
 
-Noch offen ist, womit die Einlagerung **endet** (Rückgabe an den Hersteller,
-Abmeldung). Bis zu Schritt 2 gilt: Sie beginnt mit der ersten Annahme und
-läuft, bis das Fahrzeug den Campus verlässt.
+Die Einlagerung beginnt mit der ersten Annahme. Sie **endet** mit einem
+Abgang, der von Hand eingetragen wird (Rückgabe, Abmeldung, Verkauf). Danach
+zählt erst eine neue Annahme oder ein neuer Eingang wieder.
 
 ## Stand
 
 Schritt 1 ist umgesetzt: `src/lib/timeline.ts` und die Seite
 `src/pages/Zeitstrahl.tsx` (Menüpunkt „Zeitstrahl“), dazu ein CSV-Export der
-Tage je Kunde und Fahrzeug.
+Tage je Kunde und Fahrzeug, und mehrere Kunden lassen sich gleichzeitig wählen.
+
+Schritt 2 ist umgesetzt: Korrekturen in `vehicle_location_events`
+(`20260930_vehicle_location_events.sql`). Statt eines Zeitstempels hat eine
+Korrektur nur einen Tag (`occurred_on`), denn für die Nacht zählt nur, wo das
+Fahrzeug am Abend steht. Am selben Tag kommt sie nach jeder anderen Quelle.

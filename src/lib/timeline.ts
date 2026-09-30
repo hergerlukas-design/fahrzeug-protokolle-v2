@@ -17,7 +17,7 @@
  * Abschnitte –, damit sie sich ohne Supabase nachprüfen lässt.
  */
 
-import { supabase } from './supabase'
+import { supabase, requireOnline } from './supabase'
 import { classifyEvent } from './calendarPairs'
 
 export type Place = 'campus' | 'extern'
@@ -33,11 +33,12 @@ export interface Movement {
   at: string
   /** Wo das Fahrzeug vorher stand, falls die Quelle das sagt. */
   from: Place | null
-  /** Wo es danach steht. null: die Quelle sagt es nicht – danach ist es unklar. */
-  to: Place | null
+  /** Wo es danach steht. null: die Quelle sagt es nicht – danach ist es unklar.
+      'ausserhalb': das Fahrzeug hat den Bestand verlassen. */
+  to: Place | 'ausserhalb' | null
   /** Annahme: das Fahrzeug kommt in den Bestand. */
   entry: boolean
-  source: 'protocol' | 'transfer'
+  source: 'protocol' | 'transfer' | 'correction'
   sourceId: string
   /** Für die Anzeige: "CarHandling Campus → Köln", "Lynk 08 in Köln". */
   label: string
@@ -263,6 +264,37 @@ export function transferMovements(t: TimelineTransfer): Movement[] {
   return moves
 }
 
+export type CorrectionKind = 'eingang' | 'abgang' | 'campus_an' | 'campus_ab'
+
+export interface Correction {
+  id: string
+  vehicle_id: string
+  occurred_on: string
+  kind: CorrectionKind
+  note: string | null
+}
+
+/**
+ * Was eine Korrektur von Hand sagt. Sie behauptet nie, woher das Fahrzeug
+ * kam – sie soll ja gerade eine Lücke schließen und keine neue aufreißen.
+ * Am selben Tag kommt sie als letzte: für die Nacht zählt, was von Hand
+ * eingetragen wurde.
+ */
+export function correctionMovement(c: Correction): Movement {
+  const to: Movement['to'] =
+    c.kind === 'abgang' ? 'ausserhalb' : c.kind === 'campus_ab' ? 'extern' : 'campus'
+  return {
+    day: c.occurred_on,
+    at: `${c.occurred_on}T23:59:59`,
+    from: null,
+    to,
+    entry: c.kind === 'eingang',
+    source: 'correction',
+    sourceId: c.id,
+    label: c.note?.trim() ?? '',
+  }
+}
+
 /** Wie nah eine Überführung an einem Protokoll liegen muss, um dieselbe Fahrt zu sein. */
 const SAME_TRIP_DAYS = 2
 
@@ -274,11 +306,15 @@ const SAME_TRIP_DAYS = 2
  * Als dieselbe Fahrt gilt eine Bewegung der Überführung, wenn ein Protokoll
  * wenige Tage davor oder danach in dieselbe Richtung zeigt.
  */
-export function mergeMovements(fromProtocols: Movement[], fromTransfers: Movement[]): Movement[] {
+export function mergeMovements(
+  fromProtocols: Movement[],
+  fromTransfers: Movement[],
+  fromCorrections: Movement[] = []
+): Movement[] {
   const kept = fromTransfers.filter(
     (tm) => !fromProtocols.some((pm) => pm.to === tm.to && Math.abs(dayDiff(pm.day, tm.day)) <= SAME_TRIP_DAYS)
   )
-  return [...fromProtocols, ...kept].sort((a, b) => (a.day === b.day ? a.at.localeCompare(b.at) : a.day.localeCompare(b.day)))
+  return [...fromProtocols, ...kept, ...fromCorrections].sort((a, b) => (a.day === b.day ? a.at.localeCompare(b.at) : a.day.localeCompare(b.day)))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -292,10 +328,17 @@ export function mergeMovements(fromProtocols: Movement[], fromTransfers: Movemen
  * eine Fahrt – der Abschnitt davor wird unklar.
  *
  * Mehrere Bewegungen am selben Tag: die letzte bestimmt die Nacht.
+ *
+ * Nach einem Abgang zählt erst wieder ein Eingang (Annahme oder Korrektur).
+ * Was dazwischen liegt – meist eine Überführung, die noch geplant war –,
+ * holt das Fahrzeug nicht in den Bestand zurück.
  */
 export function buildSegments(movements: Movement[]): Segment[] {
   const segments: Segment[] = []
+  let left = false
   for (const m of movements) {
+    if (left && !m.entry) continue
+    left = m.to === 'ausserhalb'
     const prev = segments[segments.length - 1]
     const current: NightState = prev?.state ?? 'ausserhalb'
 
@@ -395,10 +438,17 @@ export interface TimelineData {
   /** Fahrzeug → Kunden (Projekte). Ein Fahrzeug kann mehreren angehören. */
   customersOf: Map<string, string[]>
   movementsOf: Map<string, Movement[]>
+  /** false: die Tabelle der Korrekturen fehlt noch – Migration nicht gelaufen. */
+  correctionsAvailable: boolean
+}
+
+/** PostgREST meldet eine fehlende Tabelle als PGRST205, Postgres als 42P01. */
+function isMissingTable(error: { code?: string } | null): boolean {
+  return !!error && (error.code === 'PGRST205' || error.code === '42P01')
 }
 
 export async function fetchTimelineData(): Promise<TimelineData> {
-  const [vehicles, protocols, transfers, projects, links] = await Promise.all([
+  const [vehicles, protocols, transfers, projects, links, corrections] = await Promise.all([
     supabase.from('vehicles').select('id, license_plate, brand_model').order('license_plate'),
     supabase
       .from('protocols')
@@ -412,13 +462,17 @@ export async function fetchTimelineData(): Promise<TimelineData> {
       ),
     supabase.from('projects').select('id, name, color, is_archived').order('name'),
     supabase.from('vehicle_projects').select('vehicle_id, project_id'),
+    supabase.from('vehicle_location_events').select('id, vehicle_id, occurred_on, kind, note'),
   ])
   for (const r of [vehicles, protocols, transfers, projects, links]) if (r.error) throw r.error
+  // Fehlen die Korrekturen, geht der Zeitstrahl trotzdem – nur ohne sie.
+  const correctionsAvailable = !isMissingTable(corrections.error)
+  if (corrections.error && correctionsAvailable) throw corrections.error
 
-  const byVehicle = new Map<string, { p: Movement[]; t: Movement[] }>()
+  const byVehicle = new Map<string, { p: Movement[]; t: Movement[]; c: Movement[] }>()
   const bucket = (id: string) => {
     let b = byVehicle.get(id)
-    if (!b) byVehicle.set(id, (b = { p: [], t: [] }))
+    if (!b) byVehicle.set(id, (b = { p: [], t: [], c: [] }))
     return b
   }
   for (const p of (protocols.data ?? []) as TimelineProtocol[]) {
@@ -429,8 +483,12 @@ export async function fetchTimelineData(): Promise<TimelineData> {
     if (t.vehicle_id) bucket(t.vehicle_id).t.push(...transferMovements(t))
   }
 
+  for (const c of (corrections.data ?? []) as Correction[]) {
+    bucket(c.vehicle_id).c.push(correctionMovement(c))
+  }
+
   const movementsOf = new Map<string, Movement[]>()
-  for (const [id, b] of byVehicle) movementsOf.set(id, mergeMovements(b.p, b.t))
+  for (const [id, b] of byVehicle) movementsOf.set(id, mergeMovements(b.p, b.t, b.c))
 
   const customersOf = new Map<string, string[]>()
   for (const l of (links.data ?? []) as { vehicle_id: string; project_id: string }[]) {
@@ -442,5 +500,29 @@ export async function fetchTimelineData(): Promise<TimelineData> {
     customers: (projects.data ?? []) as TimelineCustomer[],
     customersOf,
     movementsOf,
+    correctionsAvailable,
+  }
+}
+
+export async function addCorrection(values: {
+  vehicle_id: string
+  occurred_on: string
+  kind: CorrectionKind
+  note?: string | null
+}): Promise<void> {
+  requireOnline()
+  const { error } = await supabase
+    .from('vehicle_location_events')
+    .insert({ ...values, note: values.note?.trim() || null })
+  if (error) throw error
+}
+
+export async function deleteCorrection(id: string): Promise<void> {
+  requireOnline()
+  const { data, error } = await supabase.from('vehicle_location_events').delete().eq('id', id).select('id')
+  if (error) throw error
+  // Leere Antwort ohne Fehler: RLS hat das Löschen still verhindert.
+  if (!data || data.length === 0) {
+    throw new Error('Löschen fehlgeschlagen: Supabase hat den Vorgang blockiert (RLS).')
   }
 }

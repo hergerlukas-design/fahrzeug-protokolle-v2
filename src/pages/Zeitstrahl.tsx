@@ -1,17 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AlertTriangle, ChevronDown, ChevronLeft, ChevronRight, Download, GanttChart } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ChevronLeft, ChevronRight, Download, GanttChart, Pencil, Trash2 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { SkeletonList } from '../components/Skeleton'
 import { errorText } from '../lib/supabase'
 import {
+  addCorrection,
   addDays,
   berlinDay,
   buildSegments,
   countNights,
   dayCells,
+  deleteCorrection,
   fetchTimelineData,
   longAbsence,
+  type CorrectionKind,
   type DayCell,
   type NightCounts,
   type Segment,
@@ -160,36 +163,280 @@ function Counts({ counts }: { counts: NightCounts }) {
   )
 }
 
-function SegmentList({ segments, from, to }: { segments: Segment[]; from: string; to: string }) {
+const CORRECTION_KINDS: CorrectionKind[] = ['campus_an', 'campus_ab', 'eingang', 'abgang']
+
+/** Eine Korrektur im Entstehen: was, an welchem Tag, und in welchen Grenzen. */
+interface Draft {
+  kind: CorrectionKind
+  day: string
+  note: string
+  /** Frei wählbare Art – aus "Korrektur eintragen". Aus einer Lücke heraus steht sie fest. */
+  free: boolean
+  min?: string
+  max?: string
+}
+
+function SegmentList({
+  segments,
+  from,
+  to,
+  onFix,
+  onDelete,
+  busy,
+}: {
+  segments: Segment[]
+  from: string
+  to: string
+  /** null: Korrekturen sind nicht möglich (Migration fehlt). */
+  onFix: ((kind: CorrectionKind, s: Segment) => void) | null
+  onDelete: (id: string) => void
+  busy: boolean
+}) {
   const { t } = useTranslation()
   const visible = segments.filter((s) => s.from <= to && (s.to === null || s.to >= from))
   if (visible.length === 0) return <p className="text-xs text-gray-400 py-2">{t('timeline.no_movements')}</p>
   return (
     <ul className="mt-2 space-y-1.5">
-      {visible.map((s) => (
-        <li key={s.from} className="flex gap-2 text-xs">
-          <span className="text-gray-500 tabular-nums whitespace-nowrap w-24 flex-shrink-0">
-            {fmt(s.from)}–{s.to ? fmt(s.to) : '…'}
-          </span>
-          <span className="min-w-0">
-            <span
-              className={`font-semibold ${
-                s.state === 'campus' ? 'text-green-700' : s.state === 'extern' ? 'text-sky-700' : 'text-red-600'
-              }`}
-            >
-              {t(`timeline.state_${s.state}`)}
+      {visible.map((s) => {
+        // Welche Korrektur die Lücke schließt, sagt ihr Grund.
+        const fixes: CorrectionKind[] =
+          s.state !== 'unklar'
+            ? []
+            : s.reason === 'missing_return'
+            ? ['campus_an']
+            : s.reason === 'missing_departure'
+            ? ['campus_ab']
+            : ['campus_an', 'campus_ab']
+        return (
+          <li key={s.from} className="flex gap-2 text-xs">
+            <span className="text-gray-500 tabular-nums whitespace-nowrap w-24 flex-shrink-0">
+              {fmt(s.from)}–{s.to ? fmt(s.to) : '…'}
             </span>
-            {s.reason && <span className="text-red-600"> · {t(`timeline.reason_${s.reason}`)}</span>}
-            {s.start && (
-              <span className="block text-gray-500 break-words">
-                {t(s.start.source === 'protocol' ? 'timeline.source_protocol' : 'timeline.source_transfer')}{' '}
-                {fmt(s.start.day)}: {s.start.label.replace(/\s*\n\s*/g, ', ') || '—'}
+            <span className="min-w-0 flex-1">
+              <span
+                className={`font-semibold ${
+                  s.state === 'campus'
+                    ? 'text-green-700'
+                    : s.state === 'extern'
+                    ? 'text-sky-700'
+                    : s.state === 'ausserhalb'
+                    ? 'text-gray-500'
+                    : 'text-red-600'
+                }`}
+              >
+                {t(`timeline.state_${s.state}`)}
               </span>
+              {s.reason && <span className="text-red-600"> · {t(`timeline.reason_${s.reason}`)}</span>}
+              {s.start && (
+                <span className="block text-gray-500 break-words">
+                  {t(`timeline.source_${s.start.source}`)} {fmt(s.start.day)}
+                  {s.start.source === 'correction'
+                    ? ` · ${t(`timeline.kind_${correctionKindOf(s)}`)}${s.start.label ? `: ${s.start.label}` : ''}`
+                    : `: ${s.start.label.replace(/\s*\n\s*/g, ', ') || '—'}`}
+                </span>
+              )}
+              {onFix && fixes.length > 0 && (
+                <span className="flex flex-wrap gap-1.5 mt-1">
+                  {fixes.map((k) => (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => onFix(k, s)}
+                      className="px-2 py-1 rounded-lg bg-red-50 text-red-700 border border-red-200 font-medium active:bg-red-100"
+                    >
+                      {t(`timeline.fix_${k}`)}
+                    </button>
+                  ))}
+                </span>
+              )}
+            </span>
+            {s.start?.source === 'correction' && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => onDelete(s.start!.sourceId)}
+                className="p-1 -m-1 text-gray-400 active:text-red-600 flex-shrink-0 self-start disabled:opacity-40"
+                aria-label={t('timeline.delete_correction')}
+                title={t('timeline.delete_correction')}
+              >
+                <Trash2 size={14} />
+              </button>
             )}
-          </span>
-        </li>
-      ))}
+          </li>
+        )
+      })}
     </ul>
+  )
+}
+
+/** Aus dem Zustand nach der Korrektur zurück auf ihre Art – für die Anzeige. */
+function correctionKindOf(s: Segment): CorrectionKind {
+  if (s.start?.entry) return 'eingang'
+  if (s.state === 'ausserhalb') return 'abgang'
+  return s.state === 'extern' ? 'campus_ab' : 'campus_an'
+}
+
+function CorrectionForm({
+  draft,
+  setDraft,
+  onSave,
+  onCancel,
+  busy,
+}: {
+  draft: Draft
+  setDraft: (d: Draft) => void
+  onSave: () => void
+  onCancel: () => void
+  busy: boolean
+}) {
+  const { t } = useTranslation()
+  const outside = (!!draft.min && draft.day < draft.min) || (!!draft.max && draft.day > draft.max)
+  return (
+    <div className="mt-2 p-3 rounded-xl border border-gray-200 bg-gray-50 space-y-2">
+      {draft.free ? (
+        <select
+          value={draft.kind}
+          onChange={(e) => setDraft({ ...draft, kind: e.target.value as CorrectionKind })}
+          className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+        >
+          {CORRECTION_KINDS.map((k) => (
+            <option key={k} value={k}>
+              {t(`timeline.kind_${k}`)}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <p className="text-sm font-semibold text-gray-900">{t(`timeline.kind_${draft.kind}`)}</p>
+      )}
+      <p className="text-[11px] text-gray-500">{t(`timeline.kind_${draft.kind}_hint`)}</p>
+      <div className="flex gap-2">
+        <input
+          type="date"
+          value={draft.day}
+          min={draft.min}
+          max={draft.max}
+          onChange={(e) => setDraft({ ...draft, day: e.target.value })}
+          className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+        />
+        <input
+          type="text"
+          value={draft.note}
+          onChange={(e) => setDraft({ ...draft, note: e.target.value })}
+          placeholder={t('timeline.note_placeholder')}
+          className="flex-1 min-w-0 px-2 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+        />
+      </div>
+      {outside && <p className="text-[11px] text-amber-700">{t('timeline.outside_gap')}</p>}
+      <div className="flex gap-2 justify-end">
+        <button type="button" onClick={onCancel} className="px-3 py-1.5 rounded-lg text-sm text-gray-600 active:bg-gray-100">
+          {t('common.cancel')}
+        </button>
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={busy || !draft.day}
+          className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-brand-600 text-white active:bg-brand-700 disabled:opacity-50"
+        >
+          {busy ? t('timeline.saving') : t('common.save')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/** Aufgeklappte Zeile: Abschnitte mit Quelle, Knöpfe für die Lücken, Korrekturen. */
+function VehicleDetails({
+  row,
+  from,
+  to,
+  today,
+  correctionsAvailable,
+  onChanged,
+}: {
+  row: Row
+  from: string
+  to: string
+  today: string
+  correctionsAvailable: boolean
+  onChanged: () => Promise<void>
+}) {
+  const { t } = useTranslation()
+  const [draft, setDraft] = useState<Draft | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function run(action: () => Promise<void>) {
+    setBusy(true)
+    setError(null)
+    try {
+      await action()
+      await onChanged()
+      setDraft(null)
+    } catch (err) {
+      setError(errorText(err, t('timeline.save_error')))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function fix(kind: CorrectionKind, s: Segment) {
+    const max = s.to && s.to < today ? s.to : today
+    setDraft({ kind, day: s.from <= max ? s.from : max, note: '', free: false, min: s.from, max })
+  }
+
+  // Die lange Abwesenheit ist der letzte, offene Abschnitt "extern".
+  const away = row.absence ? row.segments.find((s) => s.state === 'extern' && s.to === null) : undefined
+
+  return (
+    <div className="px-3 pb-3">
+      {row.absence && (
+        <div className="mt-1 text-xs text-amber-700 bg-amber-50 rounded-lg px-2 py-1.5">
+          {t('timeline.long_absence', { days: row.absence })}
+          {correctionsAvailable && away && (
+            <button
+              type="button"
+              onClick={() => setDraft({ kind: 'campus_an', day: today, note: '', free: false, min: away.from, max: today })}
+              className="block mt-1 font-semibold underline"
+            >
+              {t('timeline.fix_campus_an')}
+            </button>
+          )}
+        </div>
+      )}
+      <SegmentList
+        segments={row.segments}
+        from={from}
+        to={to}
+        onFix={correctionsAvailable ? fix : null}
+        onDelete={(id) => {
+          if (window.confirm(t('timeline.delete_confirm'))) run(() => deleteCorrection(id))
+        }}
+        busy={busy}
+      />
+      {draft && (
+        <CorrectionForm
+          draft={draft}
+          setDraft={setDraft}
+          busy={busy}
+          onCancel={() => setDraft(null)}
+          onSave={() =>
+            run(() =>
+              addCorrection({ vehicle_id: row.vehicle.id, occurred_on: draft.day, kind: draft.kind, note: draft.note })
+            )
+          }
+        />
+      )}
+      {error && <p className="mt-2 text-xs text-red-600 whitespace-pre-wrap">{error}</p>}
+      {correctionsAvailable && !draft && (
+        <button
+          type="button"
+          onClick={() => setDraft({ kind: 'campus_an', day: today, note: '', free: true, max: today })}
+          className="mt-2 flex items-center gap-1.5 text-xs font-medium text-gray-500 active:text-gray-800"
+        >
+          <Pencil size={12} /> {t('timeline.add_correction')}
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -215,6 +462,11 @@ export default function Zeitstrahl() {
       .then(setData)
       .catch((err) => setError(errorText(err, t('timeline.load_error'))))
   }, [t])
+
+  // Nach einer Korrektur neu laden – die alte Ansicht bleibt so lange stehen.
+  async function reload() {
+    setData(await fetchTimelineData())
+  }
 
   const { from, to } = rangeOf(anchor, span)
   const dense = span === 'quarter'
@@ -456,6 +708,12 @@ export default function Zeitstrahl() {
         )}
         {!data && !error && <SkeletonList />}
 
+        {data && !data.correctionsAvailable && (
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+            {t('timeline.corrections_missing')}
+          </p>
+        )}
+
         {data && groups.length === 0 && (
           <div className="text-center py-12 text-gray-400">
             <GanttChart size={32} className="mx-auto mb-2" />
@@ -518,15 +776,15 @@ export default function Zeitstrahl() {
                       </div>
                       <Bar cells={r.cells} today={today} dense={dense} />
                     </button>
-                    {isOpen && (
-                      <div className="px-3 pb-3">
-                        {r.absence && (
-                          <p className="mt-1 text-xs text-amber-700 bg-amber-50 rounded-lg px-2 py-1.5">
-                            {t('timeline.long_absence', { days: r.absence })}
-                          </p>
-                        )}
-                        <SegmentList segments={r.segments} from={from} to={to} />
-                      </div>
+                    {isOpen && data && (
+                      <VehicleDetails
+                        row={r}
+                        from={from}
+                        to={to}
+                        today={today}
+                        correctionsAvailable={data.correctionsAvailable}
+                        onChanged={reload}
+                      />
                     )}
                   </li>
                 )

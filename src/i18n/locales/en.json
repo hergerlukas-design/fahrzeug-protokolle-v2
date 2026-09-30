@@ -819,6 +819,25 @@
     "csv_model": "Model",
     "footnote": "Nights are counted up to today: a day is a storage day if the vehicle spends the night on campus. Future days are planned transfers and are not counted.",
     "total_one": "Total · {{count}} vehicle",
-    "total_other": "Total · {{count}} vehicles"
+    "total_other": "Total · {{count}} vehicles",
+    "source_correction": "Correction",
+    "kind_campus_an": "Back on campus",
+    "kind_campus_ab": "Left campus",
+    "kind_eingang": "Added to stock",
+    "kind_abgang": "Removed from stock",
+    "kind_campus_an_hint": "The vehicle is back on campus from this day – the night counts as a storage day.",
+    "kind_campus_ab_hint": "The vehicle left campus on this day – no storage day from this night on.",
+    "kind_eingang_hint": "From this day the vehicle is in stock and on campus.",
+    "kind_abgang_hint": "Returned, deregistered, sold: from this day the vehicle no longer counts. Only a new intake brings it back.",
+    "fix_campus_an": "Back on campus on …",
+    "fix_campus_ab": "Left campus on …",
+    "add_correction": "Add correction",
+    "note_placeholder": "Note (optional)",
+    "outside_gap": "The date lies outside the gap.",
+    "saving": "Saving …",
+    "save_error": "Could not save the correction.",
+    "delete_correction": "Delete correction",
+    "delete_confirm": "Delete this correction?",
+    "corrections_missing": "Corrections are not set up yet: run migration 20260930_vehicle_location_events.sql in the Supabase SQL editor."
   }
 }
