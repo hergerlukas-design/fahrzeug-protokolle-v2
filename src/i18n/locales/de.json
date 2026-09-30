@@ -839,6 +839,11 @@
     "save_error": "Korrektur konnte nicht gespeichert werden.",
     "delete_correction": "Korrektur löschen",
     "delete_confirm": "Diese Korrektur löschen?",
-    "corrections_missing": "Korrekturen sind noch nicht eingerichtet: Die Migration 20260930_vehicle_location_events.sql muss im Supabase SQL Editor ausgeführt werden."
+    "corrections_missing": "Korrekturen sind noch nicht eingerichtet: Die Migration 20260930_vehicle_location_events.sql muss im Supabase SQL Editor ausgeführt werden.",
+    "span_custom": "Zeitraum",
+    "range_from": "Von",
+    "range_to": "Bis",
+    "days_one": "{{count}} Tag",
+    "days_other": "{{count}} Tage"
   }
 }

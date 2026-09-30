@@ -496,6 +496,13 @@ Abschnitt dazwischen **unklar** (rot) statt geraten, mit dem Grund
 steht ein Warnsymbol daneben: meist fehlt das Protokoll der Rücknahme.
 "Nur Hinweise" zeigt genau diese Fahrzeuge.
 
+Der Zeitraum ist **Monat**, **Quartal** oder frei als **Zeitraum** mit Von und
+Bis. Beim Umschalten übernimmt der freie Zeitraum den gerade gezeigten, die
+Pfeile springen um seine Länge. Er ist auf drei Jahre begrenzt; überholt ein
+Ende das andere, schrumpft er auf einen Tag. Ab 45 Tagen wird der Balken am
+Stück gezeichnet (gleiche Tage als ein Block, heute als Strich) und die Achse
+zeigt Monate, bei mehr als 14 Monaten nur noch die Quartalsanfänge.
+
 Kunden lassen sich über die Chips oben **mehrfach** wählen; ohne Auswahl
 stehen alle da. Die Auswahl merkt sich der Browser (`localStorage`), archivierte
 Kunden erscheinen nur, solange sie gewählt sind. Bei mehr als einem Kunden steht

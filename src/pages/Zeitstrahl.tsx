@@ -11,6 +11,7 @@ import {
   buildSegments,
   countNights,
   dayCells,
+  daysBetween,
   deleteCorrection,
   fetchTimelineData,
   longAbsence,
@@ -22,7 +23,7 @@ import {
   type TimelineVehicle,
 } from '../lib/timeline'
 
-type Span = 'month' | 'quarter'
+type Span = 'month' | 'quarter' | 'custom'
 
 interface Row {
   vehicle: TimelineVehicle
@@ -73,6 +74,19 @@ function rangeOf(anchor: string, span: Span): { from: string; to: string } {
   return { from, to: addDays(next, -1) }
 }
 
+/** Wie lang ein frei gewählter Zeitraum höchstens sein darf – drei Jahre. Mehr
+ *  liest niemand aus einem Balken, und beim Tippen eines Datums entstehen
+ *  kurz Jahre wie 0002, die sonst Millionen Tage erzeugten. */
+const MAX_RANGE_DAYS = 3 * 366
+
+/** Ab wie vielen Tagen der Balken ohne Lücken zwischen den Tagen gezeichnet wird. */
+const DENSE_FROM_DAYS = 45
+
+function isPlausibleDay(day: string): boolean {
+  const y = Number(day.slice(0, 4))
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) && y >= 2000 && y <= 2100
+}
+
 function shiftMonth(anchor: string, n: number): string {
   const [y, m] = anchor.split('-').map(Number)
   return new Date(Date.UTC(y, m - 1 + n, 1)).toISOString().slice(0, 7)
@@ -83,6 +97,11 @@ function sum(counts: NightCounts[]): NightCounts {
     (a, c) => ({ campus: a.campus + c.campus, extern: a.extern + c.extern, unklar: a.unklar + c.unklar }),
     { campus: 0, extern: 0, unklar: 0 }
   )
+}
+
+function fmtLong(day: string): string {
+  const [y, m, d] = day.split('-')
+  return `${d}.${m}.${y}`
 }
 
 function fmt(day: string): string {
@@ -107,6 +126,31 @@ function cellClass(c: DayCell): string {
 }
 
 function Bar({ cells, today, dense }: { cells: DayCell[]; today: string; dense: boolean }) {
+  if (dense) {
+    // Lange Zeiträume: gleiche Tage am Stück als ein Block, sonst stünden bei
+    // einem Jahr 365 Elemente je Zeile im Dokument.
+    const runs: { cls: string; n: number; key: string }[] = []
+    for (const c of cells) {
+      const cls = cellClass(c)
+      const last = runs[runs.length - 1]
+      if (last && last.cls === cls) last.n++
+      else runs.push({ cls, n: 1, key: c.day })
+    }
+    const todayAt = cells.findIndex((c) => c.day === today)
+    return (
+      <div className="relative flex h-3 rounded overflow-hidden">
+        {runs.map((r) => (
+          <div key={r.key} className={r.cls} style={{ flexGrow: r.n, flexBasis: 0 }} />
+        ))}
+        {todayAt >= 0 && (
+          <div
+            className="absolute inset-y-0 w-0.5 bg-gray-900"
+            style={{ left: `${((todayAt + 0.5) / cells.length) * 100}%` }}
+          />
+        )}
+      </div>
+    )
+  }
   return (
     <div className={`flex h-3 ${dense ? '' : 'gap-px'}`}>
       {cells.map((c) => (
@@ -123,6 +167,41 @@ function Bar({ cells, today, dense }: { cells: DayCell[]; today: string; dense: 
 
 /** Tageszahlen bzw. Monatsanfänge über den Balken. */
 function Axis({ days, dense, locale }: { days: string[]; dense: boolean; locale: string }) {
+  if (dense) {
+    // Ein Block je Monat, so breit wie seine Tage im Zeitraum. Bei mehr als
+    // gut einem Jahr steht nur noch an jedem Quartalsanfang eine Beschriftung.
+    const months: { key: string; n: number }[] = []
+    for (const d of days) {
+      const key = d.slice(0, 7)
+      const last = months[months.length - 1]
+      if (last && last.key === key) last.n++
+      else months.push({ key, n: 1 })
+    }
+    const sparse = months.length > 14
+    return (
+      <div className="flex text-[9px] text-gray-400 leading-none h-3">
+        {months.map((m, i) => {
+          const month = Number(m.key.slice(5))
+          const show = !sparse || month % 3 === 1
+          const withYear = i === 0 || month === 1
+          const label = new Date(`${m.key}-01T00:00:00Z`).toLocaleDateString(locale, {
+            month: 'short',
+            ...(withYear ? { year: '2-digit' } : {}),
+            timeZone: 'UTC',
+          })
+          return (
+            <div
+              key={m.key}
+              className="min-w-0 overflow-visible whitespace-nowrap border-l border-gray-200 pl-0.5 first:border-l-0 first:pl-0"
+              style={{ flexGrow: m.n, flexBasis: 0 }}
+            >
+              {show ? label : ''}
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
   return (
     <div className={`flex ${dense ? '' : 'gap-px'} text-[9px] text-gray-400 leading-none h-3`}>
       {days.map((d) => {
@@ -450,6 +529,8 @@ export default function Zeitstrahl() {
   const today = berlinDay(new Date())
   const [anchor, setAnchor] = useState(today.slice(0, 7))
   const [span, setSpan] = useState<Span>('month')
+  // Frei gewählter Zeitraum – beim Umschalten übernimmt er den gerade gezeigten.
+  const [custom, setCustom] = useState(() => rangeOf(today.slice(0, 7), 'month'))
   // Leer heißt: alle Kunden.
   const [selected, setSelected] = useState<string[]>(loadSelection)
   const [onlyIssues, setOnlyIssues] = useState(false)
@@ -468,8 +549,39 @@ export default function Zeitstrahl() {
     setData(await fetchTimelineData())
   }
 
-  const { from, to } = rangeOf(anchor, span)
-  const dense = span === 'quarter'
+  const { from, to } = span === 'custom' ? custom : rangeOf(anchor, span)
+  const length = daysBetween(from, to).length
+  const dense = length > DENSE_FROM_DAYS
+
+  function chooseSpan(next: Span) {
+    if (next === span) return
+    if (next === 'custom') setCustom({ from, to })
+    else if (span === 'custom') setAnchor(from.slice(0, 7))
+    setSpan(next)
+  }
+
+  /** Ein Datum des freien Zeitraums ändern. Liegt Von hinter Bis, zieht das
+   *  andere Ende mit; länger als MAX_RANGE_DAYS wird er nicht. */
+  function setCustomDay(which: 'from' | 'to', day: string) {
+    if (!isPlausibleDay(day)) return
+    let next = { ...custom, [which]: day }
+    // Überholt ein Ende das andere, schrumpft der Zeitraum auf diesen einen Tag.
+    if (next.from > next.to) next = { from: day, to: day }
+    if (daysBetween(next.from, next.to).length > MAX_RANGE_DAYS) {
+      next =
+        which === 'from'
+          ? { from: next.from, to: addDays(next.from, MAX_RANGE_DAYS - 1) }
+          : { from: addDays(next.to, -(MAX_RANGE_DAYS - 1)), to: next.to }
+    }
+    setCustom(next)
+  }
+
+  /** Vor und zurück: Monat und Quartal springen um ihre Länge, ein freier
+   *  Zeitraum um seine Anzahl Tage. */
+  function step(dir: 1 | -1) {
+    if (span === 'custom') setCustom({ from: addDays(from, dir * length), to: addDays(to, dir * length) })
+    else setAnchor(shiftMonth(anchor, dir * (span === 'month' ? 1 : 3)))
+  }
 
   // Abschnitte hängen nicht am Zeitraum – nur einmal je Datenstand bauen.
   const segmentsOf = useMemo(() => {
@@ -534,11 +646,7 @@ export default function Zeitstrahl() {
     return { vehicles: unique.size, counts: sum([...unique.values()]) }
   }, [groups])
 
-  const days = useMemo(() => {
-    const out: string[] = []
-    for (let d = from; d <= to; d = addDays(d, 1)) out.push(d)
-    return out
-  }, [from, to])
+  const days = useMemo(() => daysBetween(from, to), [from, to])
 
   const title = new Date(`${from}T00:00:00Z`).toLocaleDateString(i18n.language, {
     month: 'long',
@@ -546,7 +654,9 @@ export default function Zeitstrahl() {
     timeZone: 'UTC',
   })
   const periodLabel =
-    span === 'month'
+    span === 'custom'
+      ? `${fmtLong(from)} – ${fmtLong(to)} · ${t('timeline.days', { count: length })}`
+      : span === 'month'
       ? title
       : `${new Date(`${from}T00:00:00Z`).toLocaleDateString(i18n.language, { month: 'short', timeZone: 'UTC' })} – ${new Date(
           `${to}T00:00:00Z`
@@ -601,22 +711,24 @@ export default function Zeitstrahl() {
         <div className="flex items-center gap-2 mb-2">
           <button
             type="button"
-            onClick={() => setAnchor(shiftMonth(anchor, span === 'month' ? -1 : -3))}
+            onClick={() => step(-1)}
             className="p-1.5 rounded-lg text-gray-500 active:bg-gray-100"
             aria-label={t('timeline.previous')}
           >
             <ChevronLeft size={18} />
           </button>
+          {/* Antippen springt zurück auf heute – beim freien Zeitraum nicht, dort
+              stehen die Daten ohnehin in den Feldern darunter. */}
           <button
             type="button"
-            onClick={() => setAnchor(today.slice(0, 7))}
-            className="flex-1 text-sm font-semibold text-gray-900 text-center"
+            onClick={() => span !== 'custom' && setAnchor(today.slice(0, 7))}
+            className="flex-1 min-w-0 text-sm font-semibold text-gray-900 text-center truncate"
           >
             {periodLabel}
           </button>
           <button
             type="button"
-            onClick={() => setAnchor(shiftMonth(anchor, span === 'month' ? 1 : 3))}
+            onClick={() => step(1)}
             className="p-1.5 rounded-lg text-gray-500 active:bg-gray-100"
             aria-label={t('timeline.next')}
           >
@@ -626,11 +738,11 @@ export default function Zeitstrahl() {
 
         <div className="flex gap-2 items-center">
           <div className="flex gap-1 bg-gray-100 p-1 rounded-xl flex-shrink-0">
-            {(['month', 'quarter'] as const).map((s) => (
+            {(['month', 'quarter', 'custom'] as const).map((s) => (
               <button
                 key={s}
                 type="button"
-                onClick={() => setSpan(s)}
+                onClick={() => chooseSpan(s)}
                 className={`px-2.5 py-1 rounded-lg text-xs font-medium ${
                   span === s ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
                 }`}
@@ -649,6 +761,24 @@ export default function Zeitstrahl() {
             {t('timeline.only_issues')}
           </button>
         </div>
+
+        {span === 'custom' && (
+          <div className="flex gap-2 mt-2">
+            {(['from', 'to'] as const).map((which) => (
+              <label key={which} className="flex-1 min-w-0">
+                <span className="text-[10px] text-gray-400 mb-0.5 block">{t(`timeline.range_${which}`)}</span>
+                <input
+                  type="date"
+                  value={custom[which]}
+                  min="2000-01-01"
+                  max="2100-12-31"
+                  onChange={(e) => setCustomDay(which, e.target.value)}
+                  className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+              </label>
+            ))}
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-1.5 mt-2">
           <button
