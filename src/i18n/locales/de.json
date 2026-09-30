@@ -844,6 +844,11 @@
     "range_from": "Von",
     "range_to": "Bis",
     "days_one": "{{count}} Tag",
-    "days_other": "{{count}} Tage"
+    "days_other": "{{count}} Tage",
+    "customers": "Kunden",
+    "customers_count_one": "{{count}} Kunde",
+    "customers_count_other": "{{count}} Kunden",
+    "archived": "archiviert",
+    "done": "Fertig"
   }
 }

@@ -496,16 +496,23 @@ Abschnitt dazwischen **unklar** (rot) statt geraten, mit dem Grund
 steht ein Warnsymbol daneben: meist fehlt das Protokoll der Rücknahme.
 "Nur Hinweise" zeigt genau diese Fahrzeuge.
 
+Der feste Kopf hat drei Zeilen: Titel mit Export, die Navigation und darunter
+Ansicht, Kunden und das Symbol für "Nur Hinweise". Die Legende scrollt mit der
+Liste, im Kopf kostete sie auf dem Telefon eine Zeile.
+
 Der Zeitraum ist **Monat**, **Quartal** oder frei als **Zeitraum** mit Von und
-Bis. Beim Umschalten übernimmt der freie Zeitraum den gerade gezeigten, die
+Bis; die beiden Datumsfelder stehen dann zwischen den Pfeilen, an der Stelle
+der Überschrift. Beim Umschalten übernimmt der freie Zeitraum den gerade gezeigten, die
 Pfeile springen um seine Länge. Er ist auf drei Jahre begrenzt; überholt ein
 Ende das andere, schrumpft er auf einen Tag. Ab 45 Tagen wird der Balken am
 Stück gezeichnet (gleiche Tage als ein Block, heute als Strich) und die Achse
 zeigt Monate, bei mehr als 14 Monaten nur noch die Quartalsanfänge.
 
-Kunden lassen sich über die Chips oben **mehrfach** wählen; ohne Auswahl
-stehen alle da. Die Auswahl merkt sich der Browser (`localStorage`), archivierte
-Kunden erscheinen nur, solange sie gewählt sind. Bei mehr als einem Kunden steht
+Kunden lassen sich **mehrfach** wählen: der Knopf "Kunden" öffnet eine Liste
+von unten (`CustomerSheet`) und nennt danach die Auswahl ("Lucid, Polestar",
+ab drei "3 Kunden"); ohne Auswahl stehen alle da. Die Auswahl merkt sich der
+Browser (`localStorage`). Archivierte Kunden stehen am Ende der Liste, für
+alte Abrechnungen. Bei mehr als einem Kunden steht
 darüber eine Zeile **Gesamt**. Ein Fahrzeug in mehreren Projekten steht bei
 jedem Kunden, im Gesamt zählt es einmal. Der CSV-Export
 (Symbol oben rechts) enthält Kunde, Kennzeichen, Modell und die drei Summen

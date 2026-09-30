@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AlertTriangle, ChevronDown, ChevronLeft, ChevronRight, Download, GanttChart, Pencil, Trash2 } from 'lucide-react'
+import { AlertTriangle, Check, ChevronDown, ChevronLeft, ChevronRight, Download, GanttChart, Pencil, Trash2, Users } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { SkeletonList } from '../components/Skeleton'
 import { errorText } from '../lib/supabase'
@@ -97,11 +97,6 @@ function sum(counts: NightCounts[]): NightCounts {
     (a, c) => ({ campus: a.campus + c.campus, extern: a.extern + c.extern, unklar: a.unklar + c.unklar }),
     { campus: 0, extern: 0, unklar: 0 }
   )
-}
-
-function fmtLong(day: string): string {
-  const [y, m, d] = day.split('-')
-  return `${d}.${m}.${y}`
 }
 
 function fmt(day: string): string {
@@ -519,6 +514,93 @@ function VehicleDetails({
   )
 }
 
+/** Kundenauswahl von unten – statt einer Chip-Reihe, die im Kopf bis zu vier
+ *  Zeilen belegte. Archivierte Kunden stehen am Ende, für alte Abrechnungen. */
+function CustomerSheet({
+  customers,
+  active,
+  onToggle,
+  onAll,
+  onClose,
+}: {
+  customers: TimelineData['customers']
+  active: string[]
+  onToggle: (id: string) => void
+  onAll: () => void
+  onClose: () => void
+}) {
+  const { t } = useTranslation()
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  const entries = [
+    ...customers.filter((c) => !c.is_archived),
+    { id: NO_CUSTOMER, name: t('timeline.no_customer'), color: null, is_archived: false },
+    ...customers.filter((c) => c.is_archived),
+  ]
+
+  const row = (id: string, name: string, color: string | null, on: boolean, onClick: () => void, muted = false) => (
+    <button
+      key={id}
+      type="button"
+      onClick={onClick}
+      aria-pressed={on}
+      className="w-full flex items-center gap-3 px-2 py-2.5 rounded-xl text-left active:bg-gray-50"
+    >
+      <span
+        className={`w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 ${
+          on ? 'bg-brand-600 border-brand-600 text-white' : 'border-gray-300'
+        }`}
+      >
+        {on && <Check size={14} />}
+      </span>
+      {color !== undefined && id !== 'all' && (
+        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: color ?? '#9ca3af' }} />
+      )}
+      <span className={`flex-1 min-w-0 truncate text-sm ${muted ? 'text-gray-400' : 'text-gray-800'}`}>{name}</span>
+    </button>
+  )
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 animate-fade-in" onClick={onClose}>
+      <div
+        className="w-full max-w-sm bg-white rounded-t-2xl px-4 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl animate-slide-up max-h-[80vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-gray-300" />
+        <p className="text-base font-semibold text-gray-800 mb-2">{t('timeline.customers')}</p>
+        <div className="overflow-y-auto -mx-2 px-2">
+          {row('all', t('timeline.all_customers'), null, active.length === 0, onAll)}
+          <div className="border-t border-gray-100 my-1" />
+          {entries.map((c) =>
+            row(
+              c.id,
+              c.is_archived ? `${c.name} · ${t('timeline.archived')}` : c.name,
+              c.color,
+              active.includes(c.id),
+              () => onToggle(c.id),
+              c.is_archived
+            )
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-3 w-full py-3 rounded-xl text-sm font-semibold bg-brand-600 text-white active:bg-brand-700"
+        >
+          {t('timeline.done')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function csvCell(v: string | number): string {
   const s = String(v)
   return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
@@ -534,6 +616,7 @@ export default function Zeitstrahl() {
   // Leer heißt: alle Kunden.
   const [selected, setSelected] = useState<string[]>(loadSelection)
   const [onlyIssues, setOnlyIssues] = useState(false)
+  const [picking, setPicking] = useState(false)
   const [open, setOpen] = useState<string | null>(null)
   const [data, setData] = useState<TimelineData | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -603,6 +686,15 @@ export default function Zeitstrahl() {
     saveSelection(next)
   }
 
+  const customerNames = (id: string) =>
+    id === NO_CUSTOMER ? t('timeline.no_customer') : data?.customers.find((c) => c.id === id)?.name ?? ''
+  const customerSummary =
+    active.length === 0
+      ? t('timeline.all_customers')
+      : active.length <= 2
+      ? active.map(customerNames).join(', ')
+      : t('timeline.customers_count', { count: active.length })
+
   function clearCustomers() {
     setSelected([])
     saveSelection([])
@@ -654,9 +746,7 @@ export default function Zeitstrahl() {
     timeZone: 'UTC',
   })
   const periodLabel =
-    span === 'custom'
-      ? `${fmtLong(from)} – ${fmtLong(to)} · ${t('timeline.days', { count: length })}`
-      : span === 'month'
+    span === 'month'
       ? title
       : `${new Date(`${from}T00:00:00Z`).toLocaleDateString(i18n.language, { month: 'short', timeZone: 'UTC' })} – ${new Date(
           `${to}T00:00:00Z`
@@ -708,28 +798,48 @@ export default function Zeitstrahl() {
           </button>
         }
       >
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-1 mb-2">
           <button
             type="button"
             onClick={() => step(-1)}
-            className="p-1.5 rounded-lg text-gray-500 active:bg-gray-100"
+            className="p-1.5 rounded-lg text-gray-500 active:bg-gray-100 flex-shrink-0"
             aria-label={t('timeline.previous')}
           >
             <ChevronLeft size={18} />
           </button>
-          {/* Antippen springt zurück auf heute – beim freien Zeitraum nicht, dort
-              stehen die Daten ohnehin in den Feldern darunter. */}
-          <button
-            type="button"
-            onClick={() => span !== 'custom' && setAnchor(today.slice(0, 7))}
-            className="flex-1 min-w-0 text-sm font-semibold text-gray-900 text-center truncate"
-          >
-            {periodLabel}
-          </button>
+          {span === 'custom' ? (
+            // Beim freien Zeitraum stehen die Daten selbst an der Stelle der
+            // Überschrift – eine eigene Zeile dafür machte den Kopf zu hoch.
+            <div className="flex-1 min-w-0 flex items-center gap-1">
+              {(['from', 'to'] as const).map((which, i) => (
+                <Fragment key={which}>
+                  {i === 1 && <span className="text-gray-400 text-xs">–</span>}
+                  <input
+                    type="date"
+                    aria-label={t(`timeline.range_${which}`)}
+                    value={custom[which]}
+                    min="2000-01-01"
+                    max="2100-12-31"
+                    onChange={(e) => setCustomDay(which, e.target.value)}
+                    className="flex-1 min-w-0 px-1.5 py-1 border border-gray-300 rounded-lg text-xs font-semibold text-gray-900 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                </Fragment>
+              ))}
+            </div>
+          ) : (
+            // Antippen springt zurück auf heute.
+            <button
+              type="button"
+              onClick={() => setAnchor(today.slice(0, 7))}
+              className="flex-1 min-w-0 text-sm font-semibold text-gray-900 text-center truncate"
+            >
+              {periodLabel}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => step(1)}
-            className="p-1.5 rounded-lg text-gray-500 active:bg-gray-100"
+            className="p-1.5 rounded-lg text-gray-500 active:bg-gray-100 flex-shrink-0"
             aria-label={t('timeline.next')}
           >
             <ChevronRight size={18} />
@@ -737,13 +847,13 @@ export default function Zeitstrahl() {
         </div>
 
         <div className="flex gap-2 items-center">
-          <div className="flex gap-1 bg-gray-100 p-1 rounded-xl flex-shrink-0">
+          <div className="flex gap-0.5 bg-gray-100 p-1 rounded-xl flex-shrink-0">
             {(['month', 'quarter', 'custom'] as const).map((s) => (
               <button
                 key={s}
                 type="button"
                 onClick={() => chooseSpan(s)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium ${
+                className={`px-2 py-1 rounded-lg text-xs font-medium ${
                   span === s ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
                 }`}
               >
@@ -753,79 +863,26 @@ export default function Zeitstrahl() {
           </div>
           <button
             type="button"
-            onClick={() => setOnlyIssues(!onlyIssues)}
-            className={`ml-auto px-2.5 py-1.5 rounded-lg text-xs font-medium border flex-shrink-0 ${
-              onlyIssues ? 'bg-red-50 text-red-700 border-red-200' : 'bg-white text-gray-600 border-gray-300'
+            onClick={() => setPicking(true)}
+            className={`flex-1 min-w-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border ${
+              active.length > 0 ? 'bg-brand-50 text-brand-700 border-brand-300' : 'bg-white text-gray-600 border-gray-300'
             }`}
           >
-            {t('timeline.only_issues')}
+            <Users size={14} className="flex-shrink-0" />
+            <span className="truncate">{customerSummary}</span>
           </button>
-        </div>
-
-        {span === 'custom' && (
-          <div className="flex gap-2 mt-2">
-            {(['from', 'to'] as const).map((which) => (
-              <label key={which} className="flex-1 min-w-0">
-                <span className="text-[10px] text-gray-400 mb-0.5 block">{t(`timeline.range_${which}`)}</span>
-                <input
-                  type="date"
-                  value={custom[which]}
-                  min="2000-01-01"
-                  max="2100-12-31"
-                  onChange={(e) => setCustomDay(which, e.target.value)}
-                  className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                />
-              </label>
-            ))}
-          </div>
-        )}
-
-        <div className="flex flex-wrap gap-1.5 mt-2">
           <button
             type="button"
-            onClick={clearCustomers}
-            className={`px-2.5 py-1 rounded-full text-xs font-medium border max-w-full truncate ${
-              active.length === 0 ? 'bg-gray-700 text-white border-gray-700' : 'bg-white text-gray-600 border-gray-300'
+            onClick={() => setOnlyIssues(!onlyIssues)}
+            aria-pressed={onlyIssues}
+            aria-label={t('timeline.only_issues')}
+            title={t('timeline.only_issues')}
+            className={`p-1.5 rounded-lg border flex-shrink-0 ${
+              onlyIssues ? 'bg-red-50 text-red-600 border-red-200' : 'bg-white text-gray-500 border-gray-300'
             }`}
           >
-            {t('timeline.all_customers')}
+            <AlertTriangle size={16} />
           </button>
-          {[
-            ...(data?.customers ?? []).map((c) => ({ id: c.id, name: c.name, color: c.color, archived: c.is_archived })),
-            { id: NO_CUSTOMER, name: t('timeline.no_customer'), color: null, archived: false },
-          ]
-            // Archivierte Kunden nur, wenn sie gewählt sind – sonst wird die Reihe lang.
-            .filter((c) => !c.archived || active.includes(c.id))
-            .map((c) => {
-              const on = active.includes(c.id)
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => toggleCustomer(c.id)}
-                  aria-pressed={on}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border max-w-full truncate ${
-                    on ? 'bg-brand-50 text-brand-700 border-brand-300' : 'bg-white text-gray-600 border-gray-300'
-                  }`}
-                >
-                  <span className="w-2 h-2 rounded-full" style={{ background: c.color ?? '#9ca3af' }} />
-                  {c.name}
-                </button>
-              )
-            })}
-        </div>
-
-        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[10px] text-gray-500">
-          {[
-            ['bg-green-500', 'timeline.legend_campus'],
-            ['bg-amber-400', 'timeline.legend_moving'],
-            ['bg-sky-400', 'timeline.legend_extern'],
-            ['bg-red-400', 'timeline.legend_unclear'],
-          ].map(([cls, key]) => (
-            <span key={key} className="flex items-center gap-1">
-              <span className={`w-2.5 h-2.5 rounded-sm ${cls}`} /> {t(key)}
-            </span>
-          ))}
         </div>
       </PageHeader>
 
@@ -848,6 +905,26 @@ export default function Zeitstrahl() {
           <div className="text-center py-12 text-gray-400">
             <GanttChart size={32} className="mx-auto mb-2" />
             <p className="text-sm">{t('timeline.empty')}</p>
+          </div>
+        )}
+
+        {/* Die Legende scrollt mit – im festen Kopf kostete sie auf dem Telefon
+            eine ganze Zeile. */}
+        {data && groups.length > 0 && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-gray-500 px-1">
+            {span === 'custom' && (
+              <span className="font-semibold text-gray-700">{t('timeline.days', { count: length })}</span>
+            )}
+            {[
+              ['bg-green-500', 'timeline.legend_campus'],
+              ['bg-amber-400', 'timeline.legend_moving'],
+              ['bg-sky-400', 'timeline.legend_extern'],
+              ['bg-red-400', 'timeline.legend_unclear'],
+            ].map(([cls, key]) => (
+              <span key={key} className="flex items-center gap-1">
+                <span className={`w-2.5 h-2.5 rounded-sm ${cls}`} /> {t(key)}
+              </span>
+            ))}
           </div>
         )}
 
@@ -927,6 +1004,16 @@ export default function Zeitstrahl() {
           <p className="text-[11px] text-gray-400 px-1">{t('timeline.footnote')}</p>
         )}
       </div>
+
+      {picking && data && (
+        <CustomerSheet
+          customers={data.customers}
+          active={active}
+          onToggle={toggleCustomer}
+          onAll={clearCustomers}
+          onClose={() => setPicking(false)}
+        />
+      )}
     </div>
   )
 }
