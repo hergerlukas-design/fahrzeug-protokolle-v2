@@ -23,6 +23,7 @@ import { errorText } from '../lib/supabase'
 import { OFFLINE_SAVED_EVENT } from '../components/OfflineIndicator'
 import PdfButton from '../components/PdfButton'
 import PageHeader from '../components/PageHeader'
+import CampusChip from '../components/CampusChip'
 import CarDamageSelector from '../components/CarDamageSelector'
 import SignatureCanvas from '../components/SignatureCanvas'
 import PhotoSourceSheet from '../components/PhotoSourceSheet'
@@ -827,7 +828,10 @@ export default function Annahme() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">{t('annahme.location_label')}</label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-sm font-medium text-gray-700">{t('annahme.location_label')}</label>
+            <CampusChip value={standort} onChange={setStandort} />
+          </div>
           <input
             type="text"
             value={standort}

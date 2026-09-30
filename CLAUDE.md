@@ -511,6 +511,94 @@ gibt sie beim nächsten Aufruf mit, sonst entstünde eine zweite Gruppe und die
 erste Verbindung fiele wieder heraus. Das Fahrzeug spielt dabei keine
 Rolle: die Rückfahrt mit einem anderen Auto ist der Normalfall.
 
+## Zeitstrahl: Lagertage und Tage draußen
+
+Für die Einlagerung wird abgerechnet. Die Seite **Zeitstrahl** zeigt je
+Fahrzeug, wann es auf dem Campus stand und wann es draußen war, und zählt die
+Tage je Kunde (Projekt). Das Konzept mit allen Entscheidungen steht in
+`docs/konzept-zeitstrahl.md`.
+
+Erfasst wird dafür nichts Neues. `src/lib/timeline.ts` liest die Bewegungen
+aus den Protokollen (Vergangenheit) und den Überführungen (Plan):
+
+- **Annahme** heißt: das Fahrzeug ist im Bestand und auf dem Campus.
+- **Überführungsprotokoll:** Der Pfeil im Ort entscheidet ("A → B"). Nur ohne
+  Pfeil zählt die Art Hinbringen/Rücknahme, denn die bleibt oft auf dem
+  Vorschlag stehen. Ein einzelner Ort ohne Richtung macht den Rest unklar.
+- **Überführung:** eine Abholung bringt das Fahrzeug zurück, alles andere
+  hinaus; mit Zeitraum kommt es am letzten Tag zurück. Liegt ein Protokoll
+  höchstens zwei Tage daneben und zeigt in dieselbe Richtung, zählt das
+  Protokoll.
+- **Campus** ist jede Schreibweise von "Campus"/"CarHandling", "Münchner
+  Straße 60", "Halle 2" und **Lüß** (`isCampus`).
+
+Gezählt wird nach dem **Übernachtungsprinzip**: ein Lagertag ist ein Tag, an
+dessen Ende das Fahrzeug auf dem Campus steht. Unterwegs und extern sind beide
+kein Lagertag. Gezählt wird nur bis heute, die Zukunft ist Plan und blass.
+
+Geht die Kette nicht auf, etwa zweimal hintereinander vom Campus weg, wird der
+Abschnitt dazwischen **unklar** (rot) statt geraten, mit dem Grund
+("Rückfahrt zum Campus fehlt"). Ist ein Fahrzeug länger als 30 Tage draußen,
+steht ein Warnsymbol daneben: meist fehlt das Protokoll der Rücknahme.
+"Nur Hinweise" zeigt genau diese Fahrzeuge.
+
+Der feste Kopf hat drei Zeilen: Titel mit Export, die Navigation und darunter
+Ansicht, Kunden und das Symbol für "Nur Hinweise". Die Legende scrollt mit der
+Liste, im Kopf kostete sie auf dem Telefon eine Zeile.
+
+Der Zeitraum ist **Monat**, **Quartal** oder frei als **Zeitraum** mit Von und
+Bis; die beiden Datumsfelder stehen dann zwischen den Pfeilen, an der Stelle
+der Überschrift. Beim Umschalten übernimmt der freie Zeitraum den gerade gezeigten, die
+Pfeile springen um seine Länge. Er ist auf drei Jahre begrenzt; überholt ein
+Ende das andere, schrumpft er auf einen Tag. Ab 45 Tagen wird der Balken am
+Stück gezeichnet (gleiche Tage als ein Block, heute als Strich) und die Achse
+zeigt Monate, bei mehr als 14 Monaten nur noch die Quartalsanfänge.
+
+Kunden lassen sich **mehrfach** wählen: der Knopf "Kunden" öffnet eine Liste
+von unten (`CustomerSheet`) und nennt danach die Auswahl ("Lucid, Polestar",
+ab drei "3 Kunden"); ohne Auswahl stehen alle da. Die Auswahl merkt sich der
+Browser (`localStorage`). Archivierte Kunden stehen am Ende der Liste, für
+alte Abrechnungen. Bei mehr als einem Kunden steht
+darüber eine Zeile **Gesamt**. Ein Fahrzeug in mehreren Projekten steht bei
+jedem Kunden, im Gesamt zählt es einmal. Der CSV-Export
+(Symbol oben rechts) enthält Kunde, Kennzeichen, Modell und die drei Summen
+des gewählten Zeitraums.
+
+### Korrekturen von Hand
+
+Wo die Kette nicht aufgeht, wird nachgetragen statt geraten:
+`vehicle_location_events` (`20260930_vehicle_location_events.sql`) hält je
+Fahrzeug einen Tag und eine Art: **Zurück am Campus**, **Campus verlassen**,
+**Eingang** und **Abgang**. Eine Korrektur sagt nie, woher das Fahrzeug kam,
+damit sie keine neue Lücke aufreißt. Am selben Tag kommt sie als letzte, für
+die Nacht zählt also, was von Hand eingetragen wurde.
+
+Aufgeklappt trägt ein unklarer Abschnitt den passenden Knopf: "Zurück am Campus
+am …" bei fehlender Rückfahrt, "Campus verlassen am …" bei fehlender Abfahrt,
+beide bei unbekannter Richtung. Das Datum ist auf die Lücke begrenzt. Dasselbe
+gibt es am Warnhinweis für lange Abwesenheit. "Korrektur eintragen" darunter
+lässt die Art frei wählen, auch Eingang und Abgang. Korrekturen stehen in der
+Liste mit Papierkorb und lassen sich wieder löschen.
+
+Der **Abgang** beendet die Einlagerung (Rückgabe, Abmeldung, Verkauf). Danach
+zählt erst ein neuer Eingang oder eine neue Annahme wieder; eine Überführung,
+die noch geplant war, holt das Fahrzeug nicht in den Bestand zurück.
+
+Fehlt die Tabelle noch, lädt der Zeitstrahl trotzdem und nennt oben die
+Migration, die fehlt; die Knöpfe fehlen dann.
+
+### Knopf "Campus" im Protokoll
+
+Damit neue Protokolle nicht mehr erraten werden müssen, steht neben Abholort
+und Zielort des Überführungsprotokolls und neben dem Standort der Annahme ein
+Knopf **Campus** (`CampusChip`). Er trägt immer `CAMPUS_LABEL`
+("CarHandling Campus") ein; grün heißt, der Ort wird schon als Campus erkannt,
+ein zweiter Tipp leert das Feld. Freitext bleibt für alle anderen Orte.
+
+Im Überführungsprotokoll zieht die Art mit: Campus als Abholort stellt
+"Hinbringen" ein, Campus als Zielort "Rücknahme". So widerspricht die Art
+nicht mehr dem Ort – bisher blieb sie oft auf dem Vorschlag stehen.
+
 ## Datenbank-Migrationen
 
 Neue Migrationen liegen unter `supabase/migrations/`. Nach einem neuen
