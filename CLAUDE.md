@@ -496,7 +496,11 @@ Abschnitt dazwischen **unklar** (rot) statt geraten, mit dem Grund
 steht ein Warnsymbol daneben: meist fehlt das Protokoll der Rücknahme.
 "Nur Hinweise" zeigt genau diese Fahrzeuge.
 
-Ein Fahrzeug in mehreren Projekten steht bei jedem Kunden. Der CSV-Export
+Kunden lassen sich über die Chips oben **mehrfach** wählen; ohne Auswahl
+stehen alle da. Die Auswahl merkt sich der Browser (`localStorage`), archivierte
+Kunden erscheinen nur, solange sie gewählt sind. Bei mehr als einem Kunden steht
+darüber eine Zeile **Gesamt**. Ein Fahrzeug in mehreren Projekten steht bei
+jedem Kunden, im Gesamt zählt es einmal. Der CSV-Export
 (Symbol oben rechts) enthält Kunde, Kennzeichen, Modell und die drei Summen
 des gewählten Zeitraums.
 

@@ -39,6 +39,28 @@ interface Group {
 
 const NO_CUSTOMER = '__none__'
 
+/** Die zuletzt gewählten Kunden – nur eine Bequemlichkeit, deshalb darf der
+ *  Speicher fehlen oder leer sein. */
+const SELECTION_KEY = 'vp_timeline_customers'
+
+function loadSelection(): string[] {
+  try {
+    const raw = localStorage.getItem(SELECTION_KEY)
+    const parsed: unknown = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+function saveSelection(ids: string[]) {
+  try {
+    localStorage.setItem(SELECTION_KEY, JSON.stringify(ids))
+  } catch {
+    // Privater Modus o.ä. – dann eben ohne Gedächtnis.
+  }
+}
+
 /** Erster und letzter Tag des Zeitraums, der im Monat `anchor` (YYYY-MM) beginnt. */
 function rangeOf(anchor: string, span: Span): { from: string; to: string } {
   const from = `${anchor}-01`
@@ -181,7 +203,8 @@ export default function Zeitstrahl() {
   const today = berlinDay(new Date())
   const [anchor, setAnchor] = useState(today.slice(0, 7))
   const [span, setSpan] = useState<Span>('month')
-  const [customer, setCustomer] = useState<string>('all')
+  // Leer heißt: alle Kunden.
+  const [selected, setSelected] = useState<string[]>(loadSelection)
   const [onlyIssues, setOnlyIssues] = useState(false)
   const [open, setOpen] = useState<string | null>(null)
   const [data, setData] = useState<TimelineData | null>(null)
@@ -203,6 +226,24 @@ export default function Zeitstrahl() {
     return map
   }, [data])
 
+  // Gemerkte Kunden, die es nicht mehr gibt, zählen nicht – sonst bliebe die
+  // Liste leer, ohne dass ein Chip als gewählt zu sehen wäre.
+  const active = useMemo(
+    () => (data ? selected.filter((id) => id === NO_CUSTOMER || data.customers.some((c) => c.id === id)) : selected),
+    [data, selected]
+  )
+
+  function toggleCustomer(id: string) {
+    const next = active.includes(id) ? active.filter((x) => x !== id) : [...active, id]
+    setSelected(next)
+    saveSelection(next)
+  }
+
+  function clearCustomers() {
+    setSelected([])
+    saveSelection([])
+  }
+
   const groups = useMemo<Group[]>(() => {
     if (!data) return []
     const rowOf = (v: TimelineVehicle): Row | null => {
@@ -223,7 +264,7 @@ export default function Zeitstrahl() {
       { id: NO_CUSTOMER, name: t('timeline.no_customer'), color: null, archived: false },
     ]
     return buckets
-      .filter((b) => customer === 'all' || customer === b.id)
+      .filter((b) => active.length === 0 || active.includes(b.id))
       .map((b) => {
         const members = [...rows.values()].filter((r) => {
           const cs = data.customersOf.get(r.vehicle.id) ?? []
@@ -232,7 +273,14 @@ export default function Zeitstrahl() {
         return { id: b.id, name: b.name, color: b.color, rows: members, counts: sum(members.map((r) => r.counts)) }
       })
       .filter((g) => g.rows.length > 0)
-  }, [data, segmentsOf, from, to, today, customer, onlyIssues, t])
+  }, [data, segmentsOf, from, to, today, active, onlyIssues, t])
+
+  // Über mehrere Kunden: ein Fahrzeug, das bei zweien steht, zählt einmal.
+  const total = useMemo(() => {
+    const unique = new Map<string, NightCounts>()
+    for (const g of groups) for (const r of g.rows) unique.set(r.vehicle.id, r.counts)
+    return { vehicles: unique.size, counts: sum([...unique.values()]) }
+  }, [groups])
 
   const days = useMemo(() => {
     const out: string[] = []
@@ -339,28 +387,50 @@ export default function Zeitstrahl() {
               </button>
             ))}
           </div>
-          <select
-            value={customer}
-            onChange={(e) => setCustomer(e.target.value)}
-            className="flex-1 min-w-0 px-2 py-1.5 border border-gray-300 rounded-lg text-xs bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500"
-          >
-            <option value="all">{t('timeline.all_customers')}</option>
-            {data?.customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-            <option value={NO_CUSTOMER}>{t('timeline.no_customer')}</option>
-          </select>
           <button
             type="button"
             onClick={() => setOnlyIssues(!onlyIssues)}
-            className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border flex-shrink-0 ${
+            className={`ml-auto px-2.5 py-1.5 rounded-lg text-xs font-medium border flex-shrink-0 ${
               onlyIssues ? 'bg-red-50 text-red-700 border-red-200' : 'bg-white text-gray-600 border-gray-300'
             }`}
           >
             {t('timeline.only_issues')}
           </button>
+        </div>
+
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          <button
+            type="button"
+            onClick={clearCustomers}
+            className={`px-2.5 py-1 rounded-full text-xs font-medium border max-w-full truncate ${
+              active.length === 0 ? 'bg-gray-700 text-white border-gray-700' : 'bg-white text-gray-600 border-gray-300'
+            }`}
+          >
+            {t('timeline.all_customers')}
+          </button>
+          {[
+            ...(data?.customers ?? []).map((c) => ({ id: c.id, name: c.name, color: c.color, archived: c.is_archived })),
+            { id: NO_CUSTOMER, name: t('timeline.no_customer'), color: null, archived: false },
+          ]
+            // Archivierte Kunden nur, wenn sie gewählt sind – sonst wird die Reihe lang.
+            .filter((c) => !c.archived || active.includes(c.id))
+            .map((c) => {
+              const on = active.includes(c.id)
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => toggleCustomer(c.id)}
+                  aria-pressed={on}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border max-w-full truncate ${
+                    on ? 'bg-brand-50 text-brand-700 border-brand-300' : 'bg-white text-gray-600 border-gray-300'
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full" style={{ background: c.color ?? '#9ca3af' }} />
+                  {c.name}
+                </button>
+              )
+            })}
         </div>
 
         <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[10px] text-gray-500">
@@ -390,6 +460,18 @@ export default function Zeitstrahl() {
           <div className="text-center py-12 text-gray-400">
             <GanttChart size={32} className="mx-auto mb-2" />
             <p className="text-sm">{t('timeline.empty')}</p>
+          </div>
+        )}
+
+        {groups.length > 1 && (
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-2xl bg-gray-900 text-white">
+            <span className="flex-1 min-w-0 text-sm font-bold truncate">
+              {t('timeline.total', { count: total.vehicles })}
+            </span>
+            <span className="text-[11px] font-semibold tabular-nums">
+              {total.counts.campus} {t('timeline.short_campus')} · {total.counts.extern} {t('timeline.short_extern')}
+              {total.counts.unklar > 0 && <span className="text-red-300"> · {total.counts.unklar} ?</span>}
+            </span>
           </div>
         )}
 

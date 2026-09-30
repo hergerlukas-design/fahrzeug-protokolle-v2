@@ -817,6 +817,8 @@
     "csv_customer": "Customer",
     "csv_plate": "License plate",
     "csv_model": "Model",
-    "footnote": "Nights are counted up to today: a day is a storage day if the vehicle spends the night on campus. Future days are planned transfers and are not counted."
+    "footnote": "Nights are counted up to today: a day is a storage day if the vehicle spends the night on campus. Future days are planned transfers and are not counted.",
+    "total_one": "Total · {{count}} vehicle",
+    "total_other": "Total · {{count}} vehicles"
   }
 }

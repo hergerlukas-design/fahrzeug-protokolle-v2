@@ -817,6 +817,8 @@
     "csv_customer": "Kunde",
     "csv_plate": "Kennzeichen",
     "csv_model": "Modell",
-    "footnote": "Gezählt werden Nächte bis heute: ein Tag ist ein Lagertag, wenn das Fahrzeug die Nacht auf dem Campus verbringt. Die Zukunft ist Plan aus den Überführungen und zählt nicht mit."
+    "footnote": "Gezählt werden Nächte bis heute: ein Tag ist ein Lagertag, wenn das Fahrzeug die Nacht auf dem Campus verbringt. Die Zukunft ist Plan aus den Überführungen und zählt nicht mit.",
+    "total_one": "Gesamt · {{count}} Fahrzeug",
+    "total_other": "Gesamt · {{count}} Fahrzeuge"
   }
 }
