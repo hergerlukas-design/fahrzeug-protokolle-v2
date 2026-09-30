@@ -490,6 +490,13 @@
     "link_failed": "Das Protokoll ist gespeichert, konnte aber nicht mit der Überführung verknüpft werden.",
     "link_offline": "Offline gespeichert. Das Protokoll wird später synchronisiert, die Verknüpfung mit der Überführung aber nicht automatisch nachgetragen."
   },
+  "extra_photos": {
+    "title": "Weitere Fotos",
+    "hint": "Für Besonderheiten, z. B. stark verschmutzter Innenraum oder Müll im Fahrzeug. Die Fotos stehen im PDF nach den Schäden.",
+    "add": "Foto hinzufügen",
+    "picker_title": "Weiteres Foto",
+    "label": "Foto {{count}}"
+  },
   "damage": {
     "remove": "Entfernen",
     "camera": "Kamera",

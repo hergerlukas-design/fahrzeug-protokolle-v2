@@ -26,6 +26,10 @@ import PdfButton from '../components/PdfButton'
 import CarDamageSelector from '../components/CarDamageSelector'
 import SignatureCanvas from '../components/SignatureCanvas'
 import PhotoSourceSheet from '../components/PhotoSourceSheet'
+import ExtraPhotosPicker from '../components/ExtraPhotosPicker'
+import {
+  extraPhotoBlobs, extraPhotoPreviews, extraPhotosFrom, isExtraPhotoKey, uploadExtraPhotos, type ExtraPhoto,
+} from '../lib/extraPhotos'
 import type { PdfData } from '../lib/generatePdf'
 import { updateVehicle, updateVehicleKnownDamages, type DamageRecord } from '../lib/vehicles'
 import { linkProtocolToTransfer, type ProtocolRole, type TransferStatus } from '../lib/transfers'
@@ -377,6 +381,7 @@ export default function Ueberfuehrung() {
   const [odometer, setOdometer] = useState(ed?.odometer ?? 0)
   const [remarks, setRemarks] = useState(ed?.remarks ?? '')
   const [checklist, setChecklist] = useState<Checkliste>(ed?.checkliste ?? { ...DEFAULT_CHECKLISTE })
+  const [extraPhotos, setExtraPhotos] = useState<ExtraPhoto[]>(() => extraPhotosFrom(ed?.photos))
 
   const [damages, setDamages] = useState<DamageFormItem[]>(() =>
     (ed?.damages ?? prefill?.known_damages ?? []).map((d, i) => ({
@@ -556,10 +561,12 @@ export default function Ueberfuehrung() {
 
     try {
       if (navigator.onLine) {
-        // Copy non-damage photos from edit mode; damage photos are re-indexed below
+        // Copy the other photos from edit mode; damage and extra photos are re-indexed below
         const photos: Record<string, string> = ed
-          ? Object.fromEntries(Object.entries(ed.photos).filter(([k]) => !k.startsWith('schaden_')))
+          ? Object.fromEntries(Object.entries(ed.photos).filter(([k]) => !k.startsWith('schaden_') && !isExtraPhotoKey(k)))
           : {}
+        Object.assign(photos, await uploadExtraPhotos(extraPhotos, (key, file) =>
+          uploadProtocolPhoto(prefill.vehicle_id, sessionKey.current, key, file)))
         for (const pk of PHOTO_KEYS) {
           const entry = vehiclePhotos[pk]
           if (entry?.file) {
@@ -637,6 +644,7 @@ export default function Ueberfuehrung() {
           const d = damages[i]
           if (d.file) photoBlobs[`schaden_${i}`] = d.file
         }
+        Object.assign(photoBlobs, extraPhotoBlobs(extraPhotos))
         let signatureBlob: Blob | undefined
         if (sigDataUrl) {
           signatureBlob = await (await fetch(sigDataUrl)).blob()
@@ -669,6 +677,7 @@ export default function Ueberfuehrung() {
           const d = damages[i]
           if (d.previewUrl) localPhotos[`schaden_${i}`] = d.previewUrl
         }
+        Object.assign(localPhotos, extraPhotoPreviews(extraPhotos))
         if (sigDataUrl) localPhotos.signature = sigDataUrl
         if (sigReceiverDataUrl) localPhotos.signature_receiver = sigReceiverDataUrl
         basePayload.condition_data.photos = localPhotos
@@ -714,6 +723,7 @@ export default function Ueberfuehrung() {
     setRemarks('')
     setChecklist({ ...DEFAULT_CHECKLISTE })
     setDamages([])
+    setExtraPhotos([])
     setVehiclePhotos({})
     setExistingPhotos({})
     setHasSig(false)
@@ -1096,6 +1106,11 @@ export default function Ueberfuehrung() {
           rows={3}
           className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"
         />
+      </Card>
+
+      <SectionHeader title={t('extra_photos.title')} />
+      <Card>
+        <ExtraPhotosPicker items={extraPhotos} onChange={setExtraPhotos} accent="green" />
       </Card>
       </>
       )}

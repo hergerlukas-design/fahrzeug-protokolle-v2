@@ -1,5 +1,6 @@
 import { PDFDocument, rgb, StandardFonts, degrees, type PDFPage, type PDFFont, type PDFImage } from 'pdf-lib'
 import type { Checkliste, DamageItem } from './protocols'
+import { extraPhotoEntries } from './extraPhotos'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PDF label strings (DE / EN)
@@ -8,7 +9,7 @@ import type { Checkliste, DamageItem } from './protocols'
 interface PdfLabels {
   title_annahme: string; title_transfer: string; watermark: string
   section1: string; section2: string; section3: string; section4: string
-  section5: string; section6: string
+  section5: string; section6: string; section7: string; extra_photo: string
   plate: string; brand_model: string; vin: string; creator: string
   odometer: string; location: string; receiver: string; from: string; to: string
   transfer_type_label: string; conditions: string; fuel: string; battery: string
@@ -29,6 +30,7 @@ const PDF_LABELS: Record<'de' | 'en', PdfLabels> = {
     section1: '1. Basisdaten', section2: '2. Technik & Betriebsstoffe',
     section3: '3. Checkliste', section4: '4. Bemerkungen',
     section5: '5. Fotodokumentation', section6: '6. Erfasste Schaeden',
+    section7: '7. Weitere Fotos', extra_photo: 'Foto',
     plate: 'Kennzeichen', brand_model: 'Marke / Modell', vin: 'VIN',
     creator: 'Ersteller', odometer: 'KM-Stand', location: 'Standort',
     receiver: 'Empfaenger', from: 'Von', to: 'Nach',
@@ -52,6 +54,7 @@ const PDF_LABELS: Record<'de' | 'en', PdfLabels> = {
     section1: '1. Basic Data', section2: '2. Technical & Fluids',
     section3: '3. Checklist', section4: '4. Remarks',
     section5: '5. Photo Documentation', section6: '6. Recorded Damages',
+    section7: '7. Additional Photos', extra_photo: 'Photo',
     plate: 'License Plate', brand_model: 'Make / Model', vin: 'VIN',
     creator: 'Inspector', odometer: 'Mileage', location: 'Location',
     receiver: 'Receiver', from: 'From', to: 'To',
@@ -783,8 +786,8 @@ async function buildDamagePages(
   logoImg: PDFImage | null,
   data: PdfData,
   damagePhotoImgs: Record<string, PDFImage>
-) {
-  if (data.damage_records.length === 0 && Object.keys(damagePhotoImgs).length === 0) return
+): Promise<PageEnd | null> {
+  if (data.damage_records.length === 0 && Object.keys(damagePhotoImgs).length === 0) return null
 
   const page = pdfDoc.addPage([mm(210), mm(297)])
   await drawPageHeader(page, pdfDoc, fonts, logoImg, data, false)
@@ -899,6 +902,75 @@ async function buildDamagePages(
         rowY -= maxH + labelH + mm(2)
       }
     }
+    if (col !== 0) rowY -= maxH + labelH + mm(2)
+    return { page: currentPage, cursorY: rowY }
+  }
+
+  return { page, cursorY }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// After the damages — additional photos (zusatz_0, zusatz_1, …)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Where the previous section stopped, so the next one can continue there. */
+interface PageEnd { page: PDFPage; cursorY: number }
+
+async function buildExtraPhotoPages(
+  pdfDoc: PDFDocument,
+  fonts: Fonts,
+  logoImg: PDFImage | null,
+  data: PdfData,
+  extraImgs: PDFImage[],
+  after: PageEnd | null
+) {
+  if (extraImgs.length === 0) return
+
+  const colX = [mm(10), mm(108)]
+  const colW = mm(87)
+  const maxH = mm(68)   // three rows per page
+  const labelH = mm(6)
+  const rowH = maxH + labelH + mm(2)
+  const bottom = mm(12)
+
+  async function newPage(): Promise<PageEnd> {
+    const p = pdfDoc.addPage([mm(210), mm(297)])
+    await drawPageHeader(p, pdfDoc, fonts, logoImg, data, false)
+    return { page: p, cursorY: top(CONTENT_TOP) }
+  }
+
+  // Continue below the damages if the heading and a first row still fit,
+  // otherwise start a fresh page.
+  let { page, cursorY } = after && after.cursorY - mm(13) - rowH >= bottom
+    ? { page: after.page, cursorY: after.cursorY - mm(4) }
+    : await newPage()
+  cursorY = drawHeading(page, fonts.bold, cursorY, _L.section7)
+
+  for (let i = 0; i < extraImgs.length; i++) {
+    const col = i % 2
+    if (col === 0 && i > 0) cursorY -= rowH
+    if (col === 0 && cursorY - rowH < bottom) {
+      ({ page, cursorY } = await newPage())
+    }
+
+    const img = extraImgs[i]
+    const x = colX[col]
+    const y = cursorY - maxH - labelH
+    const aspect = img.width / img.height
+    let imgW = colW
+    let imgH = imgW / aspect
+    if (imgH > maxH) { imgH = maxH; imgW = imgH * aspect }
+
+    page.drawImage(img, {
+      x: x + (colW - imgW) / 2,
+      y: y + labelH + (maxH - imgH) / 2,
+      width: imgW,
+      height: imgH,
+    })
+    page.drawText(`${_L.extra_photo} ${i + 1}`, {
+      x: x + mm(1), y: y + mm(1.5),
+      size: 7.5, font: fonts.oblique, color: C_LABEL,
+    })
   }
 }
 
@@ -968,6 +1040,14 @@ export async function generatePdf(data: PdfData, lang: 'de' | 'en' = 'de'): Prom
     })
   )
 
+  // ── Load additional photos (in order; failed downloads are skipped) ─────────
+  const extraImgs = (await Promise.all(
+    extraPhotoEntries(data.photos).map(async ([, url]) => {
+      const bytes = await fetchJpeg(url, 900)
+      return bytes ? pdfDoc.embedJpg(bytes) : null
+    })
+  )).filter((img): img is PDFImage => img !== null)
+
   // ── Page 1 ──────────────────────────────────────────────────────────────────
   const page1 = pdfDoc.addPage([mm(210), mm(297)])
   await drawPageHeader(page1, pdfDoc, fonts, logoImg, data, true)
@@ -985,7 +1065,10 @@ export async function generatePdf(data: PdfData, lang: 'de' | 'en' = 'de'): Prom
   await buildPhotoPage(pdfDoc, fonts, logoImg, data, vehiclePhotoImgs)
 
   // ── Page 3+: Damages ────────────────────────────────────────────────────────
-  await buildDamagePages(pdfDoc, fonts, logoImg, data, damagePhotoImgs)
+  const damageEnd = await buildDamagePages(pdfDoc, fonts, logoImg, data, damagePhotoImgs)
+
+  // ── After the damages: additional photos ────────────────────────────────────
+  await buildExtraPhotoPages(pdfDoc, fonts, logoImg, data, extraImgs, damageEnd)
 
   // ── Draft watermark on all pages ────────────────────────────────────────────
   if (data.status === 'draft') {

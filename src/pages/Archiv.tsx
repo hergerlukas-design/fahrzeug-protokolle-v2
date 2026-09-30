@@ -18,6 +18,7 @@ import {
   type ProtocolConditionData,
   type ProtocolPayload,
 } from '../lib/protocols'
+import { EXTRA_PHOTO_PREFIX, isExtraPhotoKey } from '../lib/extraPhotos'
 import { SkeletonList } from '../components/Skeleton'
 import {
   fetchArchivedProjectsWithCounts,
@@ -547,7 +548,11 @@ export default function Archiv() {
                           className="w-full h-28 object-cover rounded-lg"
                           loading="lazy"
                         />
-                        <p className="text-xs text-gray-500 text-center mt-1 capitalize">{key}</p>
+                        <p className="text-xs text-gray-500 text-center mt-1 capitalize">
+                          {isExtraPhotoKey(key)
+                            ? `${t('extra_photos.title')} ${Number(key.slice(EXTRA_PHOTO_PREFIX.length)) + 1}`
+                            : key}
+                        </p>
                       </div>
                     ))}
                 </div>

@@ -461,6 +461,20 @@ heraus. Das Lösen einer Verknüpfung lässt den Status dagegen stehen: er kann
 von Hand gesetzt worden sein, und ein versehentlich angehängtes Protokoll soll
 die Fahrt nicht zurückwerfen.
 
+## Weitere Fotos unter "Bemerkungen"
+
+Im Schritt Bemerkungen (Überführungs- und Annahmeprotokoll) lassen sich
+beliebig viele weitere Fotos anhängen — für Besonderheiten wie einen stark
+verschmutzten Innenraum oder Müll im Fahrzeug. Aus der Galerie gehen mehrere
+auf einmal.
+
+Sie liegen wie alle Fotos in `condition_data.photos`, unter `zusatz_0`,
+`zusatz_1`, … (`src/lib/extraPhotos.ts`) — keine Migration nötig. Beim
+Speichern werden sie lückenlos neu nummeriert, gelöschte fallen also heraus.
+Im PDF stehen sie als "7. Weitere Fotos" nach den Schäden: auf der letzten
+Schadensseite, wenn dort noch eine Reihe Platz hat, sonst auf einer neuen
+Seite, sechs Fotos je Seite.
+
 ## Fahrten untereinander verbinden
 
 Hin mit dem einen Fahrzeug, zurück mit dem anderen, oder mehrere Etappen an

@@ -490,6 +490,13 @@
     "link_failed": "The protocol was saved but could not be linked to the transfer.",
     "link_offline": "Saved offline. The protocol will sync later, but the link to the transfer is not restored automatically."
   },
+  "extra_photos": {
+    "title": "Additional photos",
+    "hint": "For anything notable, e.g. a very dirty interior or rubbish in the vehicle. The photos appear in the PDF after the damages.",
+    "add": "Add photo",
+    "picker_title": "Additional photo",
+    "label": "Photo {{count}}"
+  },
   "damage": {
     "remove": "Remove",
     "camera": "Camera",
