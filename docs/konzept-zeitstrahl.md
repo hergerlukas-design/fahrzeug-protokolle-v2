@@ -233,3 +233,8 @@ Schritt 2 ist umgesetzt: Korrekturen in `vehicle_location_events`
 (`20260930_vehicle_location_events.sql`). Statt eines Zeitstempels hat eine
 Korrektur nur einen Tag (`occurred_on`), denn für die Nacht zählt nur, wo das
 Fahrzeug am Abend steht. Am selben Tag kommt sie nach jeder anderen Quelle.
+
+Schritt 3 ist umgesetzt: Knopf „Campus“ neben Abholort und Zielort des
+Überführungsprotokolls und neben dem Standort der Annahme. Er trägt den Campus
+immer gleich ein und stellt im Überführungsprotokoll die Art passend ein
+(vom Campus: Hinbringen, zum Campus: Rücknahme).

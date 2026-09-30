@@ -23,6 +23,7 @@ import { errorText } from '../lib/supabase'
 import { OFFLINE_SAVED_EVENT } from '../components/OfflineIndicator'
 import PageHeader from '../components/PageHeader'
 import PdfButton from '../components/PdfButton'
+import CampusChip from '../components/CampusChip'
 import CarDamageSelector from '../components/CarDamageSelector'
 import SignatureCanvas from '../components/SignatureCanvas'
 import PhotoSourceSheet from '../components/PhotoSourceSheet'
@@ -887,7 +888,19 @@ export default function Ueberfuehrung() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">{t('ueberfuehrung.abholort_label')}</label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-sm font-medium text-gray-700">{t('ueberfuehrung.abholort_label')}</label>
+            {/* Vom Campus weg ist ein Hinbringen, zum Campus eine Rücknahme – die
+                Art zieht mit, sonst bliebe sie auf dem Vorschlag stehen und
+                widerspräche dem Ort. */}
+            <CampusChip
+              value={abholort}
+              onChange={(v) => {
+                setAbholort(v)
+                if (v) setTransferType('Hinbringen')
+              }}
+            />
+          </div>
           <input
             type="text"
             value={abholort}
@@ -897,7 +910,16 @@ export default function Ueberfuehrung() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">{t('ueberfuehrung.zielort_label')}</label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-sm font-medium text-gray-700">{t('ueberfuehrung.zielort_label')}</label>
+            <CampusChip
+              value={zielort}
+              onChange={(v) => {
+                setZielort(v)
+                if (v) setTransferType('Rücknahme')
+              }}
+            />
+          </div>
           <input
             type="text"
             value={zielort}

@@ -134,6 +134,9 @@ const CAMPUS_PATTERNS = [
   /\bluss\b/,
 ]
 
+/** So trägt der Knopf "Campus" im Protokollformular den Ort ein. */
+export const CAMPUS_LABEL = 'CarHandling Campus'
+
 export function isCampus(location: string | null | undefined): boolean {
   if (!location) return false
   const text = normalize(location)

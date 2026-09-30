@@ -527,6 +527,18 @@ die noch geplant war, holt das Fahrzeug nicht in den Bestand zurück.
 Fehlt die Tabelle noch, lädt der Zeitstrahl trotzdem und nennt oben die
 Migration, die fehlt; die Knöpfe fehlen dann.
 
+### Knopf "Campus" im Protokoll
+
+Damit neue Protokolle nicht mehr erraten werden müssen, steht neben Abholort
+und Zielort des Überführungsprotokolls und neben dem Standort der Annahme ein
+Knopf **Campus** (`CampusChip`). Er trägt immer `CAMPUS_LABEL`
+("CarHandling Campus") ein; grün heißt, der Ort wird schon als Campus erkannt,
+ein zweiter Tipp leert das Feld. Freitext bleibt für alle anderen Orte.
+
+Im Überführungsprotokoll zieht die Art mit: Campus als Abholort stellt
+"Hinbringen" ein, Campus als Zielort "Rücknahme". So widerspricht die Art
+nicht mehr dem Ort – bisher blieb sie oft auf dem Vorschlag stehen.
+
 ## Datenbank-Migrationen
 
 Neue Migrationen liegen unter `supabase/migrations/`. Nach einem neuen
