@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Menu } from 'lucide-react'
-import { SIDEBAR_EVENT } from './Sidebar'
+import { ArrowLeft } from 'lucide-react'
 
 function AppLogo() {
   return (
@@ -18,8 +17,7 @@ interface PageHeaderProps {
   title: React.ReactNode
   /**
    * Sub-pages pass a back handler — that puts the arrow in the left slot.
-   * Without it the slot holds the hamburger, so the drawer is reachable from
-   * every top-level page and nowhere competes with a back arrow.
+   * Top-level pages leave it empty: they are reached from the bottom bar.
    */
   onBack?: () => void
   /** Small line under the title, e.g. the license plate of the open protocol. */
@@ -55,7 +53,7 @@ export default function PageHeader({
             wide the two side slots turn out to be. */}
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
           <div className="flex items-center justify-start min-w-0">
-            {onBack ? (
+            {onBack && (
               <button
                 type="button"
                 onClick={onBack}
@@ -63,17 +61,6 @@ export default function PageHeader({
                 className="p-1 -ml-1 text-gray-500 hover:text-gray-800 flex-shrink-0"
               >
                 <ArrowLeft size={20} />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => window.dispatchEvent(new CustomEvent(SIDEBAR_EVENT))}
-                aria-label={t('nav.menu')}
-                /* From md up the sidebar is permanently visible, so the
-                   hamburger would only be noise. */
-                className="md:hidden p-1 -ml-1 text-gray-500 hover:text-gray-800 flex-shrink-0"
-              >
-                <Menu size={22} />
               </button>
             )}
           </div>

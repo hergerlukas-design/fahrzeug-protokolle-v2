@@ -48,6 +48,7 @@ import {
   type CalendarGroup,
 } from '../lib/calendarPairs'
 import { unknownPlate, expectedVehicles, type NewVehicle, type ExpectedVehicles } from '../lib/calendarPlate'
+import { todayISO, telHref, mapsHref, protocolKindOf, needsAcceptance } from '../lib/transferHelpers'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -59,13 +60,6 @@ function formatDate(value: string, lang: string): string {
   return d.toLocaleDateString(lang.startsWith('en') ? 'en-GB' : 'de-DE', {
     day: '2-digit', month: '2-digit', year: 'numeric',
   })
-}
-
-/** Heutiges Datum als YYYY-MM-DD in Ortszeit – toISOString() läge in UTC. */
-function todayISO(): string {
-  const d = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
 /** Postgres liefert "08:30:00" – für die Anzeige reichen Stunde und Minute. */
@@ -127,15 +121,10 @@ function StatusBadge({ status }: { status: TransferStatus }) {
  * stopPropagation, damit das Antippen nicht zusätzlich die Karte auf- oder
  * zuklappt, in der der Link steckt.
  */
-/** Für tel:-Links – Leerzeichen und Schrägstriche mögen manche Wählprogramme nicht. */
-function telHref(phone: string): string {
-  return `tel:${phone.replace(/[^\d+]/g, '')}`
-}
-
 function MapLink({ address, strong = false }: { address: string; strong?: boolean }) {
   return (
     <a
-      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`}
+      href={mapsHref(address)}
       target="_blank"
       rel="noopener noreferrer"
       onClick={(e) => e.stopPropagation()}
@@ -214,28 +203,6 @@ function VehicleState({ vehicle }: { vehicle: NonNullable<Transfer['vehicle']> }
 // ─────────────────────────────────────────────────────────────────────────────
 // Transfer card – collapsed shows plate and date, expanded the rest
 // ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Hinbringen oder Rücknahme?
- *
- * Im Protokoll ist das die "Art der Überführung", und der Titel der Fahrt sagt
- * es meist schon: "Abholung Lynk 02 DPG98A" ist eine Rücknahme, alles andere
- * ein Hinbringen. Ein Vorschlag – im Protokoll selbst bleibt es umstellbar.
- */
-function protocolKindOf(transfer: Transfer): string {
-  const texts = [transfer.title ?? '', ...(transfer.calendar_links ?? []).map((l) => l.summary ?? '')]
-  return texts.some((x) => classifyEvent(x) === 'abholung') ? 'Rücknahme' : 'Hinbringen'
-}
-
-/**
- * Mit dieser Fahrt ist das Fahrzeug neu dazugekommen, und die Abnahme fehlt
- * noch. Erledigt ist sie, sobald ein Annahmeprotokoll an der Fahrt hängt –
- * frisch erstellt oder nachträglich verknüpft.
- */
-function needsAcceptance(transfer: Transfer): boolean {
-  return !!transfer.acceptance_required &&
-    ![transfer.pickup_protocol, transfer.dropoff_protocol].some((p) => p?.protocol_type === 'annahme')
-}
 
 /**
  * Eine Terminkarte im Kalender. Zum Fahrzeug aus der Flotte kommt, falls der

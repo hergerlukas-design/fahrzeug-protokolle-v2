@@ -29,7 +29,9 @@
     "settings": "Settings",
     "menu": "Menu",
     "archive": "Archive",
-    "transfers": "Transfers"
+    "transfers": "Transfers",
+    "today": "Today",
+    "transfers_short": "Trips"
   },
   "login": {
     "subtitle": "Team Login",
@@ -803,5 +805,16 @@
   },
   "datenschutz": {
     "title": "Privacy Policy"
+  },
+  "today": {
+    "stat_today": "Trips today",
+    "next": "Up next",
+    "later": "Later today",
+    "upcoming": "Coming up",
+    "all_transfers": "All trips",
+    "start_protocol": "Create protocol",
+    "open_transfer": "Open trip",
+    "route": "Open route",
+    "empty": "No open trips."
   }
 }

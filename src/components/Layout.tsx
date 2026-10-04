@@ -4,6 +4,7 @@ import FabCreate from './FabCreate'
 import OfflineIndicator from './OfflineIndicator'
 import InstallBanner from './InstallBanner'
 import UpdateBanner from './UpdateBanner'
+import BottomNav from './BottomNav'
 import OnboardingOverlay from './OnboardingOverlay'
 import CreateWizard from './CreateWizard'
 
@@ -29,6 +30,7 @@ export default function Layout() {
             <Outlet />
           </main>
           <FabCreate />
+          <BottomNav />
         </div>
       </div>
     </div>

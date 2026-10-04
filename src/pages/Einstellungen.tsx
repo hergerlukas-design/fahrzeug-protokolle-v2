@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   Globe, GraduationCap, ChevronRight, Info, LogOut, Scale, Lock,
@@ -276,6 +276,23 @@ export default function Einstellungen() {
         {/* ── Tab: Einstellungen ── */}
         {activeTab === 'einstellungen' && (
           <>
+            {/* Archiv */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
+              <Link
+                to="/archiv"
+                className="w-full flex items-center gap-3 px-4 py-4 text-left"
+              >
+                <div className="flex items-center gap-3 flex-1">
+                  <Archive size={22} className="text-gray-400" />
+                  <div>
+                    <span className="font-semibold text-gray-800">{t('settings.archive_title')}</span>
+                    <p className="text-xs text-gray-400 mt-0.5">{t('settings.archive_desc')}</p>
+                  </div>
+                </div>
+                <ChevronRight size={16} className="text-gray-400" />
+              </Link>
+            </div>
+
             {/* Sprache / Language */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 px-4 py-4">
               <div className="flex items-center gap-3 mb-3">
@@ -423,23 +440,6 @@ export default function Einstellungen() {
                   ? t('settings.sync_button')
                   : <span className="inline-flex items-center gap-1.5"><CheckCircle2 size={16} /> {t('settings.sync_done')}</span>}
               </button>
-            </div>
-
-            {/* Archiv */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
-              <a
-                href="/archiv"
-                className="w-full flex items-center gap-3 px-4 py-4 text-left"
-              >
-                <div className="flex items-center gap-3 flex-1">
-                  <Archive size={22} className="text-gray-400" />
-                  <div>
-                    <span className="font-semibold text-gray-800">{t('settings.archive_title')}</span>
-                    <p className="text-xs text-gray-400 mt-0.5">{t('settings.archive_desc')}</p>
-                  </div>
-                </div>
-                <ChevronRight size={16} className="text-gray-400" />
-              </a>
             </div>
 
             {/* Projektverwaltung */}

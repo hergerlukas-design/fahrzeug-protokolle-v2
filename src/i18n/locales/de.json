@@ -29,7 +29,9 @@
     "settings": "Einstellungen",
     "menu": "Menü",
     "archive": "Archiv",
-    "transfers": "Überführungen"
+    "transfers": "Überführungen",
+    "today": "Heute",
+    "transfers_short": "Fahrten"
   },
   "login": {
     "subtitle": "Team-Login",
@@ -803,5 +805,16 @@
   },
   "datenschutz": {
     "title": "Datenschutzerklärung"
+  },
+  "today": {
+    "stat_today": "Fahrten heute",
+    "next": "Als Nächstes",
+    "later": "Später heute",
+    "upcoming": "Demnächst",
+    "all_transfers": "Alle Fahrten",
+    "start_protocol": "Protokoll erstellen",
+    "open_transfer": "Zur Fahrt",
+    "route": "Route öffnen",
+    "empty": "Keine offenen Fahrten."
   }
 }

@@ -240,7 +240,7 @@ export default function Archiv() {
       )}
 
       {/* Header */}
-      <PageHeader title={t('archiv.title')}>
+      <PageHeader title={t('archiv.title')} onBack={() => navigate('/einstellungen')}>
         {/* Tab switcher */}
         <div className="flex gap-1 mb-3 bg-gray-100 p-1 rounded-xl">
           <button
