@@ -7,6 +7,7 @@ import { fetchVehicleById } from '../lib/vehicles'
 import { classifyEvent, isUnconfirmed } from '../lib/calendarPairs'
 import { todayISO, telHref, mapsHref, protocolKindOf, needsAcceptance } from '../lib/transferHelpers'
 import { SkeletonCard } from '../components/Skeleton'
+import Plate from '../components/Plate'
 
 /** Wie viele kommende Fahrten unter "Demnächst" stehen, wenn heute nichts mehr ansteht. */
 const UPCOMING_LIMIT = 3
@@ -55,16 +56,6 @@ function isSwap(t: Transfer): boolean {
 
 function unconfirmed(t: Transfer): boolean {
   return (t.calendar_links ?? []).some((l) => isUnconfirmed(l.summary))
-}
-
-/** Kennzeichen als Schild – mit dem blauen EU-Streifen, damit es im Gewimmel auffällt. */
-function Plate({ plate }: { plate: string }) {
-  return (
-    <span className="inline-flex items-stretch rounded-md border-[1.5px] border-gray-900 bg-white overflow-hidden text-[13px] font-extrabold tracking-wide text-gray-900">
-      <span className="w-2 bg-[#1d4fa3]" aria-hidden="true" />
-      <span className="px-2 py-0.5">{plate}</span>
-    </span>
-  )
 }
 
 function Stat({ value, label, tone }: { value: number; label: string; tone: string }) {
@@ -331,7 +322,11 @@ function List({ title, items, today, lang }: { title: string; items: Transfer[];
                       (x.vehicle_hint ? t('transfers.pending_badge', { model: x.vehicle_hint }) : '')}
                   </span>
                 </span>
-                {isSwap(x) ? (
+                {x.status === 'unterwegs' ? (
+                  <span className="text-xs font-bold bg-amber-100 text-amber-800 px-2 py-1 rounded-lg">
+                    {t('transfers.status_unterwegs')}
+                  </span>
+                ) : isSwap(x) ? (
                   <span className="text-xs font-bold bg-blue-50 text-[#1d4fa3] px-2 py-1 rounded-lg flex items-center gap-1">
                     <Repeat size={12} />{t('transfers.calendar_swap')}
                   </span>

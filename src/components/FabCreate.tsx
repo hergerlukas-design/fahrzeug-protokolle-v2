@@ -19,7 +19,7 @@ export default function FabCreate() {
       type="button"
       onClick={() => window.dispatchEvent(new CustomEvent(CREATE_EVENT))}
       aria-label={t('nav.create')}
-      className="hidden md:flex absolute right-4 bottom-4 z-20 w-14 h-14 rounded-full bg-brand-600 text-white shadow-lg items-center justify-center active:bg-brand-700 active:scale-95 transition-transform"
+      className="hidden md:flex absolute right-4 bottom-4 z-20 w-14 h-14 rounded-full bg-brand-700 text-white shadow-lg items-center justify-center active:bg-brand-800 active:scale-95 transition-transform"
       style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
     >
       <Plus size={26} strokeWidth={2.5} />

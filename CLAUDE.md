@@ -613,6 +613,29 @@ Im Überführungsprotokoll zieht die Art mit: Campus als Abholort stellt
 "Hinbringen" ein, Campus als Zielort "Rücknahme". So widerspricht die Art
 nicht mehr dem Ort – bisher blieb sie oft auf dem Vorschlag stehen.
 
+## Navigation und Startseite
+
+Auf dem Telefon steht unten eine feste Leiste (`BottomNav.tsx`):
+**Heute · Fahrten · + · Projekte · Einstellungen**. Sie ersetzt den Hamburger;
+der Plus-Knopf in der Mitte ist das frühere "Erstellen". Ab `md` zeigt die
+Seitenleiste dieselben Ziele, dort zusätzlich den Zeitstrahl.
+
+- **Heute** (`/heute`, Startseite) zeigt die Zahlen des Tages, groß die
+  nächste Fahrt mit Adresse, Telefon und dem passenden Knopf (Annahme- oder
+  Überführungsprotokoll, sonst "Zur Fahrt"), darunter "Später heute" bzw.
+  "Demnächst". Gemeinsame Helfer mit Überführungen liegen in
+  `src/lib/transferHelpers.ts`.
+- **Archiv** steht oben im Tab Einstellungen.
+- **Zeitstrahl** ist eine Ansicht in Projekte: oben schaltet
+  `ProjekteSwitch` zwischen Fahrzeuge und Zeitstrahl, der Reiter Projekte
+  bleibt dabei markiert.
+
+Aussehen: Schrift Manrope (`@fontsource-variable/manrope`, mitgebündelt und
+vom Service Worker vorgehalten, also auch offline). Rote Flächen mit weißer
+Schrift nehmen `brand-700`, rote Schrift `text-brand-700` — `brand-600` erreicht
+auf Weiß nicht ganz den nötigen Kontrast. Karten sind weiß ohne Rahmen auf
+grauem Grund (`gray-100`); Kennzeichen erscheinen als Schild (`Plate.tsx`).
+
 ## Datenbank-Migrationen
 
 Neue Migrationen liegen unter `supabase/migrations/`. Nach einem neuen

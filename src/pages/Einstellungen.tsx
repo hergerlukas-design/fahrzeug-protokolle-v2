@@ -240,7 +240,7 @@ export default function Einstellungen() {
   }
 
   return (
-    <div className="block min-h-full bg-gray-50 pb-[calc(1rem+4rem+env(safe-area-inset-bottom))]">
+    <div className="block min-h-full bg-gray-100 pb-[calc(1rem+4rem+env(safe-area-inset-bottom))]">
       <PageHeader
         title={t('nav.settings')}
         below={
@@ -251,7 +251,7 @@ export default function Einstellungen() {
               onClick={() => setActiveTab('einstellungen')}
               className={`flex-1 py-3 text-sm font-semibold transition-colors border-b-2 ${
                 activeTab === 'einstellungen'
-                  ? 'text-brand-600 border-brand-600'
+                  ? 'text-brand-700 border-brand-600'
                   : 'text-gray-500 border-transparent'
               }`}
             >
@@ -262,7 +262,7 @@ export default function Einstellungen() {
               onClick={() => setActiveTab('verwaltung')}
               className={`flex-1 py-3 text-sm font-semibold transition-colors border-b-2 ${
                 activeTab === 'verwaltung'
-                  ? 'text-brand-600 border-brand-600'
+                  ? 'text-brand-700 border-brand-600'
                   : 'text-gray-500 border-transparent'
               }`}
             >
@@ -277,7 +277,7 @@ export default function Einstellungen() {
         {activeTab === 'einstellungen' && (
           <>
             {/* Archiv */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-[0_1px_2px_rgba(24,24,27,0.06)] mb-4 overflow-hidden">
               <Link
                 to="/archiv"
                 className="w-full flex items-center gap-3 px-4 py-4 text-left"
@@ -294,7 +294,7 @@ export default function Einstellungen() {
             </div>
 
             {/* Sprache / Language */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 px-4 py-4">
+            <div className="bg-white rounded-2xl shadow-[0_1px_2px_rgba(24,24,27,0.06)] mb-4 px-4 py-4">
               <div className="flex items-center gap-3 mb-3">
                 <Globe size={22} className="text-gray-400" />
                 <span className="font-semibold text-gray-800">{t('settings.language_title')} / Language</span>
@@ -305,7 +305,7 @@ export default function Einstellungen() {
                   onClick={() => i18n.changeLanguage('de')}
                   className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border transition-colors ${
                     !isEN
-                      ? 'bg-brand-600 text-white border-brand-600'
+                      ? 'bg-brand-700 text-white border-brand-600'
                       : 'bg-white text-gray-500 border-gray-200'
                   }`}
                 >
@@ -316,7 +316,7 @@ export default function Einstellungen() {
                   onClick={() => i18n.changeLanguage('en')}
                   className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border transition-colors ${
                     isEN
-                      ? 'bg-brand-600 text-white border-brand-600'
+                      ? 'bg-brand-700 text-white border-brand-600'
                       : 'bg-white text-gray-500 border-gray-200'
                   }`}
                 >
@@ -326,7 +326,7 @@ export default function Einstellungen() {
             </div>
 
             {/* Tutorial */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-[0_1px_2px_rgba(24,24,27,0.06)] mb-4 overflow-hidden">
               <button
                 type="button"
                 onClick={() => window.dispatchEvent(new CustomEvent(TUTORIAL_EVENT))}
@@ -342,7 +342,7 @@ export default function Einstellungen() {
             </div>
 
             {/* App-Info */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 px-4 py-4">
+            <div className="bg-white rounded-2xl shadow-[0_1px_2px_rgba(24,24,27,0.06)] mb-4 px-4 py-4">
               <div className="flex items-center gap-3 mb-3">
                 <Info size={22} className="text-gray-400" />
                 <span className="font-semibold text-gray-800">{t('settings.app_info_title')}</span>
@@ -376,7 +376,7 @@ export default function Einstellungen() {
             </div>
 
             {/* Abmelden */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-[0_1px_2px_rgba(24,24,27,0.06)] mb-4 overflow-hidden">
               <button
                 onClick={handleLogout}
                 className="w-full flex items-center gap-3 px-4 py-4 text-red-600 font-semibold hover:bg-red-50 active:scale-95 transition-all"
@@ -387,7 +387,7 @@ export default function Einstellungen() {
             </div>
 
             {/* Rechtliches */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-[0_1px_2px_rgba(24,24,27,0.06)] overflow-hidden">
               <a
                 href="/impressum"
                 className="flex items-center gap-3 px-4 py-4 text-gray-600 hover:bg-gray-50 border-b border-gray-100"
@@ -412,7 +412,7 @@ export default function Einstellungen() {
         {activeTab === 'verwaltung' && (
           <>
             {/* Offline synchronisieren */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 px-4 py-4">
+            <div className="bg-white rounded-2xl shadow-[0_1px_2px_rgba(24,24,27,0.06)] mb-4 px-4 py-4">
               <div className="flex items-center gap-3 mb-3">
                 <UploadCloud size={22} className="text-gray-400" />
                 <div>
@@ -430,7 +430,7 @@ export default function Einstellungen() {
                 disabled={syncing || pendingCount === 0}
                 className={`w-full py-3 rounded-xl text-sm font-semibold transition-colors ${
                   pendingCount > 0 && !syncing
-                    ? 'bg-brand-600 text-white hover:bg-brand-700 active:scale-95'
+                    ? 'bg-brand-700 text-white hover:bg-brand-800 active:scale-95'
                     : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 }`}
               >
@@ -443,7 +443,7 @@ export default function Einstellungen() {
             </div>
 
             {/* Projektverwaltung */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-[0_1px_2px_rgba(24,24,27,0.06)] mb-4 overflow-hidden">
               <a
                 href="/fahrzeuge"
                 className="w-full flex items-center gap-3 px-4 py-4 text-left"
@@ -460,7 +460,7 @@ export default function Einstellungen() {
             </div>
 
             {/* PIN ändern */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-[0_1px_2px_rgba(24,24,27,0.06)] mb-4 overflow-hidden">
               <button
                 className="w-full flex items-center justify-between px-4 py-4 text-left"
                 onClick={() => { setPinSection(v => !v); setPinMsg(null) }}
@@ -508,7 +508,7 @@ export default function Einstellungen() {
                   )}
                   <button
                     type="submit"
-                    className="w-full py-3 rounded-xl bg-brand-600 text-white font-semibold hover:bg-brand-700 active:scale-95 transition-all"
+                    className="w-full py-3 rounded-xl bg-brand-700 text-white font-semibold hover:bg-brand-800 active:scale-95 transition-all"
                   >
                     {t('settings.pin_save')}
                   </button>
@@ -517,7 +517,7 @@ export default function Einstellungen() {
             </div>
 
             {/* Duplikate bereinigen */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-[0_1px_2px_rgba(24,24,27,0.06)] mb-4 overflow-hidden">
               <button
                 className="w-full flex items-center justify-between px-4 py-4 text-left"
                 onClick={() => { setDupSection(v => !v); setDupMsg(null); setDupIds(null) }}
@@ -569,7 +569,7 @@ export default function Einstellungen() {
             </div>
 
             {/* Leere Beiträge bereinigen */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-[0_1px_2px_rgba(24,24,27,0.06)] mb-4 overflow-hidden">
               <button
                 className="w-full flex items-center justify-between px-4 py-4 text-left"
                 onClick={() => { setEmptySection(v => !v); setEmptyMsg(null); setEmptyRows(null) }}

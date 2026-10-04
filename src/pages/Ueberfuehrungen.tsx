@@ -48,6 +48,7 @@ import {
   type CalendarGroup,
 } from '../lib/calendarPairs'
 import { unknownPlate, expectedVehicles, type NewVehicle, type ExpectedVehicles } from '../lib/calendarPlate'
+import Plate from '../components/Plate'
 import { todayISO, telHref, mapsHref, protocolKindOf, needsAcceptance } from '../lib/transferHelpers'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -331,7 +332,7 @@ function TransferHead({
         <div className="flex-1 min-w-0">
         {blocks.map((b, idx) => (
           <div key={b.key} className={idx > 0 ? 'mt-2 pt-2 border-t border-dashed border-gray-200' : ''}>
-            <p className={attached ? 'text-sm font-medium text-gray-700' : 'font-semibold text-gray-900 text-sm'}>
+            <p className={attached ? 'text-sm font-semibold text-gray-700' : 'font-bold text-gray-900 text-[15px]'}>
               {b.title}
             </p>
             {b.when && <p className="text-xs text-gray-400 mt-0.5">{b.when}</p>}
@@ -349,7 +350,7 @@ function TransferHead({
                 <a
                   href={telHref(transfer.contact_phone)}
                   onClick={(e) => e.stopPropagation()}
-                  className="text-brand-600 font-medium"
+                  className="text-brand-700 font-medium"
                 >
                   {transfer.contact_phone}
                 </a>
@@ -373,11 +374,13 @@ function TransferHead({
         )}
 
         <div className="flex items-center gap-2 mt-2 flex-wrap">
-          <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${
-            v ? 'bg-green-100 text-green-700' : transfer.vehicle_hint ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'
-          }`}>
-            {plate}
-          </span>
+          {v ? <Plate plate={v.license_plate} /> : (
+            <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${
+              transfer.vehicle_hint ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'
+            }`}>
+              {plate}
+            </span>
+          )}
           <StatusBadge status={transfer.status} />
           {needsAcceptance(transfer) && (
             <span className="text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
@@ -1571,7 +1574,7 @@ function TransferForm({
             <button type="button" onClick={onCancel} className="py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm">
               {t('common.cancel')}
             </button>
-            <button type="submit" disabled={saving || !valid} className="py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm disabled:opacity-60">
+            <button type="submit" disabled={saving || !valid} className="py-3 rounded-xl bg-brand-700 text-white font-semibold text-sm disabled:opacity-60">
               {saving ? t('common.loading') : t('common.save')}
             </button>
           </div>
@@ -1656,7 +1659,7 @@ function CaptureVehicleSheet({
           <button
             type="submit"
             disabled={saving || !plate.trim()}
-            className="flex-1 py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm disabled:opacity-50"
+            className="flex-1 py-3 rounded-xl bg-brand-700 text-white font-semibold text-sm disabled:opacity-50"
           >
             {saving ? t('common.loading') : t('transfers.capture_submit')}
           </button>
@@ -2130,7 +2133,7 @@ function CalendarSection({
                     {contact.phone && (
                       <span className="flex items-center gap-1">
                         <Phone size={12} className="text-gray-400 flex-shrink-0" />
-                        <a href={telHref(contact.phone)} className="text-brand-600 font-medium">
+                        <a href={telHref(contact.phone)} className="text-brand-700 font-medium">
                           {contact.phone}
                         </a>
                       </span>
@@ -2188,7 +2191,7 @@ function CalendarSection({
                   )}
                   <button
                     onClick={() => onImport(group.events, group)}
-                    className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-600 text-white text-xs font-semibold active:bg-brand-700"
+                    className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-700 text-white text-xs font-semibold active:bg-brand-800"
                   >
                     <Download size={13} />
                     {splitSwapImport
@@ -2386,7 +2389,7 @@ function AgendaSection({
         className={`px-4 py-3 flex items-start gap-3 ${clickable ? 'cursor-pointer' : ''}`}
       >
         {rank && (
-          <span className="w-6 h-6 rounded-full bg-brand-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+          <span className="w-6 h-6 rounded-full bg-brand-700 text-white text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
             {rank}
           </span>
         )}
@@ -2405,7 +2408,7 @@ function AgendaSection({
           {(rank === 1 || running || imported || unconfirmed || ev.recurring) && (
             <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
               {rank === 1 && (
-                <span className="text-[10px] font-semibold uppercase tracking-wide bg-brand-600 text-white px-2 py-0.5 rounded-full">
+                <span className="text-[10px] font-semibold uppercase tracking-wide bg-brand-700 text-white px-2 py-0.5 rounded-full">
                   {t('transfers.agenda_next')}
                 </span>
               )}
@@ -2504,7 +2507,7 @@ function AgendaSection({
         )}
         <button
           onClick={() => onOpenTransfer(tr.id)}
-          className="flex items-center gap-1 text-xs font-semibold text-brand-600 active:text-brand-700"
+          className="flex items-center gap-1 text-xs font-semibold text-brand-700 active:text-brand-700"
         >
           <RouteIcon size={13} />
           {t('transfers.agenda_open_transfer')}
@@ -3331,7 +3334,7 @@ export default function Ueberfuehrungen() {
   }
 
   return (
-    <div className="block min-h-full bg-gray-50">
+    <div className="block min-h-full bg-gray-100">
       <PageHeader title={t('transfers.title')} />
 
       <div className="px-4 pt-4 pb-[calc(1rem+4rem+env(safe-area-inset-bottom))] space-y-6">

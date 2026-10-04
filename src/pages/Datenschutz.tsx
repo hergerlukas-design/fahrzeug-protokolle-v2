@@ -11,7 +11,7 @@ function DatenschutzDe() {
           Lukas Herger<br />
           Passauerstraße 26, 81369 München<br />
           E-Mail:{' '}
-          <a href="mailto:herger.lukas@gmail.com" className="text-brand-600 underline">
+          <a href="mailto:herger.lukas@gmail.com" className="text-brand-700 underline">
             herger.lukas@gmail.com
           </a>
         </p>
@@ -66,7 +66,7 @@ function DatenschutzDe() {
           Sie haben das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der
           Verarbeitung und Widerspruch gemäß Art. 15–21 DSGVO. Anfragen richten Sie bitte
           an:{' '}
-          <a href="mailto:herger.lukas@gmail.com" className="text-brand-600 underline">
+          <a href="mailto:herger.lukas@gmail.com" className="text-brand-700 underline">
             herger.lukas@gmail.com
           </a>
         </p>
@@ -93,7 +93,7 @@ function DatenschutzEn() {
           Lukas Herger<br />
           Passauerstraße 26, 81369 Munich, Germany<br />
           E-Mail:{' '}
-          <a href="mailto:herger.lukas@gmail.com" className="text-brand-600 underline">
+          <a href="mailto:herger.lukas@gmail.com" className="text-brand-700 underline">
             herger.lukas@gmail.com
           </a>
         </p>
@@ -146,7 +146,7 @@ function DatenschutzEn() {
         <p>
           You have the right to access, rectification, erasure, restriction of processing,
           and objection under Articles 15–21 GDPR. Please submit requests to:{' '}
-          <a href="mailto:herger.lukas@gmail.com" className="text-brand-600 underline">
+          <a href="mailto:herger.lukas@gmail.com" className="text-brand-700 underline">
             herger.lukas@gmail.com
           </a>
         </p>
@@ -174,7 +174,7 @@ export default function Datenschutz() {
       <div className="bg-white border-b border-gray-200 px-4 py-4 flex items-center gap-3 sticky top-0 z-10">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-1.5 text-brand-600 font-medium text-sm"
+          className="flex items-center gap-1.5 text-brand-700 font-medium text-sm"
         >
           <ArrowLeft size={16} /> {t('common.back')}
         </button>

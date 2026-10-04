@@ -308,7 +308,7 @@ function DamageRow({
             <button
               type="button"
               onClick={() => cameraRef.current?.click()}
-              className="flex items-center gap-1.5 text-sm text-brand-600 border border-brand-200 rounded-lg px-3 py-2 bg-brand-50 active:bg-brand-100"
+              className="flex items-center gap-1.5 text-sm text-brand-700 border border-brand-200 rounded-lg px-3 py-2 bg-brand-50 active:bg-brand-100"
             >
               <Camera size={15} /> <span>{t('damage.camera')}</span>
             </button>
@@ -725,7 +725,7 @@ export default function Annahme() {
           )}
           <button
             onClick={() => navigate(tr ? '/ueberfuehrungen' : '/fahrzeuge')}
-            className="flex-1 py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm"
+            className="flex-1 py-3 rounded-xl bg-brand-700 text-white font-semibold text-sm"
           >
             {tr ? t('annahme.to_transfers') : t('annahme.to_overview')}
           </button>
@@ -744,7 +744,7 @@ export default function Annahme() {
         </div>
         <button
           onClick={() => navigate('/fahrzeuge')}
-          className="py-3 px-6 rounded-xl bg-brand-600 text-white font-semibold text-sm"
+          className="py-3 px-6 rounded-xl bg-brand-700 text-white font-semibold text-sm"
         >
           {t('annahme.to_overview')}
         </button>
@@ -754,7 +754,7 @@ export default function Annahme() {
 
   // ── Main form ──────────────────────────────────────────────────────────────
   return (
-    <div className="block min-h-full bg-gray-50 pb-[calc(1rem+4rem+env(safe-area-inset-bottom))]">
+    <div className="block min-h-full bg-gray-100 pb-[calc(1rem+4rem+env(safe-area-inset-bottom))]">
       {/* Header */}
       <PageHeader
         onBack={goBack}
@@ -769,7 +769,7 @@ export default function Annahme() {
       >
         <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
           <div
-            className="h-full bg-brand-600 rounded-full transition-all duration-300"
+            className="h-full bg-brand-700 rounded-full transition-all duration-300"
             style={{ width: `${((step + 1) / totalSteps) * 100}%` }}
           />
         </div>
@@ -1081,7 +1081,7 @@ export default function Annahme() {
       <Card>
         <p className="text-xs text-gray-500 mb-3">
           {t('annahme.sig_disclaimer')}{' '}
-          <a href="/datenschutz" className="text-brand-600 underline">
+          <a href="/datenschutz" className="text-brand-700 underline">
             {t('annahme.privacy_link')}
           </a>
         </p>
@@ -1099,7 +1099,7 @@ export default function Annahme() {
           className="w-full flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 mb-3"
         >
           <span className="text-sm font-medium text-gray-700">{t('annahme.carrier_toggle')}</span>
-          <span className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${carrierPresent ? 'bg-brand-600' : 'bg-gray-300'}`}>
+          <span className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${carrierPresent ? 'bg-brand-700' : 'bg-gray-300'}`}>
             <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${carrierPresent ? 'translate-x-6' : 'translate-x-1'}`} />
           </span>
         </button>
@@ -1107,7 +1107,7 @@ export default function Annahme() {
           <>
             <p className="text-xs text-gray-500 mb-3">
               {t('annahme.carrier_disclaimer')}{' '}
-              <a href="/datenschutz" className="text-brand-600 underline">
+              <a href="/datenschutz" className="text-brand-700 underline">
                 {t('annahme.privacy_link')}
               </a>
             </p>
@@ -1139,7 +1139,7 @@ export default function Annahme() {
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="flex-1 py-4 rounded-2xl bg-brand-600 text-white font-bold text-base shadow-lg disabled:opacity-60 active:bg-brand-700 flex items-center justify-center gap-2"
+            className="flex-1 py-4 rounded-2xl bg-brand-700 text-white font-bold text-base shadow-lg disabled:opacity-60 active:bg-brand-800 flex items-center justify-center gap-2"
           >
             {saving ? t('annahme.saving') : navigator.onLine ? <><Save size={18} /> {t('annahme.save_online')}</> : <><CloudOff size={18} /> {t('annahme.save_offline')}</>}
           </button>
@@ -1147,7 +1147,7 @@ export default function Annahme() {
           <button
             type="button"
             onClick={goNext}
-            className="flex-1 py-4 rounded-2xl bg-brand-600 text-white font-bold text-base shadow-lg active:bg-brand-700 flex items-center justify-center gap-2"
+            className="flex-1 py-4 rounded-2xl bg-brand-700 text-white font-bold text-base shadow-lg active:bg-brand-800 flex items-center justify-center gap-2"
           >
             {t('common.next')} <ArrowRight size={18} />
           </button>

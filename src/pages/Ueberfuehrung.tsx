@@ -790,7 +790,7 @@ export default function Ueberfuehrung() {
 
   // ── Main form ──────────────────────────────────────────────────────────────
   return (
-    <div className="block min-h-full bg-gray-50 pb-[calc(1rem+4rem+env(safe-area-inset-bottom))]">
+    <div className="block min-h-full bg-gray-100 pb-[calc(1rem+4rem+env(safe-area-inset-bottom))]">
       {/* Header */}
       <PageHeader
         onBack={goBack}
@@ -872,7 +872,7 @@ export default function Ueberfuehrung() {
               onClick={() => setTransferType(value)}
               className={`flex-1 min-w-[7rem] py-2.5 rounded-xl text-sm font-medium transition-colors border ${
                 transferType === value
-                  ? 'bg-brand-600 text-white border-brand-600'
+                  ? 'bg-brand-700 text-white border-brand-600'
                   : 'bg-white text-gray-600 border-gray-300'
               }`}
             >

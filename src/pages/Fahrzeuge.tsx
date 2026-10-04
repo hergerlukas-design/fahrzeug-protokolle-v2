@@ -292,7 +292,7 @@ function ProjectForm({
             <button
               type="submit"
               disabled={saving || exactDuplicate}
-              className="py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm disabled:opacity-60"
+              className="py-3 rounded-xl bg-brand-700 text-white font-semibold text-sm disabled:opacity-60"
             >
               {saving ? t('projects.saving') : t('common.save')}
             </button>
@@ -534,7 +534,7 @@ function ProjectKartei({
             value={search}
             onChange={(e) => onSearch(e.target.value)}
             placeholder={t('projects.search_placeholder')}
-            className="w-full border border-gray-300 rounded-xl pl-9 pr-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-400"
+            className="w-full border border-gray-200 rounded-xl pl-9 pr-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
       </PageHeader>
@@ -796,7 +796,7 @@ function NewVehicleFlow({
                           onClick={() => toggleProject(p.id)}
                           className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-gray-50 transition-colors text-left"
                         >
-                          <span className={`w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors ${selected ? 'bg-brand-600 border-brand-600' : 'border-gray-300'}`}>
+                          <span className={`w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors ${selected ? 'bg-brand-700 border-brand-600' : 'border-gray-300'}`}>
                             {selected && <Check size={11} strokeWidth={3} className="text-white" />}
                           </span>
                           {p.color && (
@@ -847,7 +847,7 @@ function NewVehicleFlow({
             <button
               type="submit"
               disabled={saving}
-              className="py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm disabled:opacity-60"
+              className="py-3 rounded-xl bg-brand-700 text-white font-semibold text-sm disabled:opacity-60"
             >
               {saving ? t('create_wizard.creating') : t('create_wizard.create_and_protocol')}
             </button>
@@ -938,7 +938,7 @@ function ExistingVehicleFlow({
                       <p className="text-sm text-gray-500 truncate">{v.brand_model || '—'}</p>
                     </div>
                     {selected?.id === v.id && (
-                      <Check size={18} className="text-brand-600" />
+                      <Check size={18} className="text-brand-700" />
                     )}
                   </button>
                 </li>
@@ -967,7 +967,7 @@ function ExistingVehicleFlow({
                 onClick={() => setProtocolType('intake')}
                 className={`py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
                   protocolType === 'intake'
-                    ? 'bg-brand-600 text-white'
+                    ? 'bg-brand-700 text-white'
                     : 'bg-gray-100 text-gray-600'
                 }`}
               >
@@ -976,7 +976,7 @@ function ExistingVehicleFlow({
             </div>
             <button
               onClick={handleGo}
-              className="w-full py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm"
+              className="w-full py-3 rounded-xl bg-brand-700 text-white font-semibold text-sm"
             >
               {t('vehicles.go_to_protocol')}
             </button>
@@ -1031,7 +1031,7 @@ function VehicleList({
     : vehicles
 
   return (
-    <div className="block min-h-full bg-gray-50">
+    <div className="block min-h-full bg-gray-100">
       {/* Header – sticky relative to <main> scroll container */}
       <PageHeader
         onBack={onBack}
@@ -1047,7 +1047,7 @@ function VehicleList({
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={onNewWithProtocol}
-              className="flex flex-col items-center gap-1 py-3 px-2 rounded-xl bg-brand-600 text-white text-center active:bg-brand-700 shadow-sm"
+              className="flex flex-col items-center gap-1 py-3 px-2 rounded-xl bg-brand-700 text-white text-center active:bg-brand-800 shadow-sm"
             >
               <Plus size={20} />
               <span className="text-xs font-semibold leading-tight">{t('vehicles.new_vehicle_and_protocol')}</span>
@@ -1067,7 +1067,7 @@ function VehicleList({
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder={t('vehicles.search_placeholder')}
-              className="w-full border border-gray-300 rounded-xl pl-9 pr-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-400"
+              className="w-full border border-gray-200 rounded-xl pl-9 pr-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
             />
           </div>
         </div>
@@ -1334,7 +1334,7 @@ function VehicleProjectSection({
         {available.length > 0 && (
           <button
             onClick={() => setShowAdd((v) => !v)}
-            className="text-xs text-brand-600 font-medium"
+            className="text-xs text-brand-700 font-medium"
           >
             {showAdd ? t('common.close') : `+ ${t('common.add')}`}
           </button>
@@ -1464,14 +1464,14 @@ function VehicleTransferSection({ vehicleId }: { vehicleId: string }) {
     new Date(`${d}T00:00:00`).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' })
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+    <div className="bg-white rounded-2xl shadow-[0_1px_2px_rgba(24,24,27,0.06)] p-4">
       <div className="flex items-center justify-between mb-3">
         <span className="flex items-center gap-1.5 font-semibold text-gray-800 text-sm">
           <RouteIcon size={15} className="text-gray-400" /> {t('transfers.title')}
         </span>
         <button
           onClick={() => navigate('/ueberfuehrungen')}
-          className="text-xs font-medium text-brand-600"
+          className="text-xs font-medium text-brand-700"
         >
           {t('vehicles.detail_open')}
         </button>
@@ -1638,7 +1638,7 @@ function VehicleDetail({
 
       <div className="px-4 pt-4 pb-[calc(1.5rem+4rem+env(safe-area-inset-bottom))] space-y-4">
         {/* Vehicle card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex gap-4">
+        <div className="bg-white rounded-2xl shadow-[0_1px_2px_rgba(24,24,27,0.06)] p-4 flex gap-4">
           <VehicleAvatar vehicleId={vehicle.id} size={72} />
           <div className="flex-1 min-w-0">
             <p className="font-bold text-gray-900 text-lg">{vehicle.license_plate}</p>
@@ -1773,7 +1773,7 @@ function VehicleDetail({
                     </div>
                   ) : (
                     <div className="flex gap-2">
-                      <button type="button" onClick={() => formCameraRef.current?.click()} className="flex items-center gap-1.5 text-sm text-brand-600 border border-brand-200 rounded-lg px-3 py-2 bg-brand-50 active:bg-brand-100"><Camera size={15} /> <span>{t('vehicles.camera')}</span></button>
+                      <button type="button" onClick={() => formCameraRef.current?.click()} className="flex items-center gap-1.5 text-sm text-brand-700 border border-brand-200 rounded-lg px-3 py-2 bg-brand-50 active:bg-brand-100"><Camera size={15} /> <span>{t('vehicles.camera')}</span></button>
                       <button type="button" onClick={() => formPhotoRef.current?.click()} className="flex items-center gap-1.5 text-sm text-gray-500 border border-gray-300 rounded-lg px-3 py-2 bg-white active:bg-gray-50"><Image size={15} /> <span>{t('vehicles.gallery')}</span></button>
                     </div>
                   )}
@@ -1782,7 +1782,7 @@ function VehicleDetail({
                 </div>
                 <div className="flex gap-2 pt-1">
                   <button type="button" onClick={closeForm} className="flex-1 py-2 rounded-lg border border-gray-300 text-gray-600 text-sm font-medium active:bg-gray-100">{t('common.cancel')}</button>
-                  <button type="button" onClick={handleDamageSave} disabled={dmgSaving} className="flex-1 py-2 rounded-lg bg-brand-600 text-white text-sm font-semibold disabled:opacity-60 active:bg-brand-700">
+                  <button type="button" onClick={handleDamageSave} disabled={dmgSaving} className="flex-1 py-2 rounded-lg bg-brand-700 text-white text-sm font-semibold disabled:opacity-60 active:bg-brand-800">
                     {dmgSaving ? t('projects.saving') : t('common.save')}
                   </button>
                 </div>
@@ -1983,7 +1983,7 @@ function VehicleForm({
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3">
-                <button type="button" onClick={() => cameraFileRef.current?.click()} className="border-2 border-dashed border-brand-300 rounded-xl py-5 text-brand-600 text-sm flex flex-col items-center gap-1 active:border-brand-500 active:bg-brand-50">
+                <button type="button" onClick={() => cameraFileRef.current?.click()} className="border-2 border-dashed border-brand-300 rounded-xl py-5 text-brand-700 text-sm flex flex-col items-center gap-1 active:border-brand-500 active:bg-brand-50">
                   <Camera size={22} /><span>{t('vehicles.camera')}</span>
                 </button>
                 <button type="button" onClick={() => fileRef.current?.click()} className="border-2 border-dashed border-gray-300 rounded-xl py-5 text-gray-500 text-sm flex flex-col items-center gap-1 active:border-brand-400 active:text-brand-600">
@@ -1996,7 +1996,7 @@ function VehicleForm({
           </div>
           <div className="grid grid-cols-2 gap-3 pt-2">
             <button type="button" onClick={onCancel} className="py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm active:bg-gray-50">{t('common.cancel')}</button>
-            <button type="submit" disabled={saving} className="py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm disabled:opacity-60 active:bg-brand-700">
+            <button type="submit" disabled={saving} className="py-3 rounded-xl bg-brand-700 text-white font-semibold text-sm disabled:opacity-60 active:bg-brand-800">
               {saving ? t('projects.saving') : t('common.save')}
             </button>
           </div>
@@ -2237,7 +2237,7 @@ export default function Fahrzeuge() {
   }, [showExistingFlow, allVehicles.length])
 
   return (
-    <div className="block h-full bg-gray-50">
+    <div className="block h-full bg-gray-100">
       {error && <ErrorBanner msg={error} onClose={() => setError(null)} />}
 
       {view === 'projects' && (
@@ -2258,7 +2258,7 @@ export default function Fahrzeuge() {
 
       {view === 'list' && (
         vehiclesLoading ? (
-          <div className="block min-h-full bg-gray-50">
+          <div className="block min-h-full bg-gray-100">
             <PageHeader onBack={handleBackToProjects} title={t('projects.title')} />
             <div className="pb-[calc(1rem+4rem+env(safe-area-inset-bottom))]">
               <SkeletonList count={5} />

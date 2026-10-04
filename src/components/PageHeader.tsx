@@ -47,8 +47,8 @@ export default function PageHeader({
   const leadIcon = icon ?? (onBack ? null : <AppLogo />)
 
   return (
-    <div className="sticky top-0 z-10 bg-white">
-      <div className="border-b border-gray-200 px-4 pt-4 pb-3">
+    <div className="sticky top-0 z-10 bg-gray-100/95 backdrop-blur">
+      <div className="border-b border-gray-200/70 px-4 pt-4 pb-3">
         {/* 1fr auto 1fr keeps the middle column centered regardless of how
             wide the two side slots turn out to be. */}
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
@@ -58,17 +58,17 @@ export default function PageHeader({
                 type="button"
                 onClick={onBack}
                 aria-label={t('common.back')}
-                className="p-1 -ml-1 text-gray-500 hover:text-gray-800 flex-shrink-0"
+                className="w-11 h-11 -ml-2.5 flex items-center justify-center rounded-full text-gray-700 hover:text-gray-900 active:bg-gray-200 flex-shrink-0"
               >
-                <ArrowLeft size={20} />
+                <ArrowLeft size={22} />
               </button>
             )}
           </div>
 
           <div className="flex flex-col items-center min-w-0">
             <h1
-              className={`flex items-center gap-1.5 min-w-0 font-bold text-gray-900 ${
-                size === 'lg' ? 'text-xl' : 'text-base'
+              className={`flex items-center gap-1.5 min-w-0 font-extrabold tracking-tight text-gray-900 ${
+                size === 'lg' ? 'text-[22px]' : 'text-[17px]'
               }`}
             >
               {leadIcon}

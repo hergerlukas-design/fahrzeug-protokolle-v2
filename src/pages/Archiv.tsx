@@ -281,7 +281,7 @@ export default function Archiv() {
                   className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
                     filterType === ft
                       ? ft === 'annahme'
-                        ? 'bg-brand-600 text-white border-brand-600'
+                        ? 'bg-brand-700 text-white border-brand-600'
                         : ft === 'transfer'
                         ? 'bg-green-600 text-white border-green-600'
                         : 'bg-gray-700 text-white border-gray-700'
@@ -406,7 +406,7 @@ export default function Archiv() {
             <p className="text-sm text-red-500">{error}</p>
             <button
               onClick={load}
-              className="text-sm text-brand-600 underline"
+              className="text-sm text-brand-700 underline"
             >
               {t('archiv.retry')}
             </button>
@@ -571,7 +571,7 @@ export default function Archiv() {
             {selected.status === 'draft' && (
               <button
                 onClick={() => setSignProtocol(selected)}
-                className="w-full py-2.5 rounded-xl bg-brand-600 text-white text-sm font-semibold active:bg-brand-700 flex items-center justify-center gap-1.5"
+                className="w-full py-2.5 rounded-xl bg-brand-700 text-white text-sm font-semibold active:bg-brand-800 flex items-center justify-center gap-1.5"
               >
                 <FileSignature size={15} /> {t('archiv.sign_button')}
               </button>
@@ -623,7 +623,7 @@ export default function Archiv() {
                     vin: selected.vehicles?.vin,
                   },
                 })}
-                className="flex-1 py-2.5 rounded-xl border border-brand-500 text-brand-600 text-sm font-medium active:bg-brand-50 flex items-center justify-center gap-1.5"
+                className="flex-1 py-2.5 rounded-xl border border-brand-500 text-brand-700 text-sm font-medium active:bg-brand-50 flex items-center justify-center gap-1.5"
               >
                 <ClipboardList size={15} /> {t('archiv.new_intake')}
               </button>
@@ -858,7 +858,7 @@ function ProtocolSignSheet({
         <button
           onClick={handleComplete}
           disabled={!hasSig || saving}
-          className="w-full mt-4 py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm disabled:opacity-50 active:bg-brand-700"
+          className="w-full mt-4 py-3 rounded-xl bg-brand-700 text-white font-semibold text-sm disabled:opacity-50 active:bg-brand-800"
         >
           {saving
             ? t('archiv.sign_saving')

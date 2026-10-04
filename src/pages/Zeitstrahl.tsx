@@ -410,7 +410,7 @@ function CorrectionForm({
           type="button"
           onClick={onSave}
           disabled={busy || !draft.day}
-          className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-brand-600 text-white active:bg-brand-700 disabled:opacity-50"
+          className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-brand-700 text-white active:bg-brand-800 disabled:opacity-50"
         >
           {busy ? t('timeline.saving') : t('common.save')}
         </button>
@@ -556,7 +556,7 @@ function CustomerSheet({
     >
       <span
         className={`w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 ${
-          on ? 'bg-brand-600 border-brand-600 text-white' : 'border-gray-300'
+          on ? 'bg-brand-700 border-brand-600 text-white' : 'border-gray-300'
         }`}
       >
         {on && <Check size={14} />}
@@ -593,7 +593,7 @@ function CustomerSheet({
         <button
           type="button"
           onClick={onClose}
-          className="mt-3 w-full py-3 rounded-xl text-sm font-semibold bg-brand-600 text-white active:bg-brand-700"
+          className="mt-3 w-full py-3 rounded-xl text-sm font-semibold bg-brand-700 text-white active:bg-brand-800"
         >
           {t('timeline.done')}
         </button>

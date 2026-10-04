@@ -21,20 +21,20 @@ export default function Login() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-dvh bg-gray-50 px-6">
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg p-8">
+    <div className="flex flex-col items-center justify-center min-h-dvh bg-white px-8">
+      <div className="w-full max-w-sm">
         <div className="flex justify-center mb-6">
           <img
-            src="/logo.webp"
+            src="/carhandling.png"
             alt="CarHandling"
-            className="h-20 object-contain"
+            className="h-32 object-contain"
             onError={(e) => (e.currentTarget.style.display = 'none')}
           />
         </div>
-        <h1 className="text-2xl font-bold text-center text-gray-800 mb-1">
+        <h1 className="text-2xl font-extrabold tracking-tight text-center text-gray-900 mb-1">
           Vehicle Protocol Pro
         </h1>
-        <p className="text-center text-gray-500 text-sm mb-4">{t('login.subtitle')}</p>
+        <p className="text-center text-gray-600 text-[15px] font-semibold mb-4">{t('login.subtitle')}</p>
 
         <div className="flex justify-center mb-6">
           <LanguageToggle />
@@ -42,7 +42,7 @@ export default function Login() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
               {t('login.pin_label')}
             </label>
             <input
@@ -53,7 +53,7 @@ export default function Login() {
                 setPin(e.target.value)
                 setError(false)
               }}
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 text-lg tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full h-14 px-4 rounded-2xl border-0 bg-gray-100 text-2xl font-bold tracking-[0.4em] text-center focus:outline-none focus:ring-2 focus:ring-brand-500"
               placeholder="••••"
               autoFocus
             />
@@ -65,7 +65,7 @@ export default function Login() {
 
           <button
             type="submit"
-            className="w-full py-3 rounded-xl bg-brand-600 text-white font-semibold text-base hover:bg-brand-700 active:scale-95 transition-all"
+            className="w-full h-14 rounded-2xl bg-brand-700 text-white font-extrabold text-base hover:bg-brand-800 active:scale-[0.98] transition-all"
           >
             {t('login.submit')}
           </button>

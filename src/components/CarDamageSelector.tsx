@@ -410,7 +410,7 @@ function DamageDiagram({
             onClick={() => setTab({ forSel: sel, view: id })}
             className={`flex-1 py-2 text-sm font-medium transition-colors ${
               activeView === id
-                ? 'text-brand-600 border-b-2 border-brand-500'
+                ? 'text-brand-700 border-b-2 border-brand-500'
                 : 'text-gray-500'
             }`}
           >

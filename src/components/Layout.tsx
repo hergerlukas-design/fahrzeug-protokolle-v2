@@ -13,7 +13,7 @@ export default function Layout() {
     // `fixed inset-0` instead of `h-dvh`: in the installed PWA some iPhones
     // report 100dvh shorter than the screen, which left an empty strip at the
     // bottom and pushed the FAB up onto the page's buttons.
-    <div className="fixed inset-0 flex bg-gray-50">
+    <div className="fixed inset-0 flex bg-gray-100">
       <Sidebar />
       {/* The content keeps its phone-sized column and stays centered in
           whatever space the sidebar leaves. `relative` anchors the FAB.

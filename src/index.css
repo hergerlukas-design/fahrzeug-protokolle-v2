@@ -1,6 +1,9 @@
 @import "tailwindcss";
+@import "@fontsource-variable/manrope";
 
 @theme {
+  --font-sans: 'Manrope Variable', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
   --color-brand-50:  #fdf2f3;
   --color-brand-100: #fce4e6;
   --color-brand-200: #f8b4b8;
@@ -31,7 +34,9 @@ html, body {
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font-sans);
+  background: var(--color-gray-100);
+  color: var(--color-gray-900);
   -webkit-tap-highlight-color: transparent;
 }
 
