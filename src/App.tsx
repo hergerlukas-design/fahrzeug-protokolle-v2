@@ -8,6 +8,7 @@ import Annahme from './pages/Annahme'
 import Fahrzeuge from './pages/Fahrzeuge'
 import Archiv from './pages/Archiv'
 import Heute from './pages/Heute'
+import Zeitstrahl from './pages/Zeitstrahl'
 import Einstellungen from './pages/Einstellungen'
 import Impressum from './pages/Impressum'
 import Datenschutz from './pages/Datenschutz'
@@ -37,6 +38,7 @@ export default function App() {
           <Route path="/ueberfuehrungen" element={<Ueberfuehrungen />} />
           <Route path="/annahme" element={<Annahme />} />
           <Route path="/fahrzeuge" element={<Fahrzeuge />} />
+          <Route path="/zeitstrahl" element={<Zeitstrahl />} />
           <Route path="/archiv" element={<Archiv />} />
           <Route path="/einstellungen" element={<Einstellungen />} />
           <Route path="/" element={<Navigate to="/heute" replace />} />

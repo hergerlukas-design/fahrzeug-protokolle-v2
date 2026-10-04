@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Home, Route as RouteIcon, Folder, Settings, Plus } from 'lucide-react'
 import { CREATE_EVENT } from './CreateWizard'
@@ -12,20 +12,26 @@ const RIGHT = [
   { to: '/einstellungen', icon: Settings, labelKey: 'nav.settings' },
 ]
 
+/** Der Zeitstrahl ist eine Ansicht in Projekte – dort bleibt der Reiter markiert. */
+const ALSO_ACTIVE: Record<string, string[]> = { '/fahrzeuge': ['/zeitstrahl'] }
+
 function Item({ to, icon: Icon, labelKey }: (typeof LEFT)[number]) {
   const { t } = useTranslation()
+  const { pathname } = useLocation()
+  const extra = (ALSO_ACTIVE[to] ?? []).some((p) => pathname.startsWith(p))
   return (
     <NavLink
       to={to}
-      className={({ isActive }) =>
-        `flex flex-col items-center justify-center gap-1 min-h-[48px] min-w-0 text-[11px] leading-none ${
+      className={({ isActive: routeActive }) => {
+        const isActive = routeActive || extra
+        return `flex flex-col items-center justify-center gap-1 min-h-[48px] min-w-0 text-[11px] leading-none ${
           isActive ? 'text-brand-700 font-extrabold' : 'text-gray-500 font-semibold'
         }`
-      }
+      }}
     >
       {({ isActive }) => (
         <>
-          <Icon size={22} strokeWidth={isActive ? 2.4 : 2} />
+          <Icon size={22} strokeWidth={isActive || extra ? 2.4 : 2} />
           <span className="truncate max-w-full">{t(labelKey)}</span>
         </>
       )}

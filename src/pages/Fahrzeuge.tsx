@@ -10,6 +10,7 @@ import {
   Check, X, ChevronUp, ChevronDown,
 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
+import ProjekteSwitch from '../components/ProjekteSwitch'
 import { PROJECT_CREATED_EVENT } from '../components/CreateWizard'
 import { SkeletonList } from '../components/Skeleton'
 import CarDamageSelector from '../components/CarDamageSelector'
@@ -525,6 +526,7 @@ function ProjectKartei({
     <div className="flex flex-col h-full">
       {/* Header */}
       <PageHeader title={t('projects.title')} size="lg">
+        <ProjekteSwitch />
         <div className="relative">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
           <input

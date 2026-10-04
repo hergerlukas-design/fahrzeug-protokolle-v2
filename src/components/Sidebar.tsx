@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Home, Folder, Route as RouteIcon, Settings } from 'lucide-react'
+import { Home, Folder, GanttChart, Route as RouteIcon, Settings } from 'lucide-react'
 
 /** Dieselben Ziele wie die BottomNav auf dem Telefon – das Archiv steht in
  *  den Einstellungen. */
@@ -8,6 +8,7 @@ const ITEMS = [
   { to: '/heute', icon: Home, labelKey: 'nav.today' },
   { to: '/ueberfuehrungen', icon: RouteIcon, labelKey: 'nav.transfers' },
   { to: '/fahrzeuge', icon: Folder, labelKey: 'nav.projects' },
+  { to: '/zeitstrahl', icon: GanttChart, labelKey: 'nav.timeline' },
   { to: '/einstellungen', icon: Settings, labelKey: 'nav.settings' },
 ]
 
