@@ -648,6 +648,7 @@
     "sync_pending_one": "{{count}} Protokoll ausstehend",
     "sync_pending_other": "{{count}} Protokolle ausstehend",
     "sync_done": "Alle Daten synchronisiert",
+    "sync_now": "Jetzt",
     "sync_button": "Jetzt synchronisieren",
     "syncing": "Synchronisiere …",
     "no_internet": "Kein Internet",

@@ -648,6 +648,7 @@
     "sync_pending_one": "{{count}} protocol pending",
     "sync_pending_other": "{{count}} protocols pending",
     "sync_done": "All data synchronised",
+    "sync_now": "Now",
     "sync_button": "Sync now",
     "syncing": "Syncing …",
     "no_internet": "No internet",

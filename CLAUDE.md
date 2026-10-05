@@ -633,7 +633,10 @@ Seitenleiste dieselben Ziele, dort zusätzlich den Zeitstrahl.
 - **Login** ist ein Ziffernfeld mit PIN-Punkten. Stimmt der PIN, geht es ohne
   weiteren Tipp hinein, und zwar nach **Heute**; ein falscher wird erst mit dem
   Haken gemeldet. Am Rechner geht die Tastatur.
-- **Archiv** steht oben im Tab Einstellungen.
+- **Einstellungen** sind eine Liste in Gruppen statt zweier Tabs: oben Archiv
+  und Projektverwaltung, dann die Offline-Synchronisierung, Sprache, PIN und
+  Tutorial; darunter "Verwaltung" (Duplikate, leere Beiträge), Rechtliches,
+  Abmelden und klein die App-Version mit "Aktualisieren".
 - **Zeitstrahl** ist eine Ansicht in Projekte: oben schaltet
   `ProjekteSwitch` zwischen Fahrzeuge und Zeitstrahl, der Reiter Projekte
   bleibt dabei markiert.

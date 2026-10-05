@@ -24,7 +24,7 @@ function Item({ to, icon: Icon, labelKey }: (typeof LEFT)[number]) {
       to={to}
       className={({ isActive: routeActive }) => {
         const isActive = routeActive || extra
-        return `flex flex-col items-center justify-center gap-1 min-h-[48px] min-w-0 text-[11px] leading-none ${
+        return `flex flex-col items-center justify-center gap-1 min-h-[48px] min-w-0 text-[10.5px] tracking-tight leading-none ${
           isActive ? 'text-brand-700 font-extrabold' : 'text-gray-500 font-semibold'
         }`
       }}
@@ -54,7 +54,7 @@ export default function BottomNav() {
   if (HIDDEN_ON.includes(pathname)) return null
   return (
     <nav
-      className="md:hidden flex-shrink-0 bg-white border-t border-gray-200 grid grid-cols-5 items-end px-2 pt-1.5"
+      className="md:hidden flex-shrink-0 bg-white border-t border-gray-200 grid grid-cols-5 items-end px-1 pt-1.5"
       style={{ paddingBottom: 'max(6px, env(safe-area-inset-bottom))' }}
     >
       {LEFT.map((item) => <Item key={item.to} {...item} />)}
