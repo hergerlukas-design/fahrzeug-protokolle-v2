@@ -635,6 +635,15 @@ Seitenleiste dieselben Ziele, dort zusätzlich den Zeitstrahl.
   `ProjekteSwitch` zwischen Fahrzeuge und Zeitstrahl, der Reiter Projekte
   bleibt dabei markiert.
 
+**Protokolle** (Überführung, Annahme) teilen sich die Bausteine aus
+`src/components/Wizard.tsx`: oben ein Fortschritt in Segmenten und "3/7",
+darunter groß der Name des Schritts mit einem Satz Anleitung
+(`wizard.ue_hint_*`, `wizard.an_hint_*`), Fotofelder als Kacheln (erledigt mit
+Haken, das erste offene in der Farbe des Protokolls, der Rest gestrichelt) und
+unten eine feste Leiste mit Zurück und Weiter. Die Überführung bleibt grün,
+die Annahme markenrot. In den Protokollen blendet sich die Leiste unten
+(`BottomNav`) aus – der Assistent hat dort seine eigene.
+
 Aussehen: Schrift Manrope (`@fontsource-variable/manrope`, mitgebündelt und
 vom Service Worker vorgehalten, also auch offline). Rote Flächen mit weißer
 Schrift nehmen `brand-700`, rote Schrift `text-brand-700` — `brand-600` erreicht

@@ -39,6 +39,9 @@ function Item({ to, icon: Icon, labelKey }: (typeof LEFT)[number]) {
   )
 }
 
+/** In den Protokollen hat der Assistent unten seine eigene Leiste. */
+const HIDDEN_ON = ['/ueberfuehrung', '/annahme']
+
 /**
  * Leiste unten auf dem Telefon – ersetzt dort den Hamburger. Die Hauptwege
  * liegen so unter dem Daumen; Archiv, Sprache und Rechtliches stehen in den
@@ -47,6 +50,8 @@ function Item({ to, icon: Icon, labelKey }: (typeof LEFT)[number]) {
  */
 export default function BottomNav() {
   const { t } = useTranslation()
+  const { pathname } = useLocation()
+  if (HIDDEN_ON.includes(pathname)) return null
   return (
     <nav
       className="md:hidden flex-shrink-0 bg-white border-t border-gray-200 grid grid-cols-5 items-end px-2 pt-1.5"

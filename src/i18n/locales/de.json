@@ -890,5 +890,22 @@
     "customers_count_other": "{{count}} Kunden",
     "archived": "archiviert",
     "done": "Fertig"
+  },
+  "wizard": {
+    "ue_hint_0": "Fahrzeug prüfen, Art der Überführung wählen, Fahrer und Strecke eintragen.",
+    "ue_hint_1": "Kilometerstand, Tank bzw. Akku und Sauberkeit festhalten.",
+    "ue_hint_2": "Einmal rund ums Fahrzeug. Tippe ein Feld, um die Kamera zu öffnen.",
+    "ue_hint_3": "Schäden auf der Skizze antippen und mit Foto festhalten.",
+    "ue_hint_4": "Bedingungen bei der Übergabe und Checkliste durchgehen.",
+    "ue_hint_5": "Alles, was sonst auffällt – gern mit weiteren Fotos.",
+    "ue_hint_6": "Fahrer und Empfänger unterschreiben – dann ist das Protokoll fertig.",
+    "an_hint_0": "Fahrzeugdaten prüfen und eintragen, wer die Annahme macht und wo.",
+    "an_hint_1": "Einmal rund ums Fahrzeug, dazu der Fahrzeugschein. Tippe ein Feld, um die Kamera zu öffnen.",
+    "an_hint_2": "Schäden auf der Skizze antippen und mit Foto festhalten.",
+    "an_hint_3": "Zustand bei der Annahme und Checkliste durchgehen.",
+    "an_hint_4": "Kilometerstand und Füllstände eintragen.",
+    "an_hint_5": "Alles, was sonst auffällt – gern mit weiteren Fotos.",
+    "an_hint_6": "Unterschreiben – bei Anlieferung auch der Spediteur.",
+    "photos_offline": "Fotos werden auch ohne Netz gesichert und später hochgeladen."
   }
 }

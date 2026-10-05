@@ -890,5 +890,22 @@
     "customers_count_other": "{{count}} customers",
     "archived": "archived",
     "done": "Done"
+  },
+  "wizard": {
+    "ue_hint_0": "Check the vehicle, pick the transfer type, enter driver and route.",
+    "ue_hint_1": "Record mileage, fuel or charge level and cleanliness.",
+    "ue_hint_2": "Walk once around the vehicle. Tap a tile to open the camera.",
+    "ue_hint_3": "Tap damages on the sketch and add a photo.",
+    "ue_hint_4": "Go through the handover conditions and the checklist.",
+    "ue_hint_5": "Anything else worth noting – add more photos if needed.",
+    "ue_hint_6": "Driver and recipient sign – then the protocol is done.",
+    "an_hint_0": "Check the vehicle data and enter who does the intake and where.",
+    "an_hint_1": "Walk once around the vehicle, plus the registration. Tap a tile to open the camera.",
+    "an_hint_2": "Tap damages on the sketch and add a photo.",
+    "an_hint_3": "Go through the intake condition and the checklist.",
+    "an_hint_4": "Enter mileage and fluid levels.",
+    "an_hint_5": "Anything else worth noting – add more photos if needed.",
+    "an_hint_6": "Sign – on delivery the carrier signs too.",
+    "photos_offline": "Photos are kept without a connection and uploaded later."
   }
 }
