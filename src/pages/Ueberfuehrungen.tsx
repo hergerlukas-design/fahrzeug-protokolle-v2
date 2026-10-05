@@ -2163,10 +2163,10 @@ function CalendarSection({
         <button
           onClick={onReload}
           disabled={loading}
-          className="ml-auto text-gray-400 active:text-gray-600 disabled:opacity-50"
+          className="ml-auto w-10 h-10 rounded-full flex items-center justify-center text-gray-500 active:bg-gray-200 disabled:opacity-50"
           aria-label={t('transfers.calendar_reload')}
         >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
         </button>
       </div>
 
@@ -2536,11 +2536,13 @@ function AgendaSection({
     // durch dasselbe Formular wie im Tab Kalender. Vergangenes nicht mehr.
     const askable = !imported && isUnconfirmed(ev.summary) && endOf(ev) >= today
     const unconfirmed = !imported && isUnconfirmed(ev.summary)
+    const multiDay = !!ev.date_to && ev.date_to !== ev.date_from
+    const timeSpan = !multiDay && !!ev.time_to && ev.time_to !== ev.time_from
     return (
       <div
         key={ev.uid}
-        className={`rounded-2xl shadow-sm ${
-          rank ? 'bg-brand-50 border-2 border-brand-400' : 'bg-white border border-gray-200'
+        className={`rounded-2xl bg-white shadow-[0_1px_2px_rgba(24,24,27,0.06)] ${
+          rank ? 'ring-2 ring-brand-700/25' : ''
         } ${dim && !isOpen ? 'opacity-60' : ''}`}
       >
       {/* Kein <button>: im Ort steckt ein Link, und der darf nicht in einer
@@ -2555,52 +2557,65 @@ function AgendaSection({
             if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle() }
           },
         })}
-        className={`px-4 py-3 flex items-start gap-3 ${clickable ? 'cursor-pointer' : ''}`}
+        className={`px-4 py-3.5 flex items-start gap-3 ${clickable ? 'cursor-pointer active:bg-gray-50 rounded-2xl' : ''}`}
       >
-        {rank && (
-          <span className="w-6 h-6 rounded-full bg-brand-700 text-white text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
-            {rank}
+        {/* Links die Uhrzeit wie auf Heute – der Tag steht schon darüber. Die
+            nächsten drei tragen zusätzlich ihre Nummer. */}
+        <div className="w-12 flex-shrink-0 flex flex-col items-start gap-1 pt-0.5">
+          {rank && (
+            <span className="w-6 h-6 rounded-full bg-brand-700 text-white text-xs font-extrabold flex items-center justify-center">
+              {rank}
+            </span>
+          )}
+          <span className="text-[15px] font-extrabold text-gray-900 tabular-nums">
+            {formatTime(ev.time_from) || '–'}
           </span>
-        )}
+        </div>
         <div className="flex-1 min-w-0">
-          <p className={`font-semibold text-sm ${rank ? 'text-brand-900' : 'text-gray-900'}`}>
+          <p className="text-[15px] font-bold text-gray-900 leading-snug">
             {ev.summary || t('transfers.calendar_untitled')}
           </p>
-          <p className={`text-xs mt-0.5 ${rank ? 'text-brand-700 font-medium' : 'text-gray-400'}`}>
-            {withTime(ev.date_from, ev.time_from, lang)}
-            {ev.date_to && ev.date_to !== ev.date_from
-              ? ` – ${withTime(ev.date_to, ev.time_to, lang)}`
-              : ev.time_to && ev.time_to !== ev.time_from ? ` – ${formatTime(ev.time_to)}` : ''}
-            {rank && diff > 1 && ` · ${t('transfers.agenda_in_days', { count: diff })}`}
-          </p>
+          {(multiDay || timeSpan || (rank && diff > 1)) && (
+            <p className="text-[13px] font-semibold text-gray-600 mt-0.5">
+              {multiDay
+                ? `${withTime(ev.date_from, ev.time_from, lang)} – ${withTime(ev.date_to!, ev.time_to, lang)}`
+                : timeSpan ? `${formatTime(ev.time_from)} – ${formatTime(ev.time_to)}` : ''}
+              {rank && diff > 1 && (
+                <span className="text-brand-700">
+                  {multiDay || timeSpan ? ' · ' : ''}
+                  {t('transfers.agenda_in_days', { count: diff })}
+                </span>
+              )}
+            </p>
+          )}
           <LocationLine to={ev.location} />
           {(rank === 1 || running || imported || unconfirmed || ev.recurring) && (
-            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
               {rank === 1 && (
-                <span className="text-[10px] font-semibold uppercase tracking-wide bg-brand-700 text-white px-2 py-0.5 rounded-full">
+                <span className="text-xs font-extrabold bg-brand-700 text-white px-2 py-0.5 rounded-lg">
                   {t('transfers.agenda_next')}
                 </span>
               )}
               {running && (
-                <span className="text-[10px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                <span className="text-xs font-bold bg-blue-50 text-[#1d4fa3] px-2 py-0.5 rounded-lg">
                   {t('transfers.agenda_running')}
                 </span>
               )}
               {/* Übernommen heißt hier bestätigt: aus dem Termin ist eine Fahrt
                   geworden. Das Fragezeichen im Kalender zählt dann nicht mehr. */}
               {imported && (
-                <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                  <CheckCircle2 size={11} />
+                <span className="flex items-center gap-1 text-xs font-bold bg-green-100 text-green-800 px-2 py-0.5 rounded-lg">
+                  <CheckCircle2 size={12} />
                   {t('transfers.agenda_confirmed')}
                 </span>
               )}
               {unconfirmed && (
-                <span className="text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                <span className="text-xs font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-lg">
                   {t('transfers.calendar_unconfirmed')}
                 </span>
               )}
               {ev.recurring && (
-                <span className="text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                <span className="text-xs font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-lg">
                   {t('transfers.calendar_recurring')}
                 </span>
               )}
@@ -2609,17 +2624,17 @@ function AgendaSection({
           {askable && (
             <button
               onClick={(e) => { e.stopPropagation(); onConfirm(ev) }}
-              className="mt-2 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-600 text-white text-xs font-semibold active:bg-green-700"
+              className="mt-2.5 h-10 flex items-center gap-1.5 px-4 rounded-xl bg-green-700 text-white text-sm font-bold active:bg-green-800"
             >
-              <CheckCircle2 size={13} />
+              <CheckCircle2 size={15} />
               {t('transfers.agenda_confirm')}
             </button>
           )}
         </div>
         {clickable && (
           <ChevronDown
-            size={16}
-            className={`text-gray-300 flex-shrink-0 mt-0.5 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+            size={18}
+            className={`text-gray-400 flex-shrink-0 mt-0.5 transition-transform ${isOpen ? 'rotate-180' : ''}`}
           />
         )}
       </div>
@@ -2640,7 +2655,7 @@ function AgendaSection({
     return (
       <div key={tr.id} className="border-t border-gray-100 pt-3 space-y-1.5">
         <div className="flex items-center gap-2">
-          <p className="flex-1 min-w-0 text-xs font-semibold text-gray-400 uppercase tracking-wide truncate">
+          <p className="flex-1 min-w-0 text-xs font-extrabold text-gray-500 uppercase tracking-wider truncate">
             {/* Beim Tausch hängen zwei Fahrten am Termin – dann sagt das
                 Kennzeichen, welche welche ist. */}
             {labelled && (tr.vehicle?.license_plate || tr.vehicle_hint)
@@ -2651,7 +2666,7 @@ function AgendaSection({
           <StatusBadge status={tr.status} />
         </div>
         {protocols.length === 0 ? (
-          <p className="text-sm text-gray-400">{t('transfers.agenda_no_protocol')}</p>
+          <p className="text-sm font-medium text-gray-500">{t('transfers.agenda_no_protocol')}</p>
         ) : (
           protocols.map((proto) => (
             <button
@@ -2676,9 +2691,9 @@ function AgendaSection({
         )}
         <button
           onClick={() => onOpenTransfer(tr.id)}
-          className="flex items-center gap-1 text-xs font-semibold text-brand-700 active:text-brand-700"
+          className="min-h-[40px] flex items-center gap-1.5 text-sm font-bold text-brand-700 active:text-brand-800"
         >
-          <RouteIcon size={13} />
+          <RouteIcon size={15} />
           {t('transfers.agenda_open_transfer')}
         </button>
       </div>
@@ -2688,8 +2703,8 @@ function AgendaSection({
   function renderDays(list: CalendarEvent[], dim = false) {
     return byDay(list).map(([date, dayEvents]) => (
       <div key={date}>
-        <p className={`text-xs font-semibold uppercase tracking-wide mb-1.5 ${
-          date === today ? 'text-brand-700' : 'text-gray-400'
+        <p className={`px-1 text-xs font-extrabold uppercase tracking-wider mb-1.5 ${
+          date === today ? 'text-brand-700' : 'text-gray-500'
         }`}>
           {dayLabel(date)}
         </p>
@@ -2700,11 +2715,12 @@ function AgendaSection({
 
   return (
     <section>
-      <div className="flex items-center gap-x-4 gap-y-1 mb-2 min-h-[1.25rem] flex-wrap">
+      <div className="flex items-center gap-2 mb-3 min-h-[1.25rem] flex-wrap">
         {past.length > 0 && !error && (
           <button
             onClick={() => setShowPast((v) => !v)}
-            className="flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wide active:text-gray-600"
+            aria-expanded={showPast}
+            className="h-9 px-3.5 rounded-full bg-white flex items-center gap-1.5 text-xs font-bold text-gray-700 active:bg-gray-50"
           >
             <span>{t('transfers.agenda_past', { count: past.length })}</span>
             {showPast ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -2713,7 +2729,8 @@ function AgendaSection({
         {running.length > 0 && !error && (
           <button
             onClick={() => setShowRunning((v) => !v)}
-            className="flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wide active:text-gray-600"
+            aria-expanded={showRunning}
+            className="h-9 px-3.5 rounded-full bg-white flex items-center gap-1.5 text-xs font-bold text-gray-700 active:bg-gray-50"
           >
             <span>{t('transfers.agenda_running_toggle', { count: running.length })}</span>
             {showRunning ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -2722,10 +2739,10 @@ function AgendaSection({
         <button
           onClick={onReload}
           disabled={loading}
-          className="ml-auto text-gray-400 active:text-gray-600 disabled:opacity-50"
+          className="ml-auto w-10 h-10 rounded-full flex items-center justify-center text-gray-500 active:bg-gray-200 disabled:opacity-50"
           aria-label={t('transfers.calendar_reload')}
         >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
         </button>
       </div>
 
