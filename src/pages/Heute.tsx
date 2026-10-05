@@ -9,25 +9,53 @@ import { todayISO, telHref, mapsHref, protocolKindOf, needsAcceptance } from '..
 import { SkeletonCard } from '../components/Skeleton'
 import Plate from '../components/Plate'
 
-/** Wie viele kommende Fahrten unter "Demnächst" stehen, wenn heute nichts mehr ansteht. */
-const UPCOMING_LIMIT = 3
-
-function endOf(t: Transfer): string {
-  return t.date_to ?? t.date_from
-}
-
-/** Läuft heute: der Zeitraum umfasst heute, oder das Fahrzeug ist schon unterwegs. */
-function isToday(t: Transfer, today: string): boolean {
-  return t.status === 'unterwegs' || (t.date_from <= today && endOf(t) >= today)
-}
+/** Wie viele Termine unter "Demnächst" stehen. */
+const UPCOMING_LIMIT = 5
 
 /**
- * Reihenfolge für "Als Nächstes": was heute läuft, nach Uhrzeit (ohne Uhrzeit
- * ans Ende des Tages), danach alles Kommende nach Datum.
+ * Etwas, das an einem bestimmten Tag passiert: Beginn oder Ende einer Fahrt,
+ * bei Fahrten aus dem Kalender jeder ihrer Termine. Eine Fahrt vom 21.10. bis
+ * 05.11. ist so nur an diesen beiden Tagen "heute" – an den Tagen dazwischen
+ * passiert nichts, was man tun müsste.
  */
-function sortKey(t: Transfer, today: string): string {
-  const day = t.date_from < today ? today : t.date_from
-  return `${day} ${t.time_from ?? '99:99'}`
+interface Moment {
+  key: string
+  transfer: Transfer
+  day: string
+  time: string | null
+  title: string
+  /** Endtag einer Fahrt ohne eigenen Termin an diesem Tag – meist die Rückgabe. */
+  ends: boolean
+}
+
+function momentsOf(tr: Transfer): Moment[] {
+  const out: Moment[] = []
+  const add = (day: string | null, time: string | null, title: string | null, ends: boolean) => {
+    if (!day || out.some((m) => m.day === day)) return
+    out.push({ key: `${tr.id}:${day}`, transfer: tr, day, time, title: title?.trim() || titleOf(tr), ends })
+  }
+  const links = [...(tr.calendar_links ?? [])].sort((a, b) =>
+    `${a.date_from} ${a.time_from ?? ''}`.localeCompare(`${b.date_from} ${b.time_from ?? ''}`))
+  for (const l of links) add(l.date_from, l.time_from, l.summary, false)
+  add(tr.date_from, tr.time_from, null, false)
+  for (const l of links) if (l.date_to && l.date_to !== l.date_from) add(l.date_to, l.time_to, l.summary, true)
+  if (tr.date_to && tr.date_to !== tr.date_from) add(tr.date_to, tr.time_to, null, true)
+  return out
+}
+
+/** Nach Tag, dann Uhrzeit – ohne Uhrzeit ans Ende des Tages. */
+function byWhen(a: Moment, b: Moment): number {
+  return `${a.day} ${a.time ?? '99:99'}`.localeCompare(`${b.day} ${b.time ?? '99:99'}`)
+}
+
+function nowHHMM(): string {
+  const d = new Date()
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+/** Schon vorbei und erledigt: die Uhrzeit liegt zurück und ein Protokoll hängt dran. */
+function isDone(m: Moment, now: string): boolean {
+  return !!m.time && m.time.slice(0, 5) < now && !!(m.transfer.pickup_protocol || m.transfer.dropoff_protocol)
 }
 
 function formatTime(value: string | null): string {
@@ -99,15 +127,16 @@ export default function Heute() {
   }, [load])
 
   const view = useMemo(() => {
-    const open = (transfers ?? []).filter((x) => endOf(x) >= today || x.status === 'unterwegs')
-    open.sort((a, b) => sortKey(a, today).localeCompare(sortKey(b, today)))
-    const todays = open.filter((x) => isToday(x, today))
-    const next = open[0] ?? null
+    const all = (transfers ?? []).flatMap(momentsOf).sort(byWhen)
+    const todays = all.filter((m) => m.day === today)
+    // Oben steht das nächste, was heute noch ansteht; schon Erledigtes rückt nach unten.
+    const now = nowHHMM()
+    const next = todays.find((m) => !isDone(m, now)) ?? todays[0] ?? null
     return {
       next,
-      later: todays.filter((x) => x !== next),
-      upcoming: open.filter((x) => !isToday(x, today) && x !== next).slice(0, UPCOMING_LIMIT),
-      countToday: todays.length,
+      later: todays.filter((m) => m !== next),
+      upcoming: all.filter((m) => m.day > today).slice(0, UPCOMING_LIMIT),
+      countToday: new Set(todays.map((m) => m.transfer.id)).size,
       countOnTheWay: (transfers ?? []).filter((x) => x.status === 'unterwegs').length,
       countAcceptance: (transfers ?? []).filter(needsAcceptance).length,
     }
@@ -149,7 +178,8 @@ export default function Heute() {
   const dateLine = new Date(`${today}T00:00:00`).toLocaleDateString(lang.startsWith('en') ? 'en-GB' : 'de-DE', {
     weekday: 'long', day: 'numeric', month: 'long',
   })
-  const next = view.next
+  const nextMoment = view.next
+  const next = nextMoment?.transfer ?? null
 
   /** Was mit der nächsten Fahrt zu tun ist – oder null, wenn sie schon läuft. */
   const nextAction = !next || !next.vehicle_id
@@ -196,20 +226,28 @@ export default function Heute() {
         {transfers !== null && !next && (
           <div className="bg-white rounded-3xl p-6 text-center flex flex-col items-center gap-3">
             <p className="font-bold text-gray-900">{t('today.empty')}</p>
+            {view.upcoming[0] && (
+              <p className="text-sm text-gray-600 -mt-1">
+                {t('today.next_on', { day: formatDay(view.upcoming[0].day, today, lang, t) })}
+              </p>
+            )}
             <Link to="/ueberfuehrungen" className="text-sm font-bold text-brand-700">
               {t('today.all_transfers')}
             </Link>
           </div>
         )}
 
-        {next && (
+        {next && nextMoment && (
           <section className="bg-white rounded-3xl p-[18px] flex flex-col gap-3.5 shadow-[0_1px_2px_rgba(24,24,27,0.06),0_8px_24px_rgba(24,24,27,0.06)]">
             <div className="flex items-center justify-between gap-2">
               <span className="text-xs font-extrabold tracking-wider uppercase text-brand-700">
-                {t('today.next')} · {formatDay(next.date_from < today ? today : next.date_from, today, lang, t)}
-                {next.time_from ? `, ${formatTime(next.time_from)}` : ''}
+                {t('transfers.agenda_today')}{nextMoment.time ? ` · ${formatTime(nextMoment.time)}` : ''}
               </span>
-              {next.status === 'unterwegs' && (
+              {nextMoment.ends ? (
+                <span className="text-xs font-bold bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full">
+                  {t('today.ends_today')}
+                </span>
+              ) : next.status === 'unterwegs' && (
                 <span className="text-xs font-bold bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full">
                   {t('transfers.status_unterwegs')}
                 </span>
@@ -217,7 +255,7 @@ export default function Heute() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <h2 className="text-xl font-extrabold tracking-tight leading-snug text-gray-900">{titleOf(next)}</h2>
+              <h2 className="text-xl font-extrabold tracking-tight leading-snug text-gray-900">{nextMoment.title}</h2>
               <div className="flex flex-wrap items-center gap-2">
                 {next.vehicle?.license_plate && <Plate plate={next.vehicle.license_plate} />}
                 {next.vehicle?.brand_model && (
@@ -288,15 +326,19 @@ export default function Heute() {
         )}
 
         <List title={t('today.later')} items={view.later} today={today} lang={lang} />
-        <List title={t('today.upcoming')} items={view.upcoming} today={today} lang={lang} />
+        <List title={t('today.upcoming')} items={view.upcoming} today={today} lang={lang} grouped />
       </div>
     </div>
   )
 }
 
-function List({ title, items, today, lang }: { title: string; items: Transfer[]; today: string; lang: string }) {
+function List({ title, items, today, lang, grouped = false }: {
+  title: string; items: Moment[]; today: string; lang: string; grouped?: boolean
+}) {
   const { t } = useTranslation()
   if (items.length === 0) return null
+  // Demnächst: je Tag eine Überschrift, in der Zeile dann nur die Uhrzeit.
+  const days = grouped ? [...new Set(items.map((m) => m.day))] : [today]
   return (
     <section className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between px-1 pt-1">
@@ -305,47 +347,60 @@ function List({ title, items, today, lang }: { title: string; items: Transfer[];
           {t('today.all_transfers')}
         </Link>
       </div>
-      <ul className="bg-white rounded-2xl divide-y divide-gray-100">
-        {items.map((x) => {
-          const sameDay = x.date_from <= today
-          const when = sameDay ? formatTime(x.time_from) || '–' : formatDay(x.date_from, today, lang, t)
-          const plate = x.vehicle?.license_plate
-          const where = x.location_to || x.location_from
-          return (
-            <li key={x.id}>
-              <Link to="/ueberfuehrungen" className="flex items-center gap-3 px-4 py-3.5 active:bg-gray-50">
-                <span className="w-14 flex-shrink-0 text-[15px] font-extrabold text-gray-900">{when}</span>
-                <span className="flex-1 min-w-0 flex flex-col gap-0.5">
-                  <span className="text-[15px] font-bold text-gray-900 truncate">{titleOf(x)}</span>
-                  <span className="text-[13px] font-medium text-gray-600 truncate">
-                    {[plate, where].filter(Boolean).join(' · ') ||
-                      (x.vehicle_hint ? t('transfers.pending_badge', { model: x.vehicle_hint }) : '')}
-                  </span>
-                </span>
-                {x.status === 'unterwegs' ? (
-                  <span className="text-xs font-bold bg-amber-100 text-amber-800 px-2 py-1 rounded-lg">
-                    {t('transfers.status_unterwegs')}
-                  </span>
-                ) : isSwap(x) ? (
-                  <span className="text-xs font-bold bg-blue-50 text-[#1d4fa3] px-2 py-1 rounded-lg flex items-center gap-1">
-                    <Repeat size={12} />{t('transfers.calendar_swap')}
-                  </span>
-                ) : unconfirmed(x) ? (
-                  <span className="text-xs font-bold bg-amber-100 text-amber-800 px-2 py-1 rounded-lg">
-                    {t('transfers.calendar_unconfirmed')}
-                  </span>
-                ) : needsAcceptance(x) ? (
-                  <span className="text-xs font-bold bg-brand-100 text-brand-800 px-2 py-1 rounded-lg">
-                    {t('transfers.acceptance_due')}
-                  </span>
-                ) : (
-                  <ChevronRight size={18} className="text-gray-400 flex-shrink-0" />
-                )}
-              </Link>
-            </li>
-          )
-        })}
-      </ul>
+      {days.map((day) => (
+        <div key={day} className="flex flex-col gap-1.5">
+          {grouped && (
+            <h3 className="px-1 text-xs font-extrabold tracking-wider uppercase text-gray-500">
+              {formatDay(day, today, lang, t)}
+            </h3>
+          )}
+          <ul className="bg-white rounded-2xl divide-y divide-gray-100">
+            {items.filter((m) => m.day === day).map((m) => <Row key={m.key} m={m} />)}
+          </ul>
+        </div>
+      ))}
     </section>
+  )
+}
+
+function Row({ m }: { m: Moment }) {
+  const { t } = useTranslation()
+  const x = m.transfer
+  const plate = x.vehicle?.license_plate
+  const where = x.location_to || x.location_from
+  return (
+    <li>
+      <Link to="/ueberfuehrungen" className="flex items-center gap-3 px-4 py-3.5 active:bg-gray-50">
+        <span className="w-12 flex-shrink-0 text-[15px] font-extrabold text-gray-900">
+          {formatTime(m.time) || '–'}
+        </span>
+        <span className="flex-1 min-w-0 flex flex-col gap-0.5">
+          <span className="text-[15px] font-bold text-gray-900 truncate">{m.title}</span>
+          <span className="text-[13px] font-medium text-gray-600 truncate">
+            {[plate, where].filter(Boolean).join(' · ') ||
+              (x.vehicle_hint ? t('transfers.pending_badge', { model: x.vehicle_hint }) : '')}
+          </span>
+        </span>
+        {m.ends ? (
+          <span className="text-xs font-bold bg-gray-100 text-gray-700 px-2 py-1 rounded-lg">
+            {t('today.ends')}
+          </span>
+        ) : isSwap(x) ? (
+          <span className="text-xs font-bold bg-blue-50 text-[#1d4fa3] px-2 py-1 rounded-lg flex items-center gap-1">
+            <Repeat size={12} />{t('transfers.calendar_swap')}
+          </span>
+        ) : unconfirmed(x) ? (
+          <span className="text-xs font-bold bg-amber-100 text-amber-800 px-2 py-1 rounded-lg">
+            {t('transfers.calendar_unconfirmed')}
+          </span>
+        ) : needsAcceptance(x) ? (
+          <span className="text-xs font-bold bg-brand-100 text-brand-800 px-2 py-1 rounded-lg">
+            {t('transfers.acceptance_due')}
+          </span>
+        ) : (
+          <ChevronRight size={18} className="text-gray-400 flex-shrink-0" />
+        )}
+      </Link>
+    </li>
   )
 }

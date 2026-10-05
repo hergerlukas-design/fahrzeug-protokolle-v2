@@ -620,10 +620,15 @@ Auf dem Telefon steht unten eine feste Leiste (`BottomNav.tsx`):
 der Plus-Knopf in der Mitte ist das frühere "Erstellen". Ab `md` zeigt die
 Seitenleiste dieselben Ziele, dort zusätzlich den Zeitstrahl.
 
-- **Heute** (`/heute`, Startseite) zeigt die Zahlen des Tages, groß die
-  nächste Fahrt mit Adresse, Telefon und dem passenden Knopf (Annahme- oder
-  Überführungsprotokoll, sonst "Zur Fahrt"), darunter "Später heute" bzw.
-  "Demnächst". Gemeinsame Helfer mit Überführungen liegen in
+- **Heute** (`/heute`, Startseite) zeigt, was **an diesem Tag** passiert –
+  nicht jede Fahrt, deren Zeitraum heute einschließt. Je Fahrt zählt ihr
+  Starttag und ihr Endtag ("Ende"), bei Fahrten aus dem Kalender jeder ihrer
+  Termine mit dessen Uhrzeit und Titel (`momentsOf` in `Heute.tsx`). Oben groß
+  das nächste von heute, das noch ansteht (schon vorbei und mit Protokoll rückt
+  es nach unten), mit Adresse, Telefon und dem passenden Knopf (Annahme- oder
+  Überführungsprotokoll, sonst "Zur Fahrt"). "Später heute" sind die weiteren
+  von heute nach Uhrzeit, "Demnächst" die nächsten ab morgen, nach Tagen
+  gruppiert. Gemeinsame Helfer mit Überführungen liegen in
   `src/lib/transferHelpers.ts`.
 - **Archiv** steht oben im Tab Einstellungen.
 - **Zeitstrahl** ist eine Ansicht in Projekte: oben schaltet

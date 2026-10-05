@@ -810,6 +810,9 @@
     "title": "Privacy Policy"
   },
   "today": {
+    "next_on": "Next up: {{day}}",
+    "ends_today": "Ends today",
+    "ends": "Ends",
     "stat_today": "Trips today",
     "next": "Up next",
     "later": "Later today",
@@ -818,7 +821,7 @@
     "start_protocol": "Create protocol",
     "open_transfer": "Open trip",
     "route": "Open route",
-    "empty": "No open trips."
+    "empty": "Nothing scheduled today."
   },
   "timeline": {
     "title": "Timeline",

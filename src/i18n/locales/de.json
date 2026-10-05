@@ -810,6 +810,9 @@
     "title": "Datenschutzerklärung"
   },
   "today": {
+    "next_on": "Als Nächstes: {{day}}",
+    "ends_today": "Endet heute",
+    "ends": "Ende",
     "stat_today": "Fahrten heute",
     "next": "Als Nächstes",
     "later": "Später heute",
@@ -818,7 +821,7 @@
     "start_protocol": "Protokoll erstellen",
     "open_transfer": "Zur Fahrt",
     "route": "Route öffnen",
-    "empty": "Keine offenen Fahrten."
+    "empty": "Heute steht nichts an."
   },
   "timeline": {
     "title": "Zeitstrahl",
