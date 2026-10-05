@@ -2178,20 +2178,20 @@ function CalendarSection({
       )}
 
       {!error && (
-        <div className="flex items-end gap-2 mb-2">
+        <div className="flex items-end gap-2 mb-3">
           <label className="flex-1 min-w-0">
-            <span className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
+            <span className="block text-xs font-bold text-gray-600 mb-1">
               {t('transfers.calendar_filter_from')}
             </span>
             <input
               type="date"
               value={from}
               onChange={(e) => setFrom(e.target.value)}
-              className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
+              className="w-full h-11 bg-white border border-gray-200 rounded-xl px-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-400"
             />
           </label>
           <label className="flex-1 min-w-0">
-            <span className="block text-[10px] uppercase tracking-wide text-gray-400 mb-1">
+            <span className="block text-xs font-bold text-gray-600 mb-1">
               {t('transfers.calendar_filter_to')}
             </span>
             <input
@@ -2199,13 +2199,13 @@ function CalendarSection({
               value={to}
               min={from || undefined}
               onChange={(e) => setTo(e.target.value)}
-              className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
+              className="w-full h-11 bg-white border border-gray-200 rounded-xl px-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-400"
             />
           </label>
           {(from || to) && (
             <button
               onClick={() => { setFrom(''); setTo('') }}
-              className="px-2 py-2 text-xs font-semibold text-gray-500 active:text-gray-700 whitespace-nowrap"
+              className="h-11 px-3 rounded-xl text-sm font-bold text-brand-700 active:bg-gray-200 whitespace-nowrap"
             >
               {t('transfers.calendar_filter_reset')}
             </button>
@@ -2241,7 +2241,8 @@ function CalendarSection({
             const splitSwapImport = !!picked && !!brought && picked.id !== brought.id
             const unconfirmed = group.events.some((e) => isUnconfirmed(e.summary))
             return (
-              <div key={group.key} className="bg-white rounded-2xl border border-dashed border-gray-300 shadow-sm px-4 py-3">
+              // Gestrichelt: daraus ist noch keine Fahrt geworden.
+              <div key={group.key} className="bg-white rounded-2xl border-[1.5px] border-dashed border-gray-300 px-4 py-3.5">
                 {group.events.map((ev, idx) => (
                   <div
                     key={ev.uid}
@@ -2249,10 +2250,10 @@ function CalendarSection({
                   >
                     <div className="flex items-start gap-2">
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-900 text-sm">
+                        <p className="font-bold text-gray-900 text-[15px] leading-snug">
                           {ev.summary || t('transfers.calendar_untitled')}
                         </p>
-                        <p className="text-xs text-gray-400 mt-0.5">
+                        <p className="text-[13px] font-semibold text-gray-600 mt-0.5">
                           {withTime(ev.date_from, ev.time_from, i18n.language)}
                           {ev.date_to && ` – ${withTime(ev.date_to, ev.time_to, i18n.language)}`}
                         </p>
@@ -2263,9 +2264,9 @@ function CalendarSection({
                         <button
                           onClick={() => onImport([ev], group)}
                           aria-label={t('transfers.calendar_import_single')}
-                          className="p-1.5 text-gray-300 active:text-gray-600 flex-shrink-0"
+                          className="w-10 h-10 -mr-2 -mt-1 rounded-full flex items-center justify-center text-gray-500 active:bg-gray-100 flex-shrink-0"
                         >
-                          <Download size={14} />
+                          <Download size={17} />
                         </button>
                       )}
                     </div>
@@ -2274,7 +2275,7 @@ function CalendarSection({
 
                 {/* Aus den Notizen gelesen – wird beim Übernehmen vorgeschlagen. */}
                 {(contact.name || contact.phone) && (
-                  <p className="text-xs text-gray-500 mt-1 flex items-center gap-x-3 gap-y-0.5 flex-wrap">
+                  <p className="text-[13px] font-medium text-gray-600 mt-1 flex items-center gap-x-3 gap-y-0.5 flex-wrap">
                     {contact.name && (
                       <span className="flex items-center gap-1">
                         <User size={12} className="text-gray-400 flex-shrink-0" /> {contact.name}
@@ -2294,15 +2295,11 @@ function CalendarSection({
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
                   {/* Beim Tausch stehen zwei Kennzeichen im Titel – beide zeigen. */}
                   {plates.length > 0 ? (
-                    plates.map((v) => (
-                      <span key={v.id} className="text-[10px] font-semibold uppercase tracking-wide bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                        {v.license_plate}
-                      </span>
-                    ))
+                    plates.map((v) => <Plate key={v.id} plate={v.license_plate} />)
                   ) : group.expected?.explicit ? (
                     // Kein Kennzeichen, aber eine Anzahl: die Fahrzeuge werden
                     // erst vor Ort erfasst.
-                    <span className="text-[10px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                    <span className="text-xs font-bold bg-blue-50 text-[#1d4fa3] px-2 py-0.5 rounded-lg">
                       {t('transfers.calendar_pending', {
                         count: group.expected.count,
                         model: group.expected.model || t('transfers.pending_vehicles'),
@@ -2311,39 +2308,40 @@ function CalendarSection({
                   ) : group.fresh ? (
                     // Das Kennzeichen gibt es noch nicht – übernommen wird
                     // das Fahrzeug gleich mit, und es braucht eine Abnahme.
-                    <span className="text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                    <span className="text-xs font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-lg">
                       {t('transfers.calendar_new_vehicle', { plate: group.fresh.license_plate })}
                     </span>
                   ) : (
-                    <span className="text-[10px] font-semibold uppercase tracking-wide bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+                    <span className="text-xs font-bold bg-gray-100 text-gray-700 px-2 py-0.5 rounded-lg">
                       {t('transfers.calendar_no_match')}
                     </span>
                   )}
                   {pair && (
-                    <span className="text-[10px] font-semibold uppercase tracking-wide bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full">
+                    <span className="text-xs font-bold bg-brand-50 text-brand-800 px-2 py-0.5 rounded-lg">
                       {t('transfers.calendar_pair')}
                     </span>
                   )}
                   {swap && (
-                    <span className="text-[10px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                    <span className="text-xs font-bold bg-blue-50 text-[#1d4fa3] px-2 py-0.5 rounded-lg">
                       {t('transfers.calendar_swap')}
                     </span>
                   )}
                   {unconfirmed && (
-                    <span className="text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                    <span className="text-xs font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-lg">
                       {t('transfers.calendar_unconfirmed')}
                     </span>
                   )}
                   {group.events.some((e) => e.recurring) && (
-                    <span className="text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                    <span className="text-xs font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-lg">
                       {t('transfers.calendar_recurring')}
                     </span>
                   )}
-                  <button
+                </div>
+                <button
                     onClick={() => onImport(group.events, group)}
-                    className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-700 text-white text-xs font-semibold active:bg-brand-800"
+                    className="mt-3 w-full h-11 flex items-center justify-center gap-2 rounded-xl bg-brand-700 text-white text-sm font-extrabold active:bg-brand-800"
                   >
-                    <Download size={13} />
+                    <Download size={16} />
                     {splitSwapImport
                       ? t('transfers.calendar_import_swap')
                       : group.expected?.explicit && group.expected.count > 1
@@ -2352,7 +2350,6 @@ function CalendarSection({
                         ? t('transfers.calendar_import_pair')
                         : t('transfers.calendar_import')}
                   </button>
-                </div>
               </div>
             )
           })}
