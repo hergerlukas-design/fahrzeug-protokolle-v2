@@ -3,7 +3,8 @@ import { Plus } from 'lucide-react'
 import { CREATE_EVENT } from './CreateWizard'
 
 /**
- * The create button the bottom nav used to carry.
+ * The floating create button for wide screens. On the phone the plus sits
+ * in the middle of the BottomNav instead.
  *
  * Positioned absolute inside the content column (not fixed to the viewport),
  * so it stays with the phone column when the permanent sidebar shifts it on
@@ -18,7 +19,7 @@ export default function FabCreate() {
       type="button"
       onClick={() => window.dispatchEvent(new CustomEvent(CREATE_EVENT))}
       aria-label={t('nav.create')}
-      className="absolute right-4 bottom-4 z-20 w-14 h-14 rounded-full bg-brand-600 text-white shadow-lg flex items-center justify-center active:bg-brand-700 active:scale-95 transition-transform"
+      className="hidden md:flex absolute right-4 bottom-4 z-20 w-14 h-14 rounded-full bg-brand-700 text-white shadow-lg items-center justify-center active:bg-brand-800 active:scale-95 transition-transform"
       style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
     >
       <Plus size={26} strokeWidth={2.5} />

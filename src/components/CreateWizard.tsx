@@ -71,7 +71,7 @@ function RootStep({
           <ClipboardList size={36} className="text-brand-500" />
           <div className="text-center">
             <p className="font-bold text-brand-800 text-base">{t('create_wizard.protocol')}</p>
-            <p className="text-xs text-brand-600 mt-0.5 leading-tight">{t('create_wizard.protocol_desc')}</p>
+            <p className="text-xs text-brand-700 mt-0.5 leading-tight">{t('create_wizard.protocol_desc')}</p>
           </div>
         </button>
         <button
@@ -112,7 +112,7 @@ function ProtokollStep({
   return (
     <div className="px-4 pb-[calc(4rem+env(safe-area-inset-bottom))]">
       <div className="flex items-center gap-2 mb-5">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-brand-600 text-sm font-medium"><ArrowLeft size={16} /> {t('common.back')}</button>
+        <button onClick={onBack} className="flex items-center gap-1.5 text-brand-700 text-sm font-medium"><ArrowLeft size={16} /> {t('common.back')}</button>
         <h2 className="text-lg font-bold text-gray-900 flex-1">{t('create_wizard.create_protocol_title')}</h2>
       </div>
       <div className="space-y-3">
@@ -123,7 +123,7 @@ function ProtokollStep({
           <Search size={30} className="text-brand-500" />
           <div>
             <p className="font-bold text-brand-800">{t('create_wizard.existing_vehicle')}</p>
-            <p className="text-sm text-brand-600 mt-0.5">{t('create_wizard.existing_vehicle_desc')}</p>
+            <p className="text-sm text-brand-700 mt-0.5">{t('create_wizard.existing_vehicle_desc')}</p>
           </div>
         </button>
         <button
@@ -175,7 +175,7 @@ function NewVehicleStep({ onBack, onClose }: { onBack: () => void; onClose: () =
   return (
     <div className="px-4 pb-[calc(4rem+env(safe-area-inset-bottom))]">
       <div className="flex items-center gap-2 mb-5">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-brand-600 text-sm font-medium"><ArrowLeft size={16} /> {t('common.back')}</button>
+        <button onClick={onBack} className="flex items-center gap-1.5 text-brand-700 text-sm font-medium"><ArrowLeft size={16} /> {t('common.back')}</button>
         <h2 className="text-lg font-bold text-gray-900 flex-1">{t('create_wizard.new_vehicle_title')}</h2>
       </div>
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -220,7 +220,7 @@ function NewVehicleStep({ onBack, onClose }: { onBack: () => void; onClose: () =
           <button
             type="submit"
             disabled={saving}
-            className="py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm disabled:opacity-60"
+            className="py-3 rounded-xl bg-brand-700 text-white font-semibold text-sm disabled:opacity-60"
           >
             {saving ? t('create_wizard.creating') : t('create_wizard.create_and_protocol') + ' →'}
           </button>
@@ -271,7 +271,7 @@ function ExistingVehicleStep({ onBack, onClose }: { onBack: () => void; onClose:
     <>
       <div className="flex-shrink-0 px-4 pb-3">
         <div className="flex items-center gap-2 mb-3">
-          <button onClick={onBack} className="flex items-center gap-1.5 text-brand-600 text-sm font-medium"><ArrowLeft size={16} /> {t('common.back')}</button>
+          <button onClick={onBack} className="flex items-center gap-1.5 text-brand-700 text-sm font-medium"><ArrowLeft size={16} /> {t('common.back')}</button>
           <h2 className="text-lg font-bold text-gray-900 flex-1">{t('create_wizard.search_vehicle_title')}</h2>
         </div>
         <div className="relative">
@@ -282,7 +282,7 @@ function ExistingVehicleStep({ onBack, onClose }: { onBack: () => void; onClose:
             onChange={(e) => { setSearch(e.target.value); setSelected(null) }}
             placeholder={t('create_wizard.search_placeholder')}
             autoFocus
-            className="w-full border border-gray-300 rounded-xl pl-9 pr-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-400"
+            className="w-full border border-gray-200 rounded-xl pl-9 pr-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
       </div>
@@ -307,7 +307,7 @@ function ExistingVehicleStep({ onBack, onClose }: { onBack: () => void; onClose:
                     <p className="font-semibold text-gray-900 truncate">{v.license_plate}</p>
                     <p className="text-sm text-gray-500 truncate">{v.brand_model || '—'}</p>
                   </div>
-                  {selected?.id === v.id && <Check size={18} className="text-brand-600" />}
+                  {selected?.id === v.id && <Check size={18} className="text-brand-700" />}
                 </button>
               </li>
             ))}
@@ -380,7 +380,7 @@ function ProjektStep({ onBack, onClose }: { onBack: () => void; onClose: () => v
   return (
     <div className="px-4 pb-[calc(4rem+env(safe-area-inset-bottom))]">
       <div className="flex items-center gap-2 mb-5">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-brand-600 text-sm font-medium"><ArrowLeft size={16} /> {t('common.back')}</button>
+        <button onClick={onBack} className="flex items-center gap-1.5 text-brand-700 text-sm font-medium"><ArrowLeft size={16} /> {t('common.back')}</button>
         <h2 className="text-lg font-bold text-gray-900 flex-1">{t('create_wizard.new_project_title')}</h2>
       </div>
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -453,7 +453,7 @@ function ProjektStep({ onBack, onClose }: { onBack: () => void; onClose: () => v
           <button
             type="submit"
             disabled={saving || exactDuplicate}
-            className="py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm disabled:opacity-60"
+            className="py-3 rounded-xl bg-brand-700 text-white font-semibold text-sm disabled:opacity-60"
           >
             {saving ? t('create_wizard.saving') : t('create_wizard.create_project')}
           </button>

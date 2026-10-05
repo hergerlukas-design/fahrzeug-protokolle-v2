@@ -12,7 +12,7 @@ export default function UpdateBanner() {
   if (!needRefresh) return null
 
   return (
-    <div className="bg-brand-600 text-white px-4 py-3 flex items-center justify-between gap-2">
+    <div className="bg-brand-700 text-white px-4 py-3 flex items-center justify-between gap-2">
       <div className="flex items-center gap-2 text-sm font-medium">
         <RefreshCw size={16} />
         <span>{t('update_banner.message')}</span>
@@ -20,7 +20,7 @@ export default function UpdateBanner() {
       <div className="flex gap-2 flex-shrink-0 items-center">
         <button
           onClick={() => updateServiceWorker(true)}
-          className="bg-white text-brand-600 font-semibold text-xs px-3 py-1.5 rounded-lg active:scale-95 transition-all"
+          className="bg-white text-brand-700 font-semibold text-xs px-3 py-1.5 rounded-lg active:scale-95 transition-all"
         >
           {t('update_banner.refresh')}
         </button>

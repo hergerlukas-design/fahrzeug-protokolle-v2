@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   X, Camera, Image, ChevronDown, ChevronRight, ArrowLeft, ArrowRight, Car, AlertTriangle,
-  CheckCircle2, Save,
+  CheckCircle2, Save, CloudOff,
 } from 'lucide-react'
 import {
   DEFAULT_CHECKLISTE,
@@ -23,10 +23,12 @@ import { errorText } from '../lib/supabase'
 import { OFFLINE_SAVED_EVENT } from '../components/OfflineIndicator'
 import PageHeader from '../components/PageHeader'
 import PdfButton from '../components/PdfButton'
+import CampusChip from '../components/CampusChip'
 import CarDamageSelector from '../components/CarDamageSelector'
 import SignatureCanvas from '../components/SignatureCanvas'
 import PhotoSourceSheet from '../components/PhotoSourceSheet'
 import ExtraPhotosPicker from '../components/ExtraPhotosPicker'
+import { WizardProgress, WizardIntro, WizardFooter, PhotoTile, WizardPrimary } from '../components/Wizard'
 import {
   extraPhotoBlobs, extraPhotoPreviews, extraPhotosFrom, isExtraPhotoKey, uploadExtraPhotos, type ExtraPhoto,
 } from '../lib/extraPhotos'
@@ -451,6 +453,11 @@ export default function Ueberfuehrung() {
     t('ueberfuehrung.section_remarks'),
     `${t('ueberfuehrung.section_driver_sig')} & ${t('ueberfuehrung.section_receiver')}`,
   ]
+  /** Ein Satz je Schritt, was zu tun ist – steht unter dem Titel. */
+  const stepHints = [
+    t('wizard.ue_hint_0'), t('wizard.ue_hint_1'), t('wizard.ue_hint_2'), t('wizard.ue_hint_3'),
+    t('wizard.ue_hint_4'), t('wizard.ue_hint_5'), t('wizard.ue_hint_6'),
+  ]
   const totalSteps = stepTitles.length
   const isLastStep = step === totalSteps - 1
 
@@ -789,7 +796,7 @@ export default function Ueberfuehrung() {
 
   // ── Main form ──────────────────────────────────────────────────────────────
   return (
-    <div className="block min-h-full bg-gray-50 pb-[calc(1rem+4rem+env(safe-area-inset-bottom))]">
+    <div className="flex flex-col min-h-full bg-gray-100">
       {/* Header */}
       <PageHeader
         onBack={goBack}
@@ -797,19 +804,18 @@ export default function Ueberfuehrung() {
         title={ed ? t('ueberfuehrung.edit_title') : t('ueberfuehrung.title')}
         subtitle={prefill.license_plate}
         right={
-          <span className="text-xs font-medium text-gray-400 flex-shrink-0">
-            {t('common.step_of', { current: step + 1, total: totalSteps })}
+          <span
+            className="text-sm font-bold text-gray-500 tabular-nums flex-shrink-0"
+            aria-label={t('common.step_of', { current: step + 1, total: totalSteps })}
+          >
+            {step + 1}/{totalSteps}
           </span>
         }
       >
-        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-green-600 rounded-full transition-all duration-300"
-            style={{ width: `${((step + 1) / totalSteps) * 100}%` }}
-          />
-        </div>
-        <p className="text-sm font-semibold text-gray-700 mt-2">{stepTitles[step]}</p>
+        <WizardProgress step={step} total={totalSteps} accent="green" />
       </PageHeader>
+
+      <WizardIntro title={stepTitles[step]} hint={stepHints[step]} />
 
       {/* Error */}
       {error && (
@@ -871,7 +877,7 @@ export default function Ueberfuehrung() {
               onClick={() => setTransferType(value)}
               className={`flex-1 min-w-[7rem] py-2.5 rounded-xl text-sm font-medium transition-colors border ${
                 transferType === value
-                  ? 'bg-brand-600 text-white border-brand-600'
+                  ? 'bg-brand-700 text-white border-brand-600'
                   : 'bg-white text-gray-600 border-gray-300'
               }`}
             >
@@ -897,7 +903,19 @@ export default function Ueberfuehrung() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">{t('ueberfuehrung.abholort_label')}</label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-sm font-medium text-gray-700">{t('ueberfuehrung.abholort_label')}</label>
+            {/* Vom Campus weg ist ein Hinbringen, zum Campus eine Rücknahme – die
+                Art zieht mit, sonst bliebe sie auf dem Vorschlag stehen und
+                widerspräche dem Ort. */}
+            <CampusChip
+              value={abholort}
+              onChange={(v) => {
+                setAbholort(v)
+                if (v) setTransferType('Hinbringen')
+              }}
+            />
+          </div>
           <input
             type="text"
             value={abholort}
@@ -907,7 +925,16 @@ export default function Ueberfuehrung() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">{t('ueberfuehrung.zielort_label')}</label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-sm font-medium text-gray-700">{t('ueberfuehrung.zielort_label')}</label>
+            <CampusChip
+              value={zielort}
+              onChange={(v) => {
+                setZielort(v)
+                if (v) setTransferType('Rücknahme')
+              }}
+            />
+          </div>
           <input
             type="text"
             value={zielort}
@@ -938,7 +965,6 @@ export default function Ueberfuehrung() {
       {/* ── Step 2: Fahrzeugzustand ── */}
       {step === 1 && (
       <>
-      <SectionHeader title={t('ueberfuehrung.section_vehicle_state')} />
       <Card className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">{t('ueberfuehrung.odometer_label')}</label>
@@ -960,58 +986,40 @@ export default function Ueberfuehrung() {
       {/* ── Step 3: Fahrzeugfotos ── */}
       {step === 2 && (
       <>
-      <SectionHeader title={t('ueberfuehrung.section_photos')} />
-      <Card>
-        <div className="grid grid-cols-3 gap-3">
-          {PHOTO_KEYS.map((pk) => {
-            const entry = vehiclePhotos[pk]
-            const existingUrl = existingPhotos[pk]
-            const previewSrc = entry?.previewUrl ?? existingUrl ?? null
-            const pkLabel = t(`photo_labels.${pk}`, { defaultValue: PHOTO_LABELS[pk] })
-            return (
-              <div key={pk} className="flex flex-col items-center gap-1">
-                {previewSrc ? (
-                  <div className="relative w-full aspect-square">
-                    <img
-                      src={previewSrc}
-                      alt={pkLabel}
-                      className="w-full h-full object-cover rounded-xl border border-gray-200"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (entry) {
-                          URL.revokeObjectURL(entry.previewUrl)
-                          setVehiclePhotos((prev) => { const next = { ...prev }; delete next[pk]; return next })
-                        } else {
-                          setExistingPhotos((prev) => { const next = { ...prev }; delete next[pk]; return next })
-                        }
-                      }}
-                      className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setPhotoPickerKey(pk)}
-                    className="w-full aspect-square rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center gap-1 bg-gray-50 active:bg-gray-100"
-                  >
-                    <Camera size={24} className="text-gray-300" />
-                    <span className="text-xs text-gray-500">{pkLabel}</span>
-                  </button>
-                )}
-                <input ref={photoFileRefs.current[pk]} type="file" accept="image/*" className="hidden" onChange={(e) => { handleVehiclePhotoChange(pk, e); e.target.value = '' }} />
-                <input ref={cameraPhotoFileRefs.current[pk]} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { handleVehiclePhotoChange(pk, e); e.target.value = '' }} />
-                {previewSrc && (
-                  <span className="text-xs text-gray-500">{pkLabel}</span>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      </Card>
+      <div className="mx-4 mt-4 grid grid-cols-2 gap-2.5">
+        {PHOTO_KEYS.map((pk) => {
+          const entry = vehiclePhotos[pk]
+          const previewSrc = entry?.previewUrl ?? existingPhotos[pk] ?? null
+          const pkLabel = t(`photo_labels.${pk}`, { defaultValue: PHOTO_LABELS[pk] })
+          // Dran ist das erste Feld, das noch kein Foto hat.
+          const current = pk === PHOTO_KEYS.find((k) => !(vehiclePhotos[k] ?? existingPhotos[k]))
+          return (
+            <div key={pk}>
+              <PhotoTile
+                label={pkLabel}
+                src={previewSrc}
+                current={current}
+                accent="green"
+                onPick={() => setPhotoPickerKey(pk)}
+                onRemove={() => {
+                  if (entry) {
+                    URL.revokeObjectURL(entry.previewUrl)
+                    setVehiclePhotos((prev) => { const next = { ...prev }; delete next[pk]; return next })
+                  } else {
+                    setExistingPhotos((prev) => { const next = { ...prev }; delete next[pk]; return next })
+                  }
+                }}
+              />
+              <input ref={photoFileRefs.current[pk]} type="file" accept="image/*" className="hidden" onChange={(e) => { handleVehiclePhotoChange(pk, e); e.target.value = '' }} />
+              <input ref={cameraPhotoFileRefs.current[pk]} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { handleVehiclePhotoChange(pk, e); e.target.value = '' }} />
+            </div>
+          )
+        })}
+      </div>
+      <p className="mx-4 mt-3 flex items-center gap-2.5 rounded-2xl bg-white px-3.5 py-3 text-sm font-semibold text-gray-700">
+        <CloudOff size={18} className="flex-shrink-0 text-gray-500" />
+        {t('wizard.photos_offline')}
+      </p>
 
       {photoPickerKey && (
         <PhotoSourceSheet
@@ -1028,7 +1036,6 @@ export default function Ueberfuehrung() {
       {/* ── Step 4: Schäden ── */}
       {step === 3 && (
       <>
-      <SectionHeader title={t('ueberfuehrung.section_damages')} />
       <Card className="space-y-3">
         {damages.length === 0 && (
           <p className="text-sm text-gray-400 text-center py-2">{t('ueberfuehrung.no_damages')}</p>
@@ -1097,7 +1104,6 @@ export default function Ueberfuehrung() {
       {/* ── Step 6: Bemerkungen ── */}
       {step === 5 && (
       <>
-      <SectionHeader title={t('ueberfuehrung.section_remarks')} />
       <Card>
         <textarea
           value={remarks}
@@ -1158,44 +1164,43 @@ export default function Ueberfuehrung() {
       )}
 
       {/* ── Step navigation ── */}
-      <div className="mx-4 mt-6 flex gap-3">
+      <WizardFooter
+        note={isLastStep && !(hasSig && hasSigReceiver) && (
+          <p className="text-xs text-gray-500 text-center mt-2">
+            {t('ueberfuehrung.no_sig_hint')}
+          </p>
+        )}
+      >
         {step > 0 && (
           <button
             type="button"
             onClick={goBack}
-            className="flex-1 py-4 rounded-2xl border border-gray-300 text-gray-700 font-semibold text-base flex items-center justify-center gap-2"
+            className="h-[54px] px-5 rounded-2xl border border-gray-200 bg-white text-gray-900 font-bold text-base flex items-center justify-center gap-2"
           >
             <ArrowLeft size={18} /> {t('common.back')}
           </button>
         )}
         {isLastStep ? (
-          <button
-            type="button"
+          <WizardPrimary
+            accent="green"
             onClick={handleSave}
             disabled={saving}
-            className="flex-1 py-4 rounded-2xl bg-green-600 text-white font-bold text-base active:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {saving
               ? t('ueberfuehrung.saving')
               : hasSig && hasSigReceiver
               ? <><CheckCircle2 size={18} /> {t('ueberfuehrung.save_final')}</>
               : <><Save size={18} /> {t('ueberfuehrung.save_draft')}</>}
-          </button>
+          </WizardPrimary>
         ) : (
-          <button
-            type="button"
+          <WizardPrimary
+            accent="green"
             onClick={goNext}
-            className="flex-1 py-4 rounded-2xl bg-green-600 text-white font-bold text-base shadow-lg active:bg-green-700 flex items-center justify-center gap-2"
           >
             {t('common.next')} <ArrowRight size={18} />
-          </button>
+          </WizardPrimary>
         )}
-      </div>
-      {isLastStep && !(hasSig && hasSigReceiver) && (
-        <p className="text-xs text-gray-400 text-center mt-2">
-          {t('ueberfuehrung.no_sig_hint')}
-        </p>
-      )}
+      </WizardFooter>
     </div>
   )
 }

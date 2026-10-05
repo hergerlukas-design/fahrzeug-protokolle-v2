@@ -17,7 +17,7 @@ export default function PdfButton({ data, accent = 'brand' }: Props) {
   const btnClass =
     accent === 'green'
       ? 'flex-1 py-3 rounded-xl bg-green-600 text-white font-semibold text-sm active:bg-green-700 disabled:opacity-50'
-      : 'flex-1 py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm active:bg-brand-700 disabled:opacity-50'
+      : 'flex-1 py-3 rounded-xl bg-brand-700 text-white font-semibold text-sm active:bg-brand-800 disabled:opacity-50'
 
   async function handleClick() {
     setLoading(true)

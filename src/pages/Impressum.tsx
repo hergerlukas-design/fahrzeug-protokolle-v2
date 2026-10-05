@@ -21,7 +21,7 @@ function ImpressumDe() {
           E-Mail:{' '}
           <a
             href="mailto:herger.lukas@gmail.com"
-            className="text-brand-600 underline"
+            className="text-brand-700 underline"
           >
             herger.lukas@gmail.com
           </a>
@@ -61,7 +61,7 @@ function ImpressumEn() {
           E-Mail:{' '}
           <a
             href="mailto:herger.lukas@gmail.com"
-            className="text-brand-600 underline"
+            className="text-brand-700 underline"
           >
             herger.lukas@gmail.com
           </a>
@@ -93,7 +93,7 @@ export default function Impressum() {
       <div className="bg-white border-b border-gray-200 px-4 py-4 flex items-center gap-3 sticky top-0 z-10">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-1.5 text-brand-600 font-medium text-sm"
+          className="flex items-center gap-1.5 text-brand-700 font-medium text-sm"
         >
           <ArrowLeft size={16} /> {t('common.back')}
         </button>

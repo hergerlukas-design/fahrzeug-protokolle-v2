@@ -11,7 +11,7 @@ type Props = {
 }
 
 const ADD_ACCENT = {
-  brand: 'border-brand-300 text-brand-600 active:bg-brand-50',
+  brand: 'border-brand-300 text-brand-700 active:bg-brand-50',
   green: 'border-green-300 text-green-600 active:bg-green-50',
 }
 

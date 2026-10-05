@@ -21,7 +21,7 @@ export default class ErrorBoundary extends Component<Props, State> {
         <p className="text-sm text-gray-500 max-w-xs">{this.state.error.message}</p>
         <button
           onClick={() => { this.setState({ error: null }); window.location.reload() }}
-          className="px-6 py-2 bg-brand-600 text-white rounded-xl text-sm font-semibold"
+          className="px-6 py-2 bg-brand-700 text-white rounded-xl text-sm font-semibold"
         >
           Neu laden
         </button>

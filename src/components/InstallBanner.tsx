@@ -46,7 +46,7 @@ export default function InstallBanner() {
 
   if (deferredPrompt) {
     return (
-      <div className="bg-brand-600 text-white px-4 py-3 flex items-center justify-between gap-2">
+      <div className="bg-brand-700 text-white px-4 py-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-sm font-medium">
           <Smartphone size={16} />
           <span>{t('install_banner.add_to_homescreen')}</span>
@@ -54,7 +54,7 @@ export default function InstallBanner() {
         <div className="flex gap-2 flex-shrink-0 items-center">
           <button
             onClick={handleInstall}
-            className="bg-white text-brand-600 font-semibold text-xs px-3 py-1.5 rounded-lg active:scale-95 transition-all"
+            className="bg-white text-brand-700 font-semibold text-xs px-3 py-1.5 rounded-lg active:scale-95 transition-all"
           >
             {t('install_banner.install')}
           </button>
@@ -66,7 +66,7 @@ export default function InstallBanner() {
 
   if (showIosTip) {
     return (
-      <div className="bg-brand-600 text-white px-4 py-3">
+      <div className="bg-brand-700 text-white px-4 py-3">
         <div className="flex items-start justify-between gap-2">
           <div className="text-sm flex gap-2">
             <Smartphone size={16} className="mt-0.5 flex-shrink-0" />

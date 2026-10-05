@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
-  Globe, GraduationCap, ChevronRight, Info, LogOut, Scale, Lock,
+  Globe, GraduationCap, ChevronRight, LogOut, Scale, Lock,
   UploadCloud, CheckCircle2, Archive, Folder, KeyRound, ChevronUp,
   ChevronDown, Copy, Eraser, RefreshCw,
 } from 'lucide-react'
@@ -11,6 +11,7 @@ import { supabase, errorText } from '../lib/supabase'
 import { syncOffline, getPendingOffline } from '../lib/protocols'
 import PageHeader from '../components/PageHeader'
 import { TUTORIAL_EVENT } from '../components/OnboardingOverlay'
+import LanguageToggle from '../components/LanguageToggle'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -31,9 +32,7 @@ interface ProtocolRow {
 
 export default function Einstellungen() {
   const navigate = useNavigate()
-  const { t, i18n } = useTranslation()
-  const isEN = i18n.language.startsWith('en')
-  const [activeTab, setActiveTab] = useState<'einstellungen' | 'verwaltung'>('einstellungen')
+  const { t } = useTranslation()
 
   // ── App-Update ───────────────────────────────────────────────────────────
   const [checking, setChecking] = useState(false)
@@ -240,240 +239,67 @@ export default function Einstellungen() {
   }
 
   return (
-    <div className="block min-h-full bg-gray-50 pb-[calc(1rem+4rem+env(safe-area-inset-bottom))]">
-      <PageHeader
-        title={t('nav.settings')}
-        below={
-          /* Sub-Tab Bar – edge to edge, so it sits outside the padded block */
-          <div className="border-b border-gray-200 flex">
+    <div className="block min-h-full bg-gray-100 pb-8">
+      <PageHeader title={t('nav.settings')} />
+
+      <div className="px-4 pt-4 max-w-lg mx-auto w-full flex flex-col gap-3">
+        {/* ── Daten ── */}
+        <Group>
+          <Row
+            to="/archiv"
+            icon={<Archive size={20} />}
+            tone="brand"
+            title={t('settings.archive_title')}
+            desc={t('settings.archive_desc')}
+          />
+          <Row
+            to="/fahrzeuge"
+            icon={<Folder size={20} />}
+            title={t('settings.project_mgmt_title')}
+            desc={t('settings.project_mgmt_desc')}
+          />
+        </Group>
+
+        {/* ── Offline-Synchronisierung ── */}
+        <Group>
+          <div className="flex items-center gap-3 px-4 py-3">
+            <Tile tone={pendingCount > 0 ? 'amber' : 'green'}>
+              {pendingCount > 0 ? <UploadCloud size={20} /> : <CheckCircle2 size={20} />}
+            </Tile>
+            <div className="flex-1 min-w-0">
+              <p className="text-[15px] font-bold text-gray-900">{t('settings.sync_title')}</p>
+              <p className="text-[13px] font-semibold text-gray-600">
+                {pendingCount > 0
+                  ? t(pendingCount === 1 ? 'settings.sync_pending_one' : 'settings.sync_pending_other', { count: pendingCount })
+                  : t('settings.sync_done')}
+              </p>
+            </div>
             <button
               type="button"
-              onClick={() => setActiveTab('einstellungen')}
-              className={`flex-1 py-3 text-sm font-semibold transition-colors border-b-2 ${
-                activeTab === 'einstellungen'
-                  ? 'text-brand-600 border-brand-600'
-                  : 'text-gray-500 border-transparent'
-              }`}
+              onClick={handleSync}
+              disabled={syncing || pendingCount === 0}
+              className="h-10 px-3.5 rounded-xl border border-gray-200 bg-white text-[13px] font-bold text-gray-900 disabled:opacity-40"
             >
-              {t('settings.tab_settings')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('verwaltung')}
-              className={`flex-1 py-3 text-sm font-semibold transition-colors border-b-2 ${
-                activeTab === 'verwaltung'
-                  ? 'text-brand-600 border-brand-600'
-                  : 'text-gray-500 border-transparent'
-              }`}
-            >
-              {t('settings.tab_admin')}
+              {syncing ? t('settings.syncing') : t('settings.sync_now')}
             </button>
           </div>
-        }
-      />
+        </Group>
 
-      <div className="p-4 max-w-lg mx-auto w-full">
-        {/* ── Tab: Einstellungen ── */}
-        {activeTab === 'einstellungen' && (
-          <>
-            {/* Sprache / Language */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 px-4 py-4">
-              <div className="flex items-center gap-3 mb-3">
-                <Globe size={22} className="text-gray-400" />
-                <span className="font-semibold text-gray-800">{t('settings.language_title')} / Language</span>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => i18n.changeLanguage('de')}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border transition-colors ${
-                    !isEN
-                      ? 'bg-brand-600 text-white border-brand-600'
-                      : 'bg-white text-gray-500 border-gray-200'
-                  }`}
-                >
-                  DE
-                </button>
-                <button
-                  type="button"
-                  onClick={() => i18n.changeLanguage('en')}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border transition-colors ${
-                    isEN
-                      ? 'bg-brand-600 text-white border-brand-600'
-                      : 'bg-white text-gray-500 border-gray-200'
-                  }`}
-                >
-                  EN
-                </button>
-              </div>
-            </div>
-
-            {/* Tutorial */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
-              <button
-                type="button"
-                onClick={() => window.dispatchEvent(new CustomEvent(TUTORIAL_EVENT))}
-                className="w-full flex items-center gap-3 px-4 py-4 text-left hover:bg-gray-50 active:scale-95 transition-all"
-              >
-                <GraduationCap size={22} className="text-gray-400" />
-                <div>
-                  <span className="font-semibold text-gray-800">{t('settings.tutorial_title')}</span>
-                  <p className="text-xs text-gray-400 mt-0.5">{t('settings.tutorial_desc')}</p>
-                </div>
-                <ChevronRight size={16} className="ml-auto text-gray-400" />
-              </button>
-            </div>
-
-            {/* App-Info */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 px-4 py-4">
-              <div className="flex items-center gap-3 mb-3">
-                <Info size={22} className="text-gray-400" />
-                <span className="font-semibold text-gray-800">{t('settings.app_info_title')}</span>
-              </div>
-              <div className="flex flex-col gap-1.5 text-sm text-gray-600">
-                <div className="flex justify-between">
-                  <span className="text-gray-400">{t('settings.app_label')}</span>
-                  <span>Fahrzeug-Protokolle v2</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">{t('settings.version_label')}</span>
-                  <span>{__APP_VERSION__}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">{t('settings.operator_label')}</span>
-                  <span>CarHandling</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">{t('settings.stack_label')}</span>
-                  <span>React + Supabase + PWA</span>
-                </div>
-              </div>
-              <button
-                onClick={checkForUpdate}
-                disabled={checking}
-                className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 active:bg-gray-50 disabled:opacity-50"
-              >
-                <RefreshCw size={15} className={checking ? 'animate-spin' : ''} />
-                {t('settings.check_update')}
-              </button>
-            </div>
-
-            {/* Abmelden */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-4 py-4 text-red-600 font-semibold hover:bg-red-50 active:scale-95 transition-all"
-              >
-                <LogOut size={22} />
-                <span>{t('settings.logout')}</span>
-              </button>
-            </div>
-
-            {/* Rechtliches */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <a
-                href="/impressum"
-                className="flex items-center gap-3 px-4 py-4 text-gray-600 hover:bg-gray-50 border-b border-gray-100"
-              >
-                <Scale size={22} className="text-gray-400" />
-                <span className="font-medium">{t('settings.impressum')}</span>
-                <ChevronRight size={16} className="ml-auto text-gray-400" />
-              </a>
-              <a
-                href="/datenschutz"
-                className="flex items-center gap-3 px-4 py-4 text-gray-600 hover:bg-gray-50"
-              >
-                <Lock size={22} className="text-gray-400" />
-                <span className="font-medium">{t('settings.privacy')}</span>
-                <ChevronRight size={16} className="ml-auto text-gray-400" />
-              </a>
-            </div>
-          </>
-        )}
-
-        {/* ── Tab: Verwaltung ── */}
-        {activeTab === 'verwaltung' && (
-          <>
-            {/* Offline synchronisieren */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 px-4 py-4">
-              <div className="flex items-center gap-3 mb-3">
-                <UploadCloud size={22} className="text-gray-400" />
-                <div>
-                  <span className="font-semibold text-gray-800">{t('settings.sync_title')}</span>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {pendingCount > 0
-                      ? t(pendingCount === 1 ? 'settings.sync_pending_one' : 'settings.sync_pending_other', { count: pendingCount })
-                      : t('settings.sync_done')}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleSync}
-                disabled={syncing || pendingCount === 0}
-                className={`w-full py-3 rounded-xl text-sm font-semibold transition-colors ${
-                  pendingCount > 0 && !syncing
-                    ? 'bg-brand-600 text-white hover:bg-brand-700 active:scale-95'
-                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                }`}
-              >
-                {syncing
-                  ? t('settings.syncing')
-                  : pendingCount > 0
-                  ? t('settings.sync_button')
-                  : <span className="inline-flex items-center gap-1.5"><CheckCircle2 size={16} /> {t('settings.sync_done')}</span>}
-              </button>
-            </div>
-
-            {/* Archiv */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
-              <a
-                href="/archiv"
-                className="w-full flex items-center gap-3 px-4 py-4 text-left"
-              >
-                <div className="flex items-center gap-3 flex-1">
-                  <Archive size={22} className="text-gray-400" />
-                  <div>
-                    <span className="font-semibold text-gray-800">{t('settings.archive_title')}</span>
-                    <p className="text-xs text-gray-400 mt-0.5">{t('settings.archive_desc')}</p>
-                  </div>
-                </div>
-                <ChevronRight size={16} className="text-gray-400" />
-              </a>
-            </div>
-
-            {/* Projektverwaltung */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
-              <a
-                href="/fahrzeuge"
-                className="w-full flex items-center gap-3 px-4 py-4 text-left"
-              >
-                <div className="flex items-center gap-3 flex-1">
-                  <Folder size={22} className="text-gray-400" />
-                  <div>
-                    <span className="font-semibold text-gray-800">{t('settings.project_mgmt_title')}</span>
-                    <p className="text-xs text-gray-400 mt-0.5">{t('settings.project_mgmt_desc')}</p>
-                  </div>
-                </div>
-                <ChevronRight size={16} className="text-gray-400" />
-              </a>
-            </div>
-
-            {/* PIN ändern */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
-              <button
-                className="w-full flex items-center justify-between px-4 py-4 text-left"
-                onClick={() => { setPinSection(v => !v); setPinMsg(null) }}
-              >
-                <div className="flex items-center gap-3">
-                  <KeyRound size={22} className="text-gray-400" />
-                  <span className="font-semibold text-gray-800">{t('settings.pin_title')}</span>
-                </div>
-                <span className="text-gray-400">{pinSection ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
-              </button>
-
+        {/* ── App ── */}
+        <Group>
+          <div className="flex items-center gap-3 px-4 py-2.5">
+            <Tile><Globe size={20} /></Tile>
+            <span className="flex-1 text-[15px] font-bold text-gray-900">{t('settings.language_title')}</span>
+            <LanguageToggle />
+          </div>
+          <Row
+            onClick={() => { setPinSection(v => !v); setPinMsg(null) }}
+            icon={<KeyRound size={20} />}
+            title={t('settings.pin_title')}
+            expanded={pinSection}
+          />
               {pinSection && (
-                <form onSubmit={handlePinChange} className="px-4 pb-4 flex flex-col gap-3 border-t border-gray-100 pt-4">
+                <form onSubmit={handlePinChange} className="px-4 pb-4 flex flex-col gap-3 pt-1">
                   <input
                     type="password"
                     inputMode="numeric"
@@ -508,32 +334,32 @@ export default function Einstellungen() {
                   )}
                   <button
                     type="submit"
-                    className="w-full py-3 rounded-xl bg-brand-600 text-white font-semibold hover:bg-brand-700 active:scale-95 transition-all"
+                    className="w-full py-3 rounded-xl bg-brand-700 text-white font-semibold hover:bg-brand-800 active:scale-95 transition-all"
                   >
                     {t('settings.pin_save')}
                   </button>
                 </form>
               )}
-            </div>
+          <Row
+            onClick={() => window.dispatchEvent(new CustomEvent(TUTORIAL_EVENT))}
+            icon={<GraduationCap size={20} />}
+            title={t('settings.tutorial_title')}
+            desc={t('settings.tutorial_desc')}
+          />
+        </Group>
 
-            {/* Duplikate bereinigen */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
-              <button
-                className="w-full flex items-center justify-between px-4 py-4 text-left"
-                onClick={() => { setDupSection(v => !v); setDupMsg(null); setDupIds(null) }}
-              >
-                <div className="flex items-center gap-3">
-                  <Copy size={22} className="text-gray-400" />
-                  <div>
-                    <span className="font-semibold text-gray-800">{t('settings.dup_title')}</span>
-                    <p className="text-xs text-gray-400 mt-0.5">{t('settings.dup_desc')}</p>
-                  </div>
-                </div>
-                <span className="text-gray-400">{dupSection ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
-              </button>
-
+        {/* ── Wartung: selten gebraucht, deshalb unten ── */}
+        <h2 className="px-1 pt-2 text-xs font-extrabold tracking-wider uppercase text-gray-500">{t('settings.tab_admin')}</h2>
+        <Group>
+          <Row
+            onClick={() => { setDupSection(v => !v); setDupMsg(null); setDupIds(null) }}
+            icon={<Copy size={20} />}
+            title={t('settings.dup_title')}
+            desc={t('settings.dup_desc')}
+            expanded={dupSection}
+          />
               {dupSection && (
-                <div className="px-4 pb-4 border-t border-gray-100 pt-4 space-y-3">
+                <div className="px-4 pb-4 pt-1 space-y-3">
                   <p className="text-sm text-gray-500">{t('settings.dup_hint')}</p>
                   <button
                     type="button"
@@ -566,26 +392,15 @@ export default function Einstellungen() {
                   )}
                 </div>
               )}
-            </div>
-
-            {/* Leere Beiträge bereinigen */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
-              <button
-                className="w-full flex items-center justify-between px-4 py-4 text-left"
-                onClick={() => { setEmptySection(v => !v); setEmptyMsg(null); setEmptyRows(null) }}
-              >
-                <div className="flex items-center gap-3">
-                  <Eraser size={22} className="text-gray-400" />
-                  <div>
-                    <span className="font-semibold text-gray-800">{t('settings.empty_title')}</span>
-                    <p className="text-xs text-gray-400 mt-0.5">{t('settings.empty_desc')}</p>
-                  </div>
-                </div>
-                <span className="text-gray-400">{emptySection ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
-              </button>
-
+          <Row
+            onClick={() => { setEmptySection(v => !v); setEmptyMsg(null); setEmptyRows(null) }}
+            icon={<Eraser size={20} />}
+            title={t('settings.empty_title')}
+            desc={t('settings.empty_desc')}
+            expanded={emptySection}
+          />
               {emptySection && (
-                <div className="px-4 pb-4 border-t border-gray-100 pt-4 space-y-3">
+                <div className="px-4 pb-4 pt-1 space-y-3">
                   <p className="text-sm text-gray-500">{t('settings.empty_hint')}</p>
                   <button
                     type="button"
@@ -629,10 +444,94 @@ export default function Einstellungen() {
                   )}
                 </div>
               )}
-            </div>
-          </>
-        )}
+        </Group>
+
+        {/* ── Rechtliches ── */}
+        <Group>
+          <Row to="/impressum" icon={<Scale size={20} />} title={t('settings.impressum')} />
+          <Row to="/datenschutz" icon={<Lock size={20} />} title={t('settings.privacy')} />
+        </Group>
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="min-h-[52px] rounded-2xl bg-white text-brand-700 text-[15px] font-extrabold flex items-center justify-center gap-2 active:bg-gray-50"
+        >
+          <LogOut size={18} /> {t('settings.logout')}
+        </button>
+
+        {/* App-Info: klein, unten – gebraucht wird sie selten, dann aber zum Nachsehen. */}
+        <div className="flex flex-col items-center gap-1 pt-2 text-xs font-semibold text-gray-500">
+          <span>Fahrzeug-Protokolle v2 · {t('settings.version_label')} {__APP_VERSION__} · CarHandling</span>
+          <button
+            type="button"
+            onClick={checkForUpdate}
+            disabled={checking}
+            className="min-h-[44px] px-3 inline-flex items-center gap-1.5 text-brand-700 font-bold disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={checking ? 'animate-spin' : ''} />
+            {t('settings.check_update')}
+          </button>
+        </div>
       </div>
     </div>
   )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Bausteine der Liste
+// ─────────────────────────────────────────────────────────────────────────────
+
+const TONES = {
+  gray: 'bg-gray-100 text-gray-700',
+  brand: 'bg-brand-100 text-brand-800',
+  green: 'bg-green-100 text-green-800',
+  amber: 'bg-amber-100 text-amber-800',
+} as const
+
+/** Symbol in einer kleinen Kachel – wie im Entwurf. */
+function Tile({ children, tone = 'gray' }: { children: React.ReactNode; tone?: keyof typeof TONES }) {
+  return (
+    <span className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${TONES[tone]}`}>
+      {children}
+    </span>
+  )
+}
+
+/** Weiße Gruppe; die Zeilen darin trennt eine feine Linie. */
+function Group({ children }: { children: React.ReactNode }) {
+  return <div className="bg-white rounded-2xl overflow-hidden divide-y divide-gray-100">{children}</div>
+}
+
+/**
+ * Eine Zeile: Link (`to`) oder Knopf (`onClick`). Mit `expanded` klappt sie
+ * auf – der Inhalt folgt dann als nächstes Kind der Gruppe.
+ */
+function Row({ to, onClick, icon, tone, title, desc, expanded }: {
+  to?: string
+  onClick?: () => void
+  icon: React.ReactNode
+  tone?: keyof typeof TONES
+  title: string
+  desc?: string
+  expanded?: boolean
+}) {
+  const body = (
+    <>
+      <Tile tone={tone}>{icon}</Tile>
+      <span className="flex-1 min-w-0 flex flex-col gap-0.5">
+        <span className="text-[15px] font-bold text-gray-900">{title}</span>
+        {desc && <span className="text-[13px] font-semibold text-gray-600">{desc}</span>}
+      </span>
+      {expanded === undefined
+        ? <ChevronRight size={18} className="text-gray-400 flex-shrink-0" />
+        : expanded
+          ? <ChevronUp size={18} className="text-gray-400 flex-shrink-0" />
+          : <ChevronDown size={18} className="text-gray-400 flex-shrink-0" />}
+    </>
+  )
+  const cls = 'w-full flex items-center gap-3 px-4 py-3 min-h-[60px] text-left active:bg-gray-50'
+  return to
+    ? <Link to={to} className={cls}>{body}</Link>
+    : <button type="button" onClick={onClick} aria-expanded={expanded} className={cls}>{body}</button>
 }

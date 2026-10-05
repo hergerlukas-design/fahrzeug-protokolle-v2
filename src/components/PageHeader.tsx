@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Menu } from 'lucide-react'
-import { SIDEBAR_EVENT } from './Sidebar'
+import { ArrowLeft } from 'lucide-react'
 
 function AppLogo() {
   return (
@@ -18,8 +17,7 @@ interface PageHeaderProps {
   title: React.ReactNode
   /**
    * Sub-pages pass a back handler — that puts the arrow in the left slot.
-   * Without it the slot holds the hamburger, so the drawer is reachable from
-   * every top-level page and nowhere competes with a back arrow.
+   * Top-level pages leave it empty: they are reached from the bottom bar.
    */
   onBack?: () => void
   /** Small line under the title, e.g. the license plate of the open protocol. */
@@ -49,39 +47,28 @@ export default function PageHeader({
   const leadIcon = icon ?? (onBack ? null : <AppLogo />)
 
   return (
-    <div className="sticky top-0 z-10 bg-white">
-      <div className="border-b border-gray-200 px-4 pt-4 pb-3">
+    <div className="sticky top-0 z-10 bg-gray-100/95 backdrop-blur">
+      <div className="border-b border-gray-200/70 px-4 pt-4 pb-3">
         {/* 1fr auto 1fr keeps the middle column centered regardless of how
             wide the two side slots turn out to be. */}
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
           <div className="flex items-center justify-start min-w-0">
-            {onBack ? (
+            {onBack && (
               <button
                 type="button"
                 onClick={onBack}
                 aria-label={t('common.back')}
-                className="p-1 -ml-1 text-gray-500 hover:text-gray-800 flex-shrink-0"
+                className="w-11 h-11 -ml-2.5 flex items-center justify-center rounded-full text-gray-700 hover:text-gray-900 active:bg-gray-200 flex-shrink-0"
               >
-                <ArrowLeft size={20} />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => window.dispatchEvent(new CustomEvent(SIDEBAR_EVENT))}
-                aria-label={t('nav.menu')}
-                /* From md up the sidebar is permanently visible, so the
-                   hamburger would only be noise. */
-                className="md:hidden p-1 -ml-1 text-gray-500 hover:text-gray-800 flex-shrink-0"
-              >
-                <Menu size={22} />
+                <ArrowLeft size={22} />
               </button>
             )}
           </div>
 
           <div className="flex flex-col items-center min-w-0">
             <h1
-              className={`flex items-center gap-1.5 min-w-0 font-bold text-gray-900 ${
-                size === 'lg' ? 'text-xl' : 'text-base'
+              className={`flex items-center gap-1.5 min-w-0 font-extrabold tracking-tight text-gray-900 ${
+                size === 'lg' ? 'text-[22px]' : 'text-[17px]'
               }`}
             >
               {leadIcon}

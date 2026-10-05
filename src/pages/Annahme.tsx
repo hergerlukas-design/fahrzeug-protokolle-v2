@@ -23,10 +23,12 @@ import { errorText } from '../lib/supabase'
 import { OFFLINE_SAVED_EVENT } from '../components/OfflineIndicator'
 import PdfButton from '../components/PdfButton'
 import PageHeader from '../components/PageHeader'
+import CampusChip from '../components/CampusChip'
 import CarDamageSelector from '../components/CarDamageSelector'
 import SignatureCanvas from '../components/SignatureCanvas'
 import PhotoSourceSheet from '../components/PhotoSourceSheet'
 import ExtraPhotosPicker from '../components/ExtraPhotosPicker'
+import { WizardProgress, WizardIntro, WizardFooter, PhotoTile, WizardPrimary } from '../components/Wizard'
 import {
   extraPhotoBlobs, extraPhotoPreviews, extraPhotosFrom, isExtraPhotoKey, uploadExtraPhotos, type ExtraPhoto,
 } from '../lib/extraPhotos'
@@ -307,7 +309,7 @@ function DamageRow({
             <button
               type="button"
               onClick={() => cameraRef.current?.click()}
-              className="flex items-center gap-1.5 text-sm text-brand-600 border border-brand-200 rounded-lg px-3 py-2 bg-brand-50 active:bg-brand-100"
+              className="flex items-center gap-1.5 text-sm text-brand-700 border border-brand-200 rounded-lg px-3 py-2 bg-brand-50 active:bg-brand-100"
             >
               <Camera size={15} /> <span>{t('damage.camera')}</span>
             </button>
@@ -420,6 +422,11 @@ export default function Annahme() {
     t('annahme.section_levels'),
     t('annahme.section_remarks'),
     t('annahme.section_signature'),
+  ]
+  /** Ein Satz je Schritt, was zu tun ist – steht unter dem Titel. */
+  const stepHints = [
+    t('wizard.an_hint_0'), t('wizard.an_hint_1'), t('wizard.an_hint_2'), t('wizard.an_hint_3'),
+    t('wizard.an_hint_4'), t('wizard.an_hint_5'), t('wizard.an_hint_6'),
   ]
   const totalSteps = stepTitles.length
   const isLastStep = step === totalSteps - 1
@@ -724,7 +731,7 @@ export default function Annahme() {
           )}
           <button
             onClick={() => navigate(tr ? '/ueberfuehrungen' : '/fahrzeuge')}
-            className="flex-1 py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm"
+            className="flex-1 py-3 rounded-xl bg-brand-700 text-white font-semibold text-sm"
           >
             {tr ? t('annahme.to_transfers') : t('annahme.to_overview')}
           </button>
@@ -743,7 +750,7 @@ export default function Annahme() {
         </div>
         <button
           onClick={() => navigate('/fahrzeuge')}
-          className="py-3 px-6 rounded-xl bg-brand-600 text-white font-semibold text-sm"
+          className="py-3 px-6 rounded-xl bg-brand-700 text-white font-semibold text-sm"
         >
           {t('annahme.to_overview')}
         </button>
@@ -753,7 +760,7 @@ export default function Annahme() {
 
   // ── Main form ──────────────────────────────────────────────────────────────
   return (
-    <div className="block min-h-full bg-gray-50 pb-[calc(1rem+4rem+env(safe-area-inset-bottom))]">
+    <div className="flex flex-col min-h-full bg-gray-100">
       {/* Header */}
       <PageHeader
         onBack={goBack}
@@ -761,19 +768,18 @@ export default function Annahme() {
         title={t('annahme.title')}
         subtitle={prefill.license_plate}
         right={
-          <span className="text-xs font-medium text-gray-400 flex-shrink-0">
-            {t('common.step_of', { current: step + 1, total: totalSteps })}
+          <span
+            className="text-sm font-bold text-gray-500 tabular-nums flex-shrink-0"
+            aria-label={t('common.step_of', { current: step + 1, total: totalSteps })}
+          >
+            {step + 1}/{totalSteps}
           </span>
         }
       >
-        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-brand-600 rounded-full transition-all duration-300"
-            style={{ width: `${((step + 1) / totalSteps) * 100}%` }}
-          />
-        </div>
-        <p className="text-sm font-semibold text-gray-700 mt-2">{stepTitles[step]}</p>
+        <WizardProgress step={step} total={totalSteps} accent="brand" />
       </PageHeader>
+
+      <WizardIntro title={stepTitles[step]} hint={stepHints[step]} />
 
       {/* Error */}
       {error && (
@@ -837,7 +843,10 @@ export default function Annahme() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">{t('annahme.location_label')}</label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-sm font-medium text-gray-700">{t('annahme.location_label')}</label>
+            <CampusChip value={standort} onChange={setStandort} />
+          </div>
           <input
             type="text"
             value={standort}
@@ -868,61 +877,36 @@ export default function Annahme() {
       {/* ── Step 2: Fahrzeugfotos ── */}
       {step === 1 && (
       <>
-      <SectionHeader title={t('annahme.section_photos')} />
-      <Card>
-        <div className="grid grid-cols-3 gap-2 mb-2">
-          {PHOTO_KEYS.slice(0, 3).map((pk) => {
-            const entry = vehiclePhotos[pk]
-            const previewSrc = entry?.previewUrl ?? existingPhotos[pk] ?? null
-            return (
-              <div key={pk} className="flex flex-col items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => previewSrc ? undefined : setPhotoPickerKey(pk)}
-                  className={`w-full aspect-square rounded-xl border-2 flex items-center justify-center overflow-hidden transition-colors ${
-                    previewSrc ? 'border-green-300' : 'border-dashed border-gray-300 active:border-brand-400'
-                  }`}
-                >
-                  {previewSrc ? (
-                    <img src={previewSrc} alt={pk} className="w-full h-full object-cover" />
-                  ) : (
-                    <Camera size={24} className="text-gray-300" />
-                  )}
-                </button>
-                <span className="text-xs text-gray-500">{t(`photo_labels.${pk}`, { defaultValue: PHOTO_LABELS[pk] })}</span>
-                <input ref={photoFileRefs.current[pk]} type="file" accept="image/*" className="hidden" onChange={(e) => { handleVehiclePhotoChange(pk, e); e.target.value = '' }} />
-                <input ref={cameraPhotoFileRefs.current[pk]} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { handleVehiclePhotoChange(pk, e); e.target.value = '' }} />
-              </div>
-            )
-          })}
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {PHOTO_KEYS.slice(3).map((pk) => {
-            const entry = vehiclePhotos[pk]
-            const previewSrc = entry?.previewUrl ?? existingPhotos[pk] ?? null
-            return (
-              <div key={pk} className="flex flex-col items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => previewSrc ? undefined : setPhotoPickerKey(pk)}
-                  className={`w-full aspect-square rounded-xl border-2 flex items-center justify-center overflow-hidden transition-colors ${
-                    previewSrc ? 'border-green-300' : 'border-dashed border-gray-300 active:border-brand-400'
-                  }`}
-                >
-                  {previewSrc ? (
-                    <img src={previewSrc} alt={pk} className="w-full h-full object-cover" />
-                  ) : (
-                    <Camera size={24} className="text-gray-300" />
-                  )}
-                </button>
-                <span className="text-xs text-gray-500">{t(`photo_labels.${pk}`, { defaultValue: PHOTO_LABELS[pk] })}</span>
-                <input ref={photoFileRefs.current[pk]} type="file" accept="image/*" className="hidden" onChange={(e) => { handleVehiclePhotoChange(pk, e); e.target.value = '' }} />
-                <input ref={cameraPhotoFileRefs.current[pk]} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { handleVehiclePhotoChange(pk, e); e.target.value = '' }} />
-              </div>
-            )
-          })}
-        </div>
-      </Card>
+      <div className="mx-4 mt-4 grid grid-cols-2 gap-2.5">
+        {PHOTO_KEYS.map((pk) => {
+          const entry = vehiclePhotos[pk]
+          const previewSrc = entry?.previewUrl ?? existingPhotos[pk] ?? null
+          // Dran ist das erste Feld, das noch kein Foto hat.
+          const current = pk === PHOTO_KEYS.find((k) => !(vehiclePhotos[k] ?? existingPhotos[k]))
+          return (
+            <div key={pk}>
+              <PhotoTile
+                label={t(`photo_labels.${pk}`, { defaultValue: PHOTO_LABELS[pk] })}
+                src={previewSrc}
+                current={current}
+                accent="brand"
+                onPick={() => setPhotoPickerKey(pk)}
+                // Neu aufgenommene Fotos lassen sich verwerfen; schon gespeicherte bleiben wie bisher.
+                onRemove={entry ? () => {
+                  URL.revokeObjectURL(entry.previewUrl)
+                  setVehiclePhotos((prev) => { const next = { ...prev }; delete next[pk]; return next })
+                } : undefined}
+              />
+              <input ref={photoFileRefs.current[pk]} type="file" accept="image/*" className="hidden" onChange={(e) => { handleVehiclePhotoChange(pk, e); e.target.value = '' }} />
+              <input ref={cameraPhotoFileRefs.current[pk]} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { handleVehiclePhotoChange(pk, e); e.target.value = '' }} />
+            </div>
+          )
+        })}
+      </div>
+      <p className="mx-4 mt-3 flex items-center gap-2.5 rounded-2xl bg-white px-3.5 py-3 text-sm font-semibold text-gray-700">
+        <CloudOff size={18} className="flex-shrink-0 text-gray-500" />
+        {t('wizard.photos_offline')}
+      </p>
 
       {photoPickerKey && (
         <PhotoSourceSheet
@@ -939,7 +923,6 @@ export default function Annahme() {
       {/* ── Step 3: Schadenserfassung ── */}
       {step === 2 && (
       <>
-      <SectionHeader title={t('annahme.section_damages')} />
       <div className="mx-4 space-y-3">
         {damages.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
@@ -1029,7 +1012,6 @@ export default function Annahme() {
       {/* ── Step 5: Füllstände ── */}
       {step === 4 && (
       <>
-      <SectionHeader title={t('annahme.section_levels')} />
       <Card className="space-y-5">
         <LevelSlider label={t('annahme.fuel_label')} value={fuel} onChange={setFuel} />
         <LevelSlider label={t('annahme.battery_label')} value={battery} onChange={setBattery} />
@@ -1052,7 +1034,6 @@ export default function Annahme() {
       {/* ── Step 6: Bemerkungen ── */}
       {step === 5 && (
       <>
-      <SectionHeader title={t('annahme.section_remarks')} />
       <Card>
         <textarea
           value={remarks}
@@ -1073,11 +1054,10 @@ export default function Annahme() {
       {/* ── Step 7: Unterschrift + Spediteur ── */}
       {step === 6 && (
       <>
-      <SectionHeader title={t('annahme.section_signature')} />
       <Card>
         <p className="text-xs text-gray-500 mb-3">
           {t('annahme.sig_disclaimer')}{' '}
-          <a href="/datenschutz" className="text-brand-600 underline">
+          <a href="/datenschutz" className="text-brand-700 underline">
             {t('annahme.privacy_link')}
           </a>
         </p>
@@ -1095,7 +1075,7 @@ export default function Annahme() {
           className="w-full flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 mb-3"
         >
           <span className="text-sm font-medium text-gray-700">{t('annahme.carrier_toggle')}</span>
-          <span className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${carrierPresent ? 'bg-brand-600' : 'bg-gray-300'}`}>
+          <span className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${carrierPresent ? 'bg-brand-700' : 'bg-gray-300'}`}>
             <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${carrierPresent ? 'translate-x-6' : 'translate-x-1'}`} />
           </span>
         </button>
@@ -1103,7 +1083,7 @@ export default function Annahme() {
           <>
             <p className="text-xs text-gray-500 mb-3">
               {t('annahme.carrier_disclaimer')}{' '}
-              <a href="/datenschutz" className="text-brand-600 underline">
+              <a href="/datenschutz" className="text-brand-700 underline">
                 {t('annahme.privacy_link')}
               </a>
             </p>
@@ -1120,40 +1100,39 @@ export default function Annahme() {
       )}
 
       {/* ── Step navigation ── */}
-      <div className="mx-4 mt-6 flex gap-3">
+      <WizardFooter
+        note={isLastStep && !navigator.onLine && (
+          <p className="text-xs text-center text-amber-700 mt-2">
+            {t('annahme.offline_hint')}
+          </p>
+        )}
+      >
         {step > 0 && (
           <button
             type="button"
             onClick={goBack}
-            className="flex-1 py-4 rounded-2xl border border-gray-300 text-gray-700 font-semibold text-base flex items-center justify-center gap-2"
+            className="h-[54px] px-5 rounded-2xl border border-gray-200 bg-white text-gray-900 font-bold text-base flex items-center justify-center gap-2"
           >
             <ArrowLeft size={18} /> {t('common.back')}
           </button>
         )}
         {isLastStep ? (
-          <button
-            type="button"
+          <WizardPrimary
+            accent="brand"
             onClick={handleSave}
             disabled={saving}
-            className="flex-1 py-4 rounded-2xl bg-brand-600 text-white font-bold text-base shadow-lg disabled:opacity-60 active:bg-brand-700 flex items-center justify-center gap-2"
           >
             {saving ? t('annahme.saving') : navigator.onLine ? <><Save size={18} /> {t('annahme.save_online')}</> : <><CloudOff size={18} /> {t('annahme.save_offline')}</>}
-          </button>
+          </WizardPrimary>
         ) : (
-          <button
-            type="button"
+          <WizardPrimary
+            accent="brand"
             onClick={goNext}
-            className="flex-1 py-4 rounded-2xl bg-brand-600 text-white font-bold text-base shadow-lg active:bg-brand-700 flex items-center justify-center gap-2"
           >
             {t('common.next')} <ArrowRight size={18} />
-          </button>
+          </WizardPrimary>
         )}
-      </div>
-      {isLastStep && !navigator.onLine && (
-        <p className="text-xs text-center text-amber-600 mt-2">
-          {t('annahme.offline_hint')}
-        </p>
-      )}
+      </WizardFooter>
     </div>
   )
 }

@@ -58,7 +58,7 @@ export default function OnboardingOverlay() {
 
       <div className="flex-1 flex flex-col items-center justify-center px-8 text-center gap-6">
         <div className="w-20 h-20 rounded-3xl bg-brand-50 flex items-center justify-center">
-          <SlideIcon size={40} className="text-brand-600" />
+          <SlideIcon size={40} className="text-brand-700" />
         </div>
         <h2 className="text-2xl font-bold text-gray-900 whitespace-pre-line leading-tight">
           {slide.title}
@@ -74,7 +74,7 @@ export default function OnboardingOverlay() {
             <span
               key={i}
               className={`inline-block rounded-full transition-all duration-300 ${
-                i === step ? 'w-5 h-2 bg-brand-600' : 'w-2 h-2 bg-gray-300'
+                i === step ? 'w-5 h-2 bg-brand-700' : 'w-2 h-2 bg-gray-300'
               }`}
             />
           ))}
@@ -83,7 +83,7 @@ export default function OnboardingOverlay() {
         <button
           type="button"
           onClick={() => (isLast ? dismiss() : setStep((s) => s + 1))}
-          className="w-full max-w-xs py-4 rounded-2xl bg-brand-600 text-white font-semibold text-lg active:scale-95 transition-transform"
+          className="w-full max-w-xs py-4 rounded-2xl bg-brand-700 text-white font-semibold text-lg active:scale-95 transition-transform"
         >
           {isLast ? t('onboarding.start') : t('onboarding.next')}
         </button>
