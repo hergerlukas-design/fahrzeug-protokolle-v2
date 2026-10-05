@@ -98,20 +98,113 @@ function dateRange(tr: DateSpan, lang: string): string {
   return `${from} – ${withTime(tr.date_to!, tr.time_to, lang)}`
 }
 
+/**
+ * Kurz für den Kopf der Karte: im laufenden Jahr ohne Jahreszahl, über
+ * mehrere Tage ohne Uhrzeiten – "29.09. – 05.10.". Das Ausführliche steht
+ * aufgeklappt in der Strecke.
+ */
+function shortRange(tr: DateSpan, lang: string): string {
+  const year = String(new Date().getFullYear())
+  const sameDay = !tr.date_to || tr.date_to === tr.date_from
+  if (tr.date_from.slice(0, 4) !== year || (tr.date_to && tr.date_to.slice(0, 4) !== year)) {
+    return dateRange(tr, lang)
+  }
+  const day = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString(
+    lang.startsWith('en') ? 'en-GB' : 'de-DE', { day: '2-digit', month: '2-digit' },
+  )
+  if (sameDay) {
+    const time = [formatTime(tr.time_from), formatTime(tr.time_to)].filter(Boolean).join('–')
+    return time ? `${day(tr.date_from)}, ${time}` : day(tr.date_from)
+  }
+  return `${day(tr.date_from)} – ${day(tr.date_to!)}`
+}
+
 const STATUS_STYLES: Record<TransferStatus, string> = {
-  geplant:     'bg-gray-100 text-gray-600',
-  unterwegs:   'bg-amber-100 text-amber-700',
-  angekommen:  'bg-green-100 text-green-700',
-  abgebrochen: 'bg-red-100 text-red-600',
+  geplant:     'bg-gray-100 text-gray-700',
+  unterwegs:   'bg-amber-100 text-amber-800',
+  angekommen:  'bg-green-100 text-green-800',
+  abgebrochen: 'bg-red-100 text-red-700',
+}
+
+const STATUS_DOTS: Record<TransferStatus, string> = {
+  geplant:     'bg-gray-500',
+  unterwegs:   'bg-amber-600',
+  angekommen:  'bg-green-600',
+  abgebrochen: 'bg-red-600',
 }
 
 function StatusBadge({ status }: { status: TransferStatus }) {
   const { t } = useTranslation()
   return (
-    <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full flex-shrink-0 ${STATUS_STYLES[status]}`}>
+    <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${STATUS_STYLES[status]}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOTS[status]}`} aria-hidden="true" />
       {t(`transfers.status_${status}`)}
     </span>
   )
+}
+
+/** Wo die Fahrt steht: Geplant → Unterwegs → Angekommen. Abgebrochen steht für sich. */
+function StatusProgress({ status }: { status: TransferStatus }) {
+  const { t } = useTranslation()
+  if (status === 'abgebrochen') return <StatusBadge status={status} />
+  const steps: TransferStatus[] = ['geplant', 'unterwegs', 'angekommen']
+  const at = steps.indexOf(status)
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="grid grid-cols-3 gap-1.5" aria-hidden="true">
+        {steps.map((s, i) => (
+          <div key={s} className={`h-1.5 rounded-full ${i <= at ? 'bg-brand-700' : 'bg-gray-200'}`} />
+        ))}
+      </div>
+      <div className="grid grid-cols-3 gap-1.5 text-xs">
+        {steps.map((s, i) => (
+          <span key={s} className={i === at ? 'font-extrabold text-gray-900' : 'font-semibold text-gray-500'}>
+            {t(`transfers.status_${s}`)}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** Start und Ziel als Linie, je mit Tag und Uhrzeit – Adressen öffnen die Karten-App. */
+function RouteTimeline({ transfer }: { transfer: Transfer }) {
+  const { t, i18n } = useTranslation()
+  const start = transfer.location_from?.trim() || null
+  const end = transfer.location_to?.trim() || null
+  if (!start && !end) return null
+  const stops = [
+    start && { key: 'from', label: t('transfers.route_start'), place: start, when: withTime(transfer.date_from, transfer.time_from, i18n.language) },
+    end && { key: 'to', label: t('transfers.route_end'), place: end, when: transfer.date_to ? withTime(transfer.date_to, transfer.time_to, i18n.language) : '' },
+  ].filter(Boolean) as { key: string; label: string; place: string; when: string }[]
+  return (
+    <div className="flex flex-col">
+      {stops.map((s, i) => (
+        <div key={s.key} className="flex gap-3">
+          <div className="flex flex-col items-center pt-1">
+            <span className={`w-3 h-3 rounded-full ${i === stops.length - 1 && stops.length > 1 ? 'bg-brand-700' : 'border-[3px] border-brand-700'}`} />
+            {i < stops.length - 1 && <span className="w-0.5 flex-1 bg-gray-200 my-1" />}
+          </div>
+          <div className={`flex-1 min-w-0 flex flex-col gap-0.5 ${i < stops.length - 1 ? 'pb-3' : ''}`}>
+            <span className="text-xs font-bold text-gray-500">{[s.label, s.when].filter(Boolean).join(' · ')}</span>
+            <a
+              href={mapsHref(s.place)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[15px] font-bold text-gray-900"
+            >
+              {s.place}
+            </a>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** Überschrift eines Abschnitts in der aufgeklappten Fahrt. */
+function DetailHeading({ children }: { children: React.ReactNode }) {
+  return <p className="text-xs font-extrabold text-gray-500 uppercase tracking-wider mb-1.5">{children}</p>
 }
 
 /**
@@ -145,8 +238,8 @@ function LocationLine({ from, to }: { from?: string | null; to?: string | null }
   if (!start && !end) return null
 
   return (
-    <p className="text-xs text-gray-500 mt-0.5 flex items-start gap-1">
-      <MapPin size={12} className="text-gray-400 flex-shrink-0 mt-0.5" />
+    <p className="text-[13px] font-medium text-gray-600 mt-0.5 flex items-start gap-1">
+      <MapPin size={13} className="text-gray-400 flex-shrink-0 mt-0.5" />
       <span>
         {start && end ? (
           <>
@@ -299,6 +392,7 @@ function TransferHead({
   expanded,
   onToggle,
   attached = false,
+  quickAction,
 }: {
   transfer: Transfer
   /** Termine, die im Kalender inzwischen anders stehen. */
@@ -307,6 +401,8 @@ function TransferHead({
   onToggle: () => void
   /** Hängt diese Fahrt an einer anderen? Dann trägt sie das Kettensymbol. */
   attached?: boolean
+  /** Was jetzt fällig ist, als Knopf direkt auf der Karte – nur zugeklappt. */
+  quickAction?: { label: string; onClick: () => void; disabled?: boolean }
 }) {
   const { t, i18n } = useTranslation()
   const v = transfer.vehicle
@@ -316,7 +412,12 @@ function TransferHead({
     : t('transfers.vehicle_missing'))
   const blocks = blocksOf(transfer, t, i18n.language)
 
+  // Oben rechts steht der Zeitraum der Fahrt; die Blöcke nennen ihr Datum
+  // nur, wenn es mehrere sind – sonst stünde es zweimal da.
+  const showBlockDates = attached || blocks.length > 1
+
   return (
+    <>
       <div
         role="button"
         tabIndex={0}
@@ -325,24 +426,30 @@ function TransferHead({
           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle() }
         }}
         className={`w-full flex items-center gap-3 px-4 text-left cursor-pointer ${
-          attached ? 'py-2.5 active:bg-gray-100' : 'py-3 active:bg-gray-50'
+          attached ? 'py-3 active:bg-gray-100' : 'pt-4 pb-3.5 active:bg-gray-50'
         }`}
       >
-        {attached && <Link2 size={13} className="text-gray-300 flex-shrink-0 self-start mt-1" />}
+        {attached && <Link2 size={14} className="text-gray-400 flex-shrink-0 self-start mt-1" />}
         <div className="flex-1 min-w-0">
+        {!attached && (
+          <div className="flex items-center justify-between gap-2 mb-2.5">
+            <StatusBadge status={transfer.status} />
+            <span className="text-[13px] font-bold text-gray-600 truncate">{shortRange(transfer, i18n.language)}</span>
+          </div>
+        )}
         {blocks.map((b, idx) => (
           <div key={b.key} className={idx > 0 ? 'mt-2 pt-2 border-t border-dashed border-gray-200' : ''}>
-            <p className={attached ? 'text-sm font-semibold text-gray-700' : 'font-bold text-gray-900 text-[15px]'}>
+            <p className={attached ? 'text-[15px] font-bold text-gray-800' : 'font-extrabold text-gray-900 text-[17px] leading-snug'}>
               {b.title}
             </p>
-            {b.when && <p className="text-xs text-gray-400 mt-0.5">{b.when}</p>}
+            {showBlockDates && b.when && <p className="text-xs font-semibold text-gray-500 mt-0.5">{b.when}</p>}
             <LocationLine from={b.from} to={b.to} />
           </div>
         ))}
 
         {(transfer.contact_name || transfer.contact_phone) && (
-          <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
-            <Phone size={12} className="text-gray-400 flex-shrink-0" />
+          <p className="text-[13px] font-medium text-gray-600 mt-0.5 flex items-center gap-1">
+            <Phone size={13} className="text-gray-400 flex-shrink-0" />
             <span className="truncate">
               {transfer.contact_name}
               {transfer.contact_name && transfer.contact_phone && <span className="text-gray-400"> · </span>}
@@ -381,20 +488,34 @@ function TransferHead({
               {plate}
             </span>
           )}
-          <StatusBadge status={transfer.status} />
+          {attached && <StatusBadge status={transfer.status} />}
           {needsAcceptance(transfer) && (
-            <span className="text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+            <span className="text-xs font-extrabold bg-brand-100 text-brand-800 px-2 py-0.5 rounded-lg">
               {t('transfers.acceptance_due')}
             </span>
           )}
-          {v?.brand_model && <span className="text-[11px] text-gray-400 truncate">{v.brand_model}</span>}
+          {v?.brand_model && <span className="text-[13px] font-semibold text-gray-500 truncate">{v.brand_model}</span>}
         </div>
         </div>
         {/* Bleibt rechts mittig stehen, auch wenn die Marken umbrechen. */}
         {expanded
-          ? <ChevronDown size={18} className="text-gray-300 flex-shrink-0" />
-          : <ChevronRight size={18} className="text-gray-300 flex-shrink-0" />}
+          ? <ChevronDown size={18} className="text-gray-400 flex-shrink-0" />
+          : <ChevronRight size={18} className="text-gray-400 flex-shrink-0" />}
       </div>
+      {/* Neben, nicht in der klickbaren Fläche: ein Knopf darf nicht in role="button" stecken. */}
+      {quickAction && !expanded && (
+        <div className="px-4 pb-4 -mt-1">
+          <button
+            type="button"
+            onClick={quickAction.onClick}
+            disabled={quickAction.disabled}
+            className="w-full h-12 rounded-xl bg-brand-700 text-white text-[15px] font-extrabold active:bg-brand-800 disabled:opacity-60"
+          >
+            {quickAction.label}
+          </button>
+        </div>
+      )}
+    </>
   )
 }
 
@@ -506,8 +627,37 @@ function TransferDetails({
     return ''
   }
 
+  const target = transfer.location_to?.trim() || transfer.location_from?.trim() || null
+
   return (
-      <div className="border-t border-gray-100 px-4 py-3 space-y-3">
+      <div className="border-t border-gray-100 px-4 py-4 space-y-4">
+        <StatusProgress status={transfer.status} />
+
+        <RouteTimeline transfer={transfer} />
+
+        {(transfer.contact_phone || target) && (
+          <div className="flex gap-2">
+            {transfer.contact_phone && (
+              <a
+                href={telHref(transfer.contact_phone)}
+                className="flex-1 h-11 rounded-xl bg-gray-100 text-gray-900 text-sm font-bold flex items-center justify-center gap-2 active:bg-gray-200"
+              >
+                <Phone size={17} /> {t('transfers.call')}
+              </a>
+            )}
+            {target && (
+              <a
+                href={mapsHref(target)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 h-11 rounded-xl bg-gray-100 text-gray-900 text-sm font-bold flex items-center justify-center gap-2 active:bg-gray-200"
+              >
+                <Navigation size={17} /> {t('transfers.route')}
+              </a>
+            )}
+          </div>
+        )}
+
         {/* Titel und Fahrzeug passen nicht zusammen – meist beim Anlegen im
             Formular vergriffen, die Kennzeichen liegen oft eine Ziffer auseinander. */}
         {titleVehicle && v && (
@@ -582,18 +732,14 @@ function TransferDetails({
 
         {v && (
           <div className="pt-1">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
-              {t('transfers.vehicle_state')}
-            </p>
+            <DetailHeading>{t('transfers.vehicle_state')}</DetailHeading>
             <VehicleState vehicle={v} />
           </div>
         )}
 
         {/* Fahrten, die zu dieser gehören */}
         <div className="pt-1">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
-            {t('transfers.linked_section')}
-          </p>
+          <DetailHeading>{t('transfers.linked_section')}</DetailHeading>
           <div className="space-y-1.5">
             {related.map((r) => (
               <div key={r.id} className="flex items-center gap-1 pr-1 rounded-xl border border-gray-200">
@@ -637,9 +783,7 @@ function TransferDetails({
             ließen aussehen, als brauchte jede Fahrt beide. Ältere Fahrten, an
             denen zwei hängen, zeigen weiter beide. */}
         <div className="pt-1">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
-            {t(attached.length > 1 ? 'transfers.protocols' : 'transfers.protocol_single')}
-          </p>
+          <DetailHeading>{t(attached.length > 1 ? 'transfers.protocols' : 'transfers.protocol_single')}</DetailHeading>
           <div className="space-y-1.5">
             {rows.map((role) => {
               const proto = role === 'pickup' ? transfer.pickup_protocol : transfer.dropoff_protocol
@@ -761,31 +905,32 @@ function TransferDetails({
           </div>
         </div>
 
-        {/* Status actions */}
-        <div className="flex flex-wrap gap-2 pt-1">
-          {transfer.status === 'geplant' && (
-            <button
-              onClick={() => onStatus('unterwegs')}
-              disabled={busy}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 text-white text-xs font-semibold active:bg-amber-600 disabled:opacity-60"
-            >
-              <Truck size={14} /> {t('transfers.action_pickup')}
-            </button>
-          )}
-          {transfer.status === 'unterwegs' && (
-            <button
-              onClick={() => onStatus('angekommen')}
-              disabled={busy}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-green-600 text-white text-xs font-semibold active:bg-green-700 disabled:opacity-60"
-            >
-              <CheckCircle2 size={14} /> {t('transfers.action_arrive')}
-            </button>
-          )}
+        {/* Der nächste Schritt groß, der Rest klein darunter. */}
+        {transfer.status === 'geplant' && (
+          <button
+            onClick={() => onStatus('unterwegs')}
+            disabled={busy}
+            className="w-full h-[52px] rounded-2xl bg-brand-700 text-white text-base font-extrabold flex items-center justify-center gap-2 active:bg-brand-800 disabled:opacity-60"
+          >
+            <Truck size={18} /> {t('transfers.action_pickup')}
+          </button>
+        )}
+        {transfer.status === 'unterwegs' && (
+          <button
+            onClick={() => onStatus('angekommen')}
+            disabled={busy}
+            className="w-full h-[52px] rounded-2xl bg-brand-700 text-white text-base font-extrabold flex items-center justify-center gap-2 active:bg-brand-800 disabled:opacity-60"
+          >
+            <CheckCircle2 size={18} /> {t('transfers.action_arrive')}
+          </button>
+        )}
+
+        <div className="flex flex-wrap gap-2">
           {(transfer.status === 'geplant' || transfer.status === 'unterwegs') && (
             <button
               onClick={() => onStatus('abgebrochen')}
               disabled={busy}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-gray-600 text-xs font-semibold active:bg-gray-50 disabled:opacity-60"
+              className="flex-1 min-w-[30%] h-10 flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 text-gray-700 text-xs font-bold active:bg-gray-50 disabled:opacity-60"
             >
               <X size={14} /> {t('transfers.action_cancel')}
             </button>
@@ -794,23 +939,20 @@ function TransferDetails({
             <button
               onClick={() => onStatus('geplant')}
               disabled={busy}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-gray-600 text-xs font-semibold active:bg-gray-50 disabled:opacity-60"
+              className="flex-1 min-w-[30%] h-10 flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 text-gray-700 text-xs font-bold active:bg-gray-50 disabled:opacity-60"
             >
               <RotateCcw size={14} /> {t('transfers.action_reset')}
             </button>
           )}
-        </div>
-
-        <div className="flex gap-2 pt-1 border-t border-gray-100">
           <button
             onClick={onEdit}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 mt-2 rounded-xl border border-gray-200 text-gray-600 text-xs font-semibold active:bg-gray-50"
+            className="flex-1 min-w-[30%] h-10 flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 text-gray-700 text-xs font-bold active:bg-gray-50"
           >
             <Pencil size={14} /> {t('common.edit')}
           </button>
           <button
             onClick={onDelete}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 mt-2 rounded-xl border border-red-200 text-red-600 text-xs font-semibold active:bg-red-50"
+            className="flex-1 min-w-[30%] h-10 flex items-center justify-center gap-1.5 rounded-xl border border-red-200 text-red-700 text-xs font-bold active:bg-red-50"
           >
             <Trash2 size={14} /> {t('common.delete')}
           </button>
@@ -883,6 +1025,7 @@ function TransferCard({
   onDelete: (transfer: Transfer) => void
   busyId: string | null
 }) {
+  const { t } = useTranslation()
   const details = (x: Transfer) => (
     <TransferDetails
       transfer={x}
@@ -907,14 +1050,20 @@ function TransferCard({
     />
   )
 
+  // Die fällige Annahme steht direkt auf der Karte – wie im Entwurf.
+  const quick = (x: Transfer) => needsAcceptance(x) && x.vehicle
+    ? { label: t('transfers.create_acceptance'), onClick: () => onCreateAcceptance(x), disabled: busyId === x.id }
+    : undefined
+
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-[0_1px_2px_rgba(24,24,27,0.06)] overflow-hidden">
       <div id={`transfer-${transfer.id}`}>
         <TransferHead
           transfer={transfer}
           changes={changesOf(transfer)}
           expanded={expandedId === transfer.id}
           onToggle={() => onToggle(transfer.id)}
+          quickAction={quick(transfer)}
         />
         {expandedId === transfer.id && details(transfer)}
       </div>
@@ -933,6 +1082,7 @@ function TransferCard({
             expanded={expandedId === m.id}
             onToggle={() => onToggle(m.id)}
             attached
+            quickAction={quick(m)}
           />
           {expandedId === m.id && details(m)}
         </div>
@@ -2259,6 +2409,25 @@ function daysBetween(from: string, to: string): number {
   return Math.round((b - a) / 86_400_000)
 }
 
+type CardGroupKey = 'on_the_way' | 'today' | 'week' | 'later'
+
+/**
+ * Die offenen Fahrten nach Dringlichkeit: was unterwegs ist, was heute
+ * ansteht (auch schon begonnene und überfällige), was in den nächsten sieben
+ * Tagen beginnt, und der Rest. Maßgeblich ist die Fahrt, die die Karte führt.
+ */
+function groupCards<C extends { lead: Transfer }>(cards: C[], today: string): { key: CardGroupKey; cards: C[] }[] {
+  const keyOf = (x: Transfer): CardGroupKey =>
+    x.status === 'unterwegs' ? 'on_the_way'
+      : x.date_from <= today ? 'today'
+      : daysBetween(today, x.date_from) < 7 ? 'week'
+      : 'later'
+  const order: CardGroupKey[] = ['on_the_way', 'today', 'week', 'later']
+  return order
+    .map((key) => ({ key, cards: cards.filter((c) => keyOf(c.lead) === key) }))
+    .filter((g) => g.cards.length > 0)
+}
+
 /** Chronologisch: Tag, ganztägige vor solchen mit Uhrzeit, dann die Uhrzeit. */
 function compareEvents(a: CalendarEvent, b: CalendarEvent): number {
   if (a.date_from !== b.date_from) return a.date_from < b.date_from ? -1 : 1
@@ -2596,6 +2765,7 @@ function AgendaSection({
 
 export default function Ueberfuehrungen() {
   const { t, i18n } = useTranslation()
+  const today = useToday()
   const loc = useLocation()
   const navigate = useNavigate()
 
@@ -3409,7 +3579,16 @@ export default function Ueberfuehrungen() {
                   <p className="text-xs mt-1">{t('transfers.empty_hint')}</p>
                 </div>
               ) : (
-                <div className="space-y-2">{toCards(open).map(renderCard)}</div>
+                <div className="space-y-5">
+                  {groupCards(toCards(open), today).map((g) => (
+                    <div key={g.key} className="space-y-2">
+                      <h2 className="px-1 text-xs font-extrabold tracking-wider uppercase text-gray-500">
+                        {t(`transfers.group_${g.key}`)}
+                      </h2>
+                      {g.cards.map(renderCard)}
+                    </div>
+                  ))}
+                </div>
               )}
             </section>
 

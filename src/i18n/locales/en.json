@@ -246,6 +246,14 @@
     "intake": "Intake"
   },
   "transfers": {
+    "route_start": "Start",
+    "route_end": "Destination",
+    "call": "Call",
+    "route": "Route",
+    "group_on_the_way": "In transit",
+    "group_today": "Today",
+    "group_week": "This week",
+    "group_later": "Later",
     "title": "Transfers",
     "section_open": "Upcoming transfers",
     "section_closed": "Completed",

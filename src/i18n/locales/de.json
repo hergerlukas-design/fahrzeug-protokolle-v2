@@ -246,6 +246,14 @@
     "intake": "Annahme"
   },
   "transfers": {
+    "route_start": "Start",
+    "route_end": "Ziel",
+    "call": "Anrufen",
+    "route": "Route",
+    "group_on_the_way": "Unterwegs",
+    "group_today": "Heute",
+    "group_week": "Diese Woche",
+    "group_later": "Später",
     "title": "Überführungen",
     "section_open": "Nächste Überführungen",
     "section_closed": "Abgeschlossen",

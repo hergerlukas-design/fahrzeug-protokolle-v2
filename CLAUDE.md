@@ -633,6 +633,15 @@ Seitenleiste dieselben Ziele, dort zusätzlich den Zeitstrahl.
 - **Login** ist ein Ziffernfeld mit PIN-Punkten. Stimmt der PIN, geht es ohne
   weiteren Tipp hinein, und zwar nach **Heute**; ein falscher wird erst mit dem
   Haken gemeldet. Am Rechner geht die Tastatur.
+- **Überführungen:** die offenen Fahrten stehen in Gruppen – Unterwegs,
+  Heute (auch begonnene und überfällige), Diese Woche, Später (`groupCards`).
+  Der Kopf einer Karte trägt oben den Status und rechts das Datum kurz
+  (`shortRange`, im laufenden Jahr ohne Jahreszahl), darunter Titel, Strecke
+  und Kennzeichen. Ist eine Annahme fällig, steht der Knopf dafür direkt auf der
+  zugeklappten Karte. Aufgeklappt zeigt die Fahrt oben den Fortschritt
+  Geplant → Unterwegs → Angekommen, Start und Ziel als Linie, Anrufen und
+  Route, und als großen Knopf den nächsten Statusschritt; Abbrechen,
+  Bearbeiten und Löschen stehen klein darunter.
 - **Einstellungen** sind eine Liste in Gruppen statt zweier Tabs: oben Archiv
   und Projektverwaltung, dann die Offline-Synchronisierung, Sprache, PIN und
   Tutorial; darunter "Verwaltung" (Duplikate, leere Beiträge), Rechtliches,
