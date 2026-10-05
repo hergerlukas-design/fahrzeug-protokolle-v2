@@ -26,6 +26,27 @@ export interface Checkliste {
   card: boolean
 }
 
+/** Wo der Schlüssel blieb, wenn niemand zur Übergabe da war. */
+export type ReceiverAbsentReason = 'mailbox' | 'keybox' | 'neighbour' | 'other'
+
+export const RECEIVER_ABSENT_REASONS: ReceiverAbsentReason[] = ['mailbox', 'keybox', 'neighbour', 'other']
+
+/**
+ * Überführung ohne Empfänger: niemand war da, der Schlüssel liegt im
+ * Briefkasten o. Ä. Statt der Unterschrift des Empfängers steht dann, wo der
+ * Schlüssel ist – damit lässt sich das Protokoll abschließen statt als Entwurf
+ * liegen zu bleiben.
+ */
+export interface ReceiverAbsent {
+  reason: ReceiverAbsentReason
+  note?: string
+}
+
+/** Reicht die Angabe, um ohne Empfänger abzuschließen? "Sonstiges" braucht eine Notiz. */
+export function receiverAbsentValid(value: ReceiverAbsent | null | undefined): value is ReceiverAbsent {
+  return !!value && (value.reason !== 'other' || !!value.note?.trim())
+}
+
 export interface ProtocolConditionData {
   battery: number
   photos: Record<string, string>
@@ -34,6 +55,8 @@ export interface ProtocolConditionData {
   checkliste: Checkliste
   receiver_name?: string
   transfer_type?: string
+  /** Niemand zur Übergabe da – an Stelle der Empfänger-Unterschrift. */
+  receiver_absent?: ReceiverAbsent
 }
 
 export interface ProtocolPayload {

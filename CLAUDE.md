@@ -461,6 +461,26 @@ heraus. Das Lösen einer Verknüpfung lässt den Status dagegen stehen: er kann
 von Hand gesetzt worden sein, und ein versehentlich angehängtes Protokoll soll
 die Fahrt nicht zurückwerfen.
 
+## Überführung ohne Empfänger
+
+Oft ist bei der Ankunft niemand da, und der Schlüssel landet im Briefkasten.
+Ohne Unterschrift des Empfängers blieb das Protokoll bisher ein Entwurf.
+
+Im Unterschriftsschritt steht deshalb unter dem Empfänger der Schalter
+**Empfänger nicht anwesend** (`ReceiverAbsentPicker`). Ist er an, fällt das
+Unterschriftsfeld weg; gewählt wird, wo der Schlüssel ist – Briefkasten,
+Schlüsselbox/Tresor, bei Nachbarn, Sonstiges – dazu eine Notiz (bei
+"Sonstiges" Pflicht). Mit Fahrer-Unterschrift und dieser Angabe wird das
+Protokoll **fertig** statt Entwurf; der Knopf heißt dann "Ohne Empfänger
+abschließen".
+
+Gespeichert wird es in `condition_data.receiver_absent` (`{ reason, note }`,
+keine Migration nötig). Im PDF steht im Feld des Empfängers statt der
+Unterschrift "Empfänger nicht anwesend – keine Unterschrift", der Ort und die
+Notiz. Dasselbe geht im Archiv beim nachträglichen Unterschreiben eines
+Entwurfs. Das Archiv-PDF zeigt seitdem auch Empfängername und Art der
+Überführung, die dort bisher fehlten.
+
 ## Weitere Fotos unter "Bemerkungen"
 
 Im Schritt Bemerkungen (Überführungs- und Annahmeprotokoll) lassen sich

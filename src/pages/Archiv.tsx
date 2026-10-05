@@ -9,6 +9,7 @@ import { supabase, errorText } from '../lib/supabase'
 import PageHeader from '../components/PageHeader'
 import PdfButton from '../components/PdfButton'
 import SignatureCanvas from '../components/SignatureCanvas'
+import ReceiverAbsentPicker from '../components/ReceiverAbsentPicker'
 import type { PdfData } from '../lib/generatePdf'
 import {
   DEFAULT_CHECKLISTE,
@@ -17,6 +18,8 @@ import {
   uploadSignature,
   type ProtocolConditionData,
   type ProtocolPayload,
+  type ReceiverAbsent,
+  receiverAbsentValid,
 } from '../lib/protocols'
 import { EXTRA_PHOTO_PREFIX, isExtraPhotoKey } from '../lib/extraPhotos'
 import { SkeletonList } from '../components/Skeleton'
@@ -82,6 +85,9 @@ function toPdfData(p: ProtocolRow): PdfData {
     conditions: p.condition_data?.conditions ?? [],
     damage_records: p.condition_data?.damage_records ?? [],
     checkliste: p.condition_data?.checkliste ?? DEFAULT_CHECKLISTE,
+    receiver_name: p.condition_data?.receiver_name,
+    transfer_type: p.condition_data?.transfer_type,
+    receiver_absent: p.condition_data?.receiver_absent,
   }
 }
 
@@ -603,6 +609,7 @@ export default function Archiv() {
                       photos: cd?.photos ?? {},
                       receiver_name: cd?.receiver_name,
                       transfer_type: cd?.transfer_type,
+                      receiver_absent: cd?.receiver_absent,
                     },
                   },
                 })
@@ -730,6 +737,7 @@ function ProtocolSignSheet({
   const [hasSig, setHasSig] = useState(false)
   const [hasSigReceiver, setHasSigReceiver] = useState(false)
   const [receiverName, setReceiverName] = useState(protocol.condition_data?.receiver_name ?? '')
+  const [receiverAbsent, setReceiverAbsent] = useState<ReceiverAbsent | null>(protocol.condition_data?.receiver_absent ?? null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -741,7 +749,10 @@ function ProtocolSignSheet({
   // protocols become final with the creator signature. A receiver signature already
   // stored on the draft counts too, so we don't force re-signing it.
   const hasStoredReceiverSig = !!protocol.condition_data?.photos?.signature_receiver
-  const willBeFinal = isTransfer ? hasSig && (hasSigReceiver || hasStoredReceiverSig) : hasSig
+  // Niemand zur Übergabe da: dann zählt statt der Unterschrift, wo der Schlüssel ist.
+  const willBeFinal = isTransfer
+    ? hasSig && (receiverAbsent ? receiverAbsentValid(receiverAbsent) : hasSigReceiver || hasStoredReceiverSig)
+    : hasSig
 
   async function handleComplete() {
     if (!hasSig || !canvasRef.current) return
@@ -759,7 +770,7 @@ function ProtocolSignSheet({
         signature: driverUrl,
       }
       let receiver_name = protocol.condition_data?.receiver_name
-      if (isTransfer && hasSigReceiver && canvasRefReceiver.current) {
+      if (isTransfer && !receiverAbsent && hasSigReceiver && canvasRefReceiver.current) {
         photos.signature_receiver = await uploadSignature(
           protocol.vehicle_id,
           sessionKey,
@@ -776,10 +787,15 @@ function ProtocolSignSheet({
         damage_records: [],
         checkliste: DEFAULT_CHECKLISTE,
       }
+      if (isTransfer && receiverAbsent && receiverName.trim()) receiver_name = receiverName.trim()
+      const absent = isTransfer && receiverAbsentValid(receiverAbsent)
+        ? { reason: receiverAbsent.reason, ...(receiverAbsent.note?.trim() ? { note: receiverAbsent.note.trim() } : {}) }
+        : undefined
       const condition_data: ProtocolConditionData = {
         ...base,
         photos,
         ...(receiver_name ? { receiver_name } : {}),
+        receiver_absent: absent,
       }
       const status: 'final' | 'draft' = willBeFinal ? 'final' : 'draft'
       const payload: ProtocolPayload = {
@@ -851,7 +867,13 @@ function ProtocolSignSheet({
               placeholder={t('ueberfuehrung.receiver_placeholder')}
               className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-green-400"
             />
-            <SignatureCanvas canvasRef={canvasRefReceiver} onHasStroke={setHasSigReceiver} />
+            {!receiverAbsent && <SignatureCanvas canvasRef={canvasRefReceiver} onHasStroke={setHasSigReceiver} />}
+            <div className="mt-3">
+              <ReceiverAbsentPicker
+                value={receiverAbsent}
+                onChange={(v) => { setReceiverAbsent(v); if (v) setHasSigReceiver(false) }}
+              />
+            </div>
           </>
         )}
 
@@ -862,6 +884,8 @@ function ProtocolSignSheet({
         >
           {saving
             ? t('archiv.sign_saving')
+            : willBeFinal && isTransfer && receiverAbsent
+            ? t('receiver_absent.save')
             : willBeFinal
             ? t('archiv.sign_complete')
             : t('archiv.sign_save_draft')}

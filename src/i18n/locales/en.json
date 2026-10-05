@@ -919,5 +919,21 @@
     "an_hint_5": "Anything else worth noting – add more photos if needed.",
     "an_hint_6": "Sign – on delivery the carrier signs too.",
     "photos_offline": "Photos are kept without a connection and uploaded later."
+  },
+  "receiver_absent": {
+    "toggle": "Recipient not present",
+    "toggle_hint": "Left without handover – complete without signature",
+    "where": "Where is the key?",
+    "reason_mailbox": "In the mailbox",
+    "reason_keybox": "Key box / safe",
+    "reason_neighbour": "Left with a neighbour",
+    "reason_other": "Other",
+    "note_label": "Note",
+    "optional": "optional",
+    "note_placeholder": "e.g. mailbox left of the door, customer informed by text",
+    "note_required": "For “Other”, please describe where the key is.",
+    "photo_tip": "Tip: a photo of the drop-off spot under “Remarks” helps if questions come up later.",
+    "save": "Complete without recipient",
+    "card": "No recipient · {{reason}}"
   }
 }
