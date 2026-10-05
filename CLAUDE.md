@@ -630,6 +630,9 @@ Seitenleiste dieselben Ziele, dort zusätzlich den Zeitstrahl.
   von heute nach Uhrzeit, "Demnächst" die nächsten ab morgen, nach Tagen
   gruppiert. Gemeinsame Helfer mit Überführungen liegen in
   `src/lib/transferHelpers.ts`.
+- **Login** ist ein Ziffernfeld mit PIN-Punkten. Stimmt der PIN, geht es ohne
+  weiteren Tipp hinein, und zwar nach **Heute**; ein falscher wird erst mit dem
+  Haken gemeldet. Am Rechner geht die Tastatur.
 - **Archiv** steht oben im Tab Einstellungen.
 - **Zeitstrahl** ist eine Ansicht in Projekte: oben schaltet
   `ProjekteSwitch` zwischen Fahrzeuge und Zeitstrahl, der Reiter Projekte

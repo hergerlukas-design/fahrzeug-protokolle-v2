@@ -40,7 +40,10 @@
     "subtitle": "Team Login",
     "pin_label": "Enter PIN",
     "submit": "Sign in",
-    "wrong_pin": "Wrong PIN!"
+    "wrong_pin": "Wrong PIN!",
+    "erase": "Delete last digit",
+    "pin_entered_one": "{{count}} digit entered",
+    "pin_entered_other": "{{count}} digits entered"
   },
   "onboarding": {
     "skip": "Skip",

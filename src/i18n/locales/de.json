@@ -40,7 +40,10 @@
     "subtitle": "Team-Login",
     "pin_label": "PIN eingeben",
     "submit": "Anmelden",
-    "wrong_pin": "Falscher PIN!"
+    "wrong_pin": "Falscher PIN!",
+    "erase": "Letzte Ziffer löschen",
+    "pin_entered_one": "{{count}} Ziffer eingegeben",
+    "pin_entered_other": "{{count}} Ziffern eingegeben"
   },
   "onboarding": {
     "skip": "Überspringen",
