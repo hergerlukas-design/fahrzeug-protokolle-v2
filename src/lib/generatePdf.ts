@@ -1,5 +1,5 @@
 import { PDFDocument, rgb, StandardFonts, degrees, type PDFPage, type PDFFont, type PDFImage } from 'pdf-lib'
-import type { Checkliste, DamageItem } from './protocols'
+import type { Checkliste, DamageItem, ReceiverAbsent, ReceiverAbsentReason } from './protocols'
 import { extraPhotoEntries } from './extraPhotos'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -16,6 +16,7 @@ interface PdfLabels {
   condition_header: string; equipment_header: string
   clean: string; dirty: string; yes: string; no: string
   carrier_sig: string; creator_sig_label: string; sig_creator: string; sig_receiver: string
+  absent_title: string; absent: Record<ReceiverAbsentReason, string>
   no_photo: string; damage_label: string
   photo: { vorne: string; hinten: string; links: string; rechts: string; schein: string }
   checklist: { floor: string; seats: string; entry: string; instruments: string; trunk: string; engine: string
@@ -40,6 +41,9 @@ const PDF_LABELS: Record<'de' | 'en', PdfLabels> = {
     clean: 'Sauber', dirty: 'Schmutzig', yes: 'Ja', no: 'Nein',
     carrier_sig: 'Uebergabe durch Spediteur', creator_sig_label: 'Annahme durch (Ersteller)',
     sig_creator: 'Ersteller', sig_receiver: 'Empfaenger',
+    absent_title: 'Empfaenger nicht anwesend - keine Unterschrift',
+    absent: { mailbox: 'Schluessel im Briefkasten', keybox: 'Schluessel in Schluesselbox / Tresor',
+              neighbour: 'Schluessel bei Nachbarn abgegeben', other: 'Sonstiges' },
     no_photo: 'Kein Foto', damage_label: 'Schaden',
     photo: { vorne: 'Vorne', hinten: 'Hinten', links: 'Links', rechts: 'Rechts', schein: 'Schein' },
     checklist: { floor: 'Boden', seats: 'Sitze', entry: 'Einstiege', instruments: 'Armaturen',
@@ -64,6 +68,9 @@ const PDF_LABELS: Record<'de' | 'en', PdfLabels> = {
     clean: 'Clean', dirty: 'Dirty', yes: 'Yes', no: 'No',
     carrier_sig: 'Carrier Handover', creator_sig_label: 'Accepted by (Inspector)',
     sig_creator: 'Inspector', sig_receiver: 'Receiver',
+    absent_title: 'Recipient not present - no signature',
+    absent: { mailbox: 'Key left in the mailbox', keybox: 'Key left in key box / safe',
+              neighbour: 'Key left with a neighbour', other: 'Other' },
     no_photo: 'No Photo', damage_label: 'Damage',
     photo: { vorne: 'Front', hinten: 'Rear', links: 'Left', rechts: 'Right', schein: 'Reg. Doc.' },
     checklist: { floor: 'Floor', seats: 'Seats', entry: 'Entry', instruments: 'Dashboard',
@@ -209,6 +216,8 @@ export interface PdfData {
   receiver_name?: string
   /** For transfer protocols: art der Überführung (e.g. Selbstfahrer). */
   transfer_type?: string
+  /** For transfer protocols: nobody there to sign – where the key was left instead. */
+  receiver_absent?: ReceiverAbsent
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -310,6 +319,18 @@ function drawHeading(page: PDFPage, bold: PDFFont, cursorY: number, text: string
 }
 
 /** Guard against chars outside Latin-1 (pdf-lib WinAnsiEncoding). */
+/** Einfacher Umbruch nach Wörtern – für kurze Notizen in kleinen Feldern. */
+function wrapText(text: string, max: number): string[] {
+  const out: string[] = []
+  let line = ''
+  for (const word of text.trim().split(/\s+/).filter(Boolean)) {
+    if (line && (line + ' ' + word).length > max) { out.push(line); line = word }
+    else line = line ? `${line} ${word}` : word
+  }
+  if (line) out.push(line)
+  return out
+}
+
 function safe(s: string | number | null | undefined): string {
   if (s == null) return ''
   return String(s).replace(/[\u0100-\uFFFF]/g, '?')
@@ -654,7 +675,7 @@ async function drawSignatures(
 
     const cols = [
       { x: mm(10),  label: _L.sig_creator, name: data.inspector_name, img: sigImg },
-      { x: mm(108), label: _L.sig_receiver, name: data.receiver_name ?? '', img: sigImgReceiver },
+      { x: mm(108), label: _L.sig_receiver, name: data.receiver_name ?? '', img: sigImgReceiver, absent: data.receiver_absent },
     ]
 
     for (const col of cols) {
@@ -674,6 +695,19 @@ async function drawSignatures(
       if (col.name) {
         page.drawText(safe(col.name), {
           x: col.x + mm(1), y: sigY + mm(2), size: 8, font: fonts.regular, color: C_BLACK,
+        })
+      }
+      // Niemand zur Übergabe da: statt der Unterschrift steht, wo der Schlüssel ist.
+      if (!col.img && 'absent' in col && col.absent) {
+        const lines = [
+          { text: _L.absent_title, font: fonts.bold },
+          { text: _L.absent[col.absent.reason] ?? col.absent.reason, font: fonts.regular },
+          ...wrapText(col.absent.note ?? '', 52).slice(0, 2).map((text) => ({ text, font: fonts.regular })),
+        ]
+        lines.forEach((line, i) => {
+          page.drawText(safe(line.text), {
+            x: boxX + mm(2), y: sigY + mm(20.5) - i * mm(3.8), size: 7, font: line.font, color: C_BLACK,
+          })
         })
       }
       if (col.img) {

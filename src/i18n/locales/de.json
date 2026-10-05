@@ -919,5 +919,21 @@
     "an_hint_5": "Alles, was sonst auffällt – gern mit weiteren Fotos.",
     "an_hint_6": "Unterschreiben – bei Anlieferung auch der Spediteur.",
     "photos_offline": "Fotos werden auch ohne Netz gesichert und später hochgeladen."
+  },
+  "receiver_absent": {
+    "toggle": "Empfänger nicht anwesend",
+    "toggle_hint": "Ohne Übergabe abgestellt – ohne Unterschrift abschließen",
+    "where": "Wo ist der Schlüssel?",
+    "reason_mailbox": "Im Briefkasten",
+    "reason_keybox": "Schlüsselbox / Tresor",
+    "reason_neighbour": "Bei Nachbarn abgegeben",
+    "reason_other": "Sonstiges",
+    "note_label": "Notiz",
+    "optional": "optional",
+    "note_placeholder": "z. B. Briefkasten links neben der Tür, Kunde per SMS informiert",
+    "note_required": "Bei „Sonstiges“ bitte kurz beschreiben, wo der Schlüssel ist.",
+    "photo_tip": "Tipp: Ein Foto vom Ablageort unter „Bemerkungen“ hilft, falls später gefragt wird.",
+    "save": "Ohne Empfänger abschließen",
+    "card": "Ohne Empfänger · {{reason}}"
   }
 }
