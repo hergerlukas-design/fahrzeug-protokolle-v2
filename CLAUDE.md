@@ -450,6 +450,16 @@ Gespeichert wird es in `transfers.pickup_protocol_id` — mit dem Protokoll ist
 die Fahrt unterwegs. Fahrten aus der Zeit davor, an denen zwei Protokolle
 hängen, zeigen weiterhin beide Zeilen.
 
+Ausnahme ist die **Hin- und Rückfahrt**: Überführung und Abholung, aus dem
+Kalender zu einer Fahrt gebündelt (`isRoundTrip` in `transferHelpers.ts`). Dort
+wird das Fahrzeug am Anfang gebracht und am Ende wieder geholt — zwei
+Übergaben, zwei Protokolle. Nach dem Hinbringen steht deshalb eine zweite
+Zeile "Protokoll erstellen · Rücknahme" da; sie landet in
+`dropoff_protocol_id`, und mit ihr ist die Fahrt angekommen.
+`missingProtocol` sagt, welches Protokoll noch fehlt. Auf **Heute** gehört das
+Hinbringen zum ersten Tag und die Rücknahme zur Abholung, der Knopf erscheint
+jeweils dort.
+
 Ein Protokoll entsteht nicht immer aus einer Überführung heraus — oft ist es
 zuerst da, weil unterwegs schnell dokumentiert wurde. Neben "Protokoll
 erstellen" steht deshalb ein Kettensymbol: es listet alle Protokolle des
