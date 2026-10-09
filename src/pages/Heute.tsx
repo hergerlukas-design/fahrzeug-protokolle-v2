@@ -5,7 +5,7 @@ import { MapPin, Phone, Navigation, ClipboardList, ChevronRight, Repeat } from '
 import { fetchOpenTransfers, type Transfer } from '../lib/transfers'
 import { fetchVehicleById } from '../lib/vehicles'
 import { classifyEvent, isUnconfirmed } from '../lib/calendarPairs'
-import { todayISO, telHref, mapsHref, protocolKindOf, needsAcceptance } from '../lib/transferHelpers'
+import { todayISO, telHref, mapsHref, needsAcceptance, missingProtocol, isRoundTrip } from '../lib/transferHelpers'
 import { SkeletonCard } from '../components/Skeleton'
 import Plate from '../components/Plate'
 
@@ -53,9 +53,23 @@ function nowHHMM(): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
-/** Schon vorbei und erledigt: die Uhrzeit liegt zurück und ein Protokoll hängt dran. */
+/**
+ * Das Protokoll, das zu diesem Moment noch fehlt – oder null.
+ *
+ * Bei einer Hin- und Rückfahrt gehört das Hinbringen zum Anfang und die
+ * Rücknahme zur Abholung am Ende; am ersten Tag fehlt also nichts mehr, wenn
+ * nur noch die Rücknahme aussteht.
+ */
+function missingAt(m: Moment) {
+  const missing = missingProtocol(m.transfer)
+  if (!missing || !isRoundTrip(m.transfer)) return missing
+  const pickupMoment = m.ends || classifyEvent(m.title) === 'abholung'
+  return (missing.kind === 'Rücknahme') === pickupMoment ? missing : null
+}
+
+/** Schon vorbei und erledigt: die Uhrzeit liegt zurück und das Protokoll dazu hängt dran. */
 function isDone(m: Moment, now: string): boolean {
-  return !!m.time && m.time.slice(0, 5) < now && !!(m.transfer.pickup_protocol || m.transfer.dropoff_protocol)
+  return !!m.time && m.time.slice(0, 5) < now && !missingAt(m)
 }
 
 function formatTime(value: string | null): string {
@@ -143,8 +157,10 @@ export default function Heute() {
   }, [transfers, today])
 
   /** Dieselben Wege wie aus der Karte in Überführungen – mit vollständig geladenem Fahrzeug. */
-  async function startProtocol(transfer: Transfer) {
+  async function startProtocol(m: Moment) {
+    const transfer = m.transfer
     const acceptance = needsAcceptance(transfer)
+    const missing = missingAt(m) ?? missingProtocol(transfer)
     setBusy(true)
     try {
       const vehicle = transfer.vehicle_id ? await fetchVehicleById(transfer.vehicle_id) : null
@@ -160,8 +176,10 @@ export default function Heute() {
             id: transfer.id,
             vehicle_id: vehicle.id,
             status: transfer.status,
-            role: acceptance && transfer.pickup_protocol ? 'dropoff' : 'pickup',
-            ...(acceptance ? {} : { transfer_type: protocolKindOf(transfer) }),
+            role: acceptance
+              ? (transfer.pickup_protocol ? 'dropoff' : 'pickup')
+              : missing?.role ?? 'pickup',
+            ...(acceptance || !missing ? {} : { transfer_type: missing.kind }),
             driver_name: transfer.driver_name,
             location_from: transfer.location_from,
             location_to: transfer.location_to,
@@ -182,11 +200,11 @@ export default function Heute() {
   const next = nextMoment?.transfer ?? null
 
   /** Was mit der nächsten Fahrt zu tun ist – oder null, wenn sie schon läuft. */
-  const nextAction = !next || !next.vehicle_id
+  const nextAction = !next || !nextMoment || !next.vehicle_id
     ? null
     : needsAcceptance(next)
       ? t('transfers.create_acceptance')
-      : !next.pickup_protocol && !next.dropoff_protocol
+      : missingAt(nextMoment)
         ? t('today.start_protocol')
         : null
 
@@ -296,7 +314,7 @@ export default function Heute() {
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => void startProtocol(next)}
+                  onClick={() => void startProtocol(nextMoment!)}
                   className="flex-1 h-[52px] rounded-2xl bg-brand-700 text-white text-base font-extrabold flex items-center justify-center gap-2 active:bg-brand-800 disabled:opacity-60"
                 >
                   <ClipboardList size={20} strokeWidth={2.2} />
