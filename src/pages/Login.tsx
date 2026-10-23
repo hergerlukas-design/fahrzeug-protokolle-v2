@@ -7,8 +7,11 @@ import LanguageToggle from '../components/LanguageToggle'
 
 /** Länger wird kein PIN – schützt nur davor, dass die Punkte aus dem Bild laufen. */
 const MAX_LENGTH = 12
-/** So viele Punkte stehen mindestens da, auch bevor getippt wird. */
-const MIN_DOTS = 4
+/**
+ * So viele Punkte stehen da, bevor getippt wird: die Länge des zuletzt
+ * richtigen PINs, auf einem neuen Gerät 6 – kürzer erlaubt Supabase ihn nicht.
+ */
+const DEFAULT_DOTS = 6
 
 const DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9']
 
@@ -69,7 +72,7 @@ export default function Login() {
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  const dots = Math.max(MIN_DOTS, pin.length)
+  const dots = Math.max(knownPinLength() ?? DEFAULT_DOTS, pin.length)
   const key = 'h-16 rounded-2xl text-2xl font-bold flex items-center justify-center active:scale-95 transition-transform'
 
   return (
