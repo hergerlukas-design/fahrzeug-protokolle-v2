@@ -55,6 +55,13 @@ Ein Push auf `main` löst den Workflow `.github/workflows/deploy.yml` aus, der
 `VITE_APP_PASSWORD` (Settings → Secrets and variables → Actions); fehlt eines,
 bricht der Workflow mit einer entsprechenden Meldung ab.
 
+Vor dem Bauen erhöht der Workflow die Patch-Version (`npm version patch`) und
+committet sie als "chore: Version x.y.z [skip ci]" auf `main` — von Hand
+gepflegt wird die Version nicht, nur ein Sprung bei Minor/Major. Die
+Einstellungen zeigen sie an, so ist erkennbar, welcher Stand läuft. Ein Deploy
+von Hand über den Actions-Tab behält die Version. Vor dem nächsten Arbeiten
+also `git pull`, sonst fehlt lokal der Version-Commit.
+
 Die `VITE_*`-Werte stehen bewusst **nicht** in der `fly.toml`, weil sie ins
 Client-Bundle kompiliert werden. Ein Deploy von Hand braucht sie deshalb als
 Build-Args:
