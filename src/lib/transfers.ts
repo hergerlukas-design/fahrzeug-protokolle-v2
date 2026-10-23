@@ -3,9 +3,6 @@ import { normalizeKennzeichen } from './vehicles'
 
 export type TransferStatus = 'geplant' | 'unterwegs' | 'angekommen' | 'abgebrochen'
 
-/** Statuswerte in der Reihenfolge, in der eine Überführung sie durchläuft. */
-export const TRANSFER_STATUSES: TransferStatus[] = ['geplant', 'unterwegs', 'angekommen', 'abgebrochen']
-
 /** Eine Überführung gilt als erledigt, sobald sie angekommen oder abgebrochen ist. */
 export const CLOSED_STATUSES: TransferStatus[] = ['angekommen', 'abgebrochen']
 

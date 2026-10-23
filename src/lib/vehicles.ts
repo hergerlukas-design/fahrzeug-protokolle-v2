@@ -33,7 +33,7 @@ export interface Vehicle {
 }
 
 export function normalizeKennzeichen(kz: string): string {
-  return kz.toUpperCase().trim().replace(/[\s\-]/g, '')
+  return kz.toUpperCase().trim().replace(/[\s-]/g, '')
 }
 
 export async function fetchVehicles(): Promise<Vehicle[]> {
@@ -204,13 +204,4 @@ export function getVehiclePhotoUrl(vehicleId: string): string {
     .from('vehicle-photos')
     .getPublicUrl(`vehicle-kartei/${vehicleId}.jpg`)
   return data.publicUrl
-}
-
-/** Deletes the vehicle photo from storage. */
-export async function deleteVehiclePhoto(vehicleId: string): Promise<void> {
-  requireOnline()
-  const { error } = await supabase.storage
-    .from('vehicle-photos')
-    .remove([`vehicle-kartei/${vehicleId}.jpg`])
-  if (error) throw error
 }

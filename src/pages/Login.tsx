@@ -2,51 +2,60 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Check, Delete } from 'lucide-react'
-import { login } from '../lib/auth'
+import { knownPinLength, login } from '../lib/auth'
 import LanguageToggle from '../components/LanguageToggle'
 
 /** Länger wird kein PIN – schützt nur davor, dass die Punkte aus dem Bild laufen. */
 const MAX_LENGTH = 12
-/** So viele Punkte stehen mindestens da, auch bevor getippt wird. */
-const MIN_DOTS = 4
+/**
+ * So viele Punkte stehen da, bevor getippt wird: die Länge des zuletzt
+ * richtigen PINs, auf einem neuen Gerät 6 – kürzer erlaubt Supabase ihn nicht.
+ */
+const DEFAULT_DOTS = 6
 
 const DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9']
 
 export default function Login() {
   const { t } = useTranslation()
   const [pin, setPin] = useState('')
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<'wrong' | 'error' | null>(null)
+  const [busy, setBusy] = useState(false)
   const navigate = useNavigate()
 
-  function enter(value: string) {
-    if (login(value)) {
+  // Geprüft wird der PIN von Supabase. Jeder Versuch ist eine Anfrage und
+  // zählt gegen das Limit für Anmeldungen.
+  async function enter(value: string, report: boolean) {
+    if (busy) return
+    setBusy(true)
+    const result = await login(value)
+    setBusy(false)
+    if (result === 'ok') {
       navigate('/heute', { replace: true })
-      return true
+    } else if (report) {
+      setError(result)
+      setPin('')
     }
-    return false
   }
 
   function type(char: string) {
-    if (pin.length >= MAX_LENGTH) return
+    if (pin.length >= MAX_LENGTH || busy) return
     const next = pin + char
-    setError(false)
+    setError(null)
     setPin(next)
-    // Stimmt der PIN, geht es ohne weiteren Tipp hinein. Ein falscher wird
-    // erst beim Bestätigen gemeldet – sonst stünde nach jeder Ziffer ein Fehler da.
-    if (next.length >= MIN_DOTS) enter(next)
+    // Hat der PIN die Länge des zuletzt richtigen, geht es ohne weiteren Tipp
+    // hinein. Ein falscher wird erst beim Bestätigen gemeldet – sonst stünde
+    // nach jeder Ziffer ein Fehler da. Auf einem neuen Gerät braucht es den Haken.
+    if (next.length === knownPinLength()) enter(next, false)
   }
 
   function erase() {
-    setError(false)
+    setError(null)
     setPin((p) => p.slice(0, -1))
   }
 
   function submit() {
     if (!pin) return
-    if (!enter(pin)) {
-      setError(true)
-      setPin('')
-    }
+    enter(pin, true)
   }
 
   // Am Rechner geht der PIN auch über die Tastatur.
@@ -63,7 +72,7 @@ export default function Login() {
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  const dots = Math.max(MIN_DOTS, pin.length)
+  const dots = Math.max(knownPinLength() ?? DEFAULT_DOTS, pin.length)
   const key = 'h-16 rounded-2xl text-2xl font-bold flex items-center justify-center active:scale-95 transition-transform'
 
   return (
@@ -99,7 +108,7 @@ export default function Login() {
             ))}
           </div>
           <p className={`text-sm font-semibold text-red-600 h-5 ${error ? '' : 'invisible'}`} aria-live="polite">
-            {error ? t('login.wrong_pin') : ''}
+            {error === 'wrong' ? t('login.wrong_pin') : error === 'error' ? t('login.failed') : ''}
           </p>
         </div>
 
@@ -112,7 +121,7 @@ export default function Login() {
           <button
             type="button"
             onClick={submit}
-            disabled={!pin}
+            disabled={!pin || busy}
             aria-label={t('login.submit')}
             className={`${key} bg-brand-700 text-white active:bg-brand-800 disabled:opacity-30`}
           >

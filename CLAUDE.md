@@ -44,16 +44,59 @@ Repo eingecheckt. Inhalt:
 ```
 VITE_SUPABASE_URL=https://DEIN_PROJEKT.supabase.co
 VITE_SUPABASE_KEY=dein-anon-public-key
-VITE_APP_PASSWORD=dein-pin
 ```
+
+Der PIN steht nicht mehr darin, siehe "Login und Zugriffsschutz".
+
+## Login und Zugriffsschutz
+
+Alle Geräte melden sich mit **einem gemeinsamen Supabase-Konto** an
+(`team@fahrzeug-protokolle.invalid`, `src/lib/auth.ts`); der PIN ist sein
+Passwort und wird nur von Supabase geprüft. Früher stand er als
+`VITE_APP_PASSWORD` im Bundle und wurde im Browser verglichen, und jede Policy
+erlaubte `anon` alles — mit dem Anon-Key aus dem Bundle kam jeder an alle Daten.
+
+- **Zugriff hat, wer in `app_members` steht**, nicht schon jeder Angemeldete:
+  alle Policies prüfen `is_member()` (`20261023_team_login.sql`). So schützt es
+  auch, wenn im Dashboard Registrierungen erlaubt sind. Für ein Konto pro
+  Person reicht es, weitere Konten anzulegen und in `app_members` einzutragen.
+- **`anon` hat keine Rechte mehr** (`20261023_lock_anon.sql`). Die Edge
+  Function `transfer-calendar` fragt `is_member()` mit dem Token des Aufrufers.
+- **Fotos:** Der Bucket `vehicle-photos` bleibt öffentlich lesbar über die
+  (nicht erratbaren) Links, damit Bilder und PDF ohne Umbau laden. Auflisten,
+  Hochladen und Löschen nur für Mitglieder.
+- **`.invalid`** wird nie zugestellt: über "Passwort vergessen" kann niemand das
+  Konto übernehmen.
+- **PIN ändern** geht in den Einstellungen und gilt für alle Geräte; Supabase
+  verlangt mindestens 6 Zeichen. Angemeldete Geräte bleiben angemeldet. Von
+  Hand im SQL Editor:
+  ```sql
+  update auth.users set encrypted_password = extensions.crypt('NEUER-PIN', extensions.gen_salt('bf'))
+  where email = 'team@fahrzeug-protokolle.invalid';
+  ```
+- **Abmelden** meldet nur dieses Gerät ab (`scope: 'local'`) — der Standard
+  meldete mit dem gemeinsamen Konto alle ab.
+- Die Sitzung liegt auf dem Gerät und gilt auch offline. Läuft sie endgültig
+  ab, geht es zurück zum Login.
+- Das Ziffernfeld meldet ohne Haken an, sobald die Eingabe so lang ist wie der
+  zuletzt richtige PIN; auf einem neuen Gerät braucht es einmal den Haken. Jeder
+  Versuch ist eine Anfrage an Supabase und zählt gegen deren Limit für
+  Anmeldungen.
 
 ## Deploy
 
 Ein Push auf `main` löst den Workflow `.github/workflows/deploy.yml` aus, der
 über den Fly-Remote-Builder baut und deployt. Nötig sind die Repository-Secrets
-`FLY_API_TOKEN`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_KEY` und
-`VITE_APP_PASSWORD` (Settings → Secrets and variables → Actions); fehlt eines,
+`FLY_API_TOKEN`, `VITE_SUPABASE_URL` und `VITE_SUPABASE_KEY`
+(Settings → Secrets and variables → Actions); fehlt eines,
 bricht der Workflow mit einer entsprechenden Meldung ab.
+
+Vor dem Bauen erhöht der Workflow die Patch-Version (`npm version patch`) und
+committet sie als "chore: Version x.y.z [skip ci]" auf `main` — von Hand
+gepflegt wird die Version nicht, nur ein Sprung bei Minor/Major. Die
+Einstellungen zeigen sie an, so ist erkennbar, welcher Stand läuft. Ein Deploy
+von Hand über den Actions-Tab behält die Version. Vor dem nächsten Arbeiten
+also `git pull`, sonst fehlt lokal der Version-Commit.
 
 Die `VITE_*`-Werte stehen bewusst **nicht** in der `fly.toml`, weil sie ins
 Client-Bundle kompiliert werden. Ein Deploy von Hand braucht sie deshalb als
@@ -62,8 +105,7 @@ Build-Args:
 ```bash
 flyctl deploy --remote-only \
   --build-arg VITE_SUPABASE_URL="$VITE_SUPABASE_URL" \
-  --build-arg VITE_SUPABASE_KEY="$VITE_SUPABASE_KEY" \
-  --build-arg VITE_APP_PASSWORD="$VITE_APP_PASSWORD"
+  --build-arg VITE_SUPABASE_KEY="$VITE_SUPABASE_KEY"
 ```
 
 Ohne die Build-Args entsteht ein Bundle ohne Supabase-Zugang, bei dem auch der
@@ -107,8 +149,8 @@ an, falls sie fehlen (die gemeinsame IPv4 ist kostenlos).
   Dort angelegte Daten sind echt.
 - Sie läuft mit `min_machines_running = 0` (`fly.preview.toml`) und fährt nach
   einiger Zeit ohne Zugriff herunter. Der nächste Aufruf dauert dann länger.
-- Optional lässt sich eine abweichende PIN als Secret
-  `VITE_APP_PASSWORD_PREVIEW` hinterlegen; ohne das Secret gilt die produktive.
+- Sie hat **denselben PIN** wie die produktive App: er ist das Passwort des
+  gemeinsamen Kontos in derselben Datenbank.
 - PRs aus Forks bekommen keine Vorschau — GitHub gibt dort keine Secrets frei.
 - Die Vorschau hat einen **lila Rahmen** um den ganzen Bildschirm und ein
   Icon mit lila Hintergrund (`public/logo-preview.webp`, im Manifest und im

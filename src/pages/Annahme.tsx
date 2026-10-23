@@ -373,7 +373,7 @@ export default function Annahme() {
   // with several damages stays scrollable on a phone.
   const [openDamage, setOpenDamage] = useState<string | null>(null)
 
-  const [existingPhotos, _setExistingPhotos] = useState<Partial<Record<PhotoKey, string>>>(() => {
+  const [existingPhotos] = useState<Partial<Record<PhotoKey, string>>>(() => {
     if (!ed?.photos) return {}
     const out: Partial<Record<PhotoKey, string>> = {}
     for (const k of PHOTO_KEYS) {

@@ -97,15 +97,16 @@ export default function Einstellungen() {
     }
   }
 
-  function handleLogout() {
-    logout()
+  async function handleLogout() {
+    await logout()
     navigate('/login', { replace: true })
   }
 
-  function handlePinChange(e: React.FormEvent) {
+  async function handlePinChange(e: React.FormEvent) {
     e.preventDefault()
     setPinMsg(null)
-    if (newPin.length < 4) {
+    // Supabase verlangt für Passwörter mindestens 6 Zeichen.
+    if (newPin.length < 6) {
       setPinMsg({ ok: false, text: t('settings.pin_min_length') })
       return
     }
@@ -113,15 +114,19 @@ export default function Einstellungen() {
       setPinMsg({ ok: false, text: t('settings.pin_mismatch') })
       return
     }
-    const ok = changePin(currentPin, newPin)
-    if (ok) {
-      setPinMsg({ ok: true, text: t('settings.pin_success') })
-      setCurrentPin('')
-      setNewPin('')
-      setConfirmPin('')
-      setPinSection(false)
-    } else {
-      setPinMsg({ ok: false, text: t('settings.pin_wrong') })
+    try {
+      const result = await changePin(currentPin, newPin)
+      if (result === 'ok') {
+        setPinMsg({ ok: true, text: t('settings.pin_success') })
+        setCurrentPin('')
+        setNewPin('')
+        setConfirmPin('')
+        setPinSection(false)
+      } else {
+        setPinMsg({ ok: false, text: t(result === 'wrong' ? 'settings.pin_wrong' : 'login.failed') })
+      }
+    } catch (err) {
+      setPinMsg({ ok: false, text: errorText(err, t('common.error')) })
     }
   }
 
