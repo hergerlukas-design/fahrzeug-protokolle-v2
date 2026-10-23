@@ -25,12 +25,10 @@ INSERT INTO transfer_calendar_links (calendar_uid, transfer_id)
 SELECT calendar_uid, id FROM transfers WHERE calendar_uid IS NOT NULL
 ON CONFLICT (calendar_uid) DO NOTHING;
 
--- Row Level Security – wie bei transfers: Zugriff über Anon Key + App-PIN
+-- Row Level Security – wie bei transfers: nur für Mitglieder (siehe unten)
 ALTER TABLE transfer_calendar_links ENABLE ROW LEVEL SECURITY;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='transfer_calendar_links' AND policyname='allow_all') THEN
-    CREATE POLICY allow_all ON transfer_calendar_links FOR ALL USING (true) WITH CHECK (true);
-  END IF;
-END $$;
+-- Früher stand hier eine Policy allow_all (USING true) für jeden mit dem
+-- Anon-Key. Sie ist entfernt, damit ein erneuter Lauf dieser Datei den
+-- Zugriff nicht wieder öffnet. Ohne Policy ist die Tabelle zu; Zugriff gibt
+-- die Policy "members" aus 20261023_team_login.sql.

@@ -62,6 +62,13 @@ erlaubte `anon` alles — mit dem Anon-Key aus dem Bundle kam jeder an alle Date
   Person reicht es, weitere Konten anzulegen und in `app_members` einzutragen.
 - **`anon` hat keine Rechte mehr** (`20261023_lock_anon.sql`). Die Edge
   Function `transfer-calendar` fragt `is_member()` mit dem Token des Aufrufers.
+  Die älteren Migrationen legen keine `allow_all`-Policy mehr an — ein
+  erneuter Lauf öffnet also nichts.
+- **Neue Tabelle?** In der Migration `ENABLE ROW LEVEL SECURITY` und dieselbe
+  Policy wie in `20261023_team_login.sql` (`FOR ALL TO authenticated USING
+  ((SELECT public.is_member())) WITH CHECK (…)`). Keine Policy mit `true`, und
+  nichts für `anon`: Supabase gibt `anon` auf neuen Tabellen von sich aus
+  Rechte, davor schützt nur RLS.
 - **Fotos:** Der Bucket `vehicle-photos` bleibt öffentlich lesbar über die
   (nicht erratbaren) Links, damit Bilder und PDF ohne Umbau laden. Auflisten,
   Hochladen und Löschen nur für Mitglieder.

@@ -36,12 +36,10 @@ END $$;
 
 CREATE INDEX IF NOT EXISTS vehicle_location_events_vehicle_id_idx ON vehicle_location_events (vehicle_id);
 
--- Row Level Security – wie bei den anderen Tabellen: Zugriff über Anon Key + App-PIN
+-- Row Level Security – wie bei den anderen Tabellen: nur für Mitglieder (siehe unten)
 ALTER TABLE vehicle_location_events ENABLE ROW LEVEL SECURITY;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='vehicle_location_events' AND policyname='allow_all') THEN
-    CREATE POLICY allow_all ON vehicle_location_events FOR ALL USING (true) WITH CHECK (true);
-  END IF;
-END $$;
+-- Früher stand hier eine Policy allow_all (USING true) für jeden mit dem
+-- Anon-Key. Sie ist entfernt, damit ein erneuter Lauf dieser Datei den
+-- Zugriff nicht wieder öffnet. Ohne Policy ist die Tabelle zu; Zugriff gibt
+-- die Policy "members" aus 20261023_team_login.sql.
