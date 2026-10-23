@@ -1144,7 +1144,6 @@ function GlobalSearchResults({
   const [vehicleProjects, setVehicleProjects] = useState<Record<string, Project[]>>({})
 
   useEffect(() => {
-    setLoading(true)
     fetchVehicles()
       .then(async (all) => {
         setVehicles(all)

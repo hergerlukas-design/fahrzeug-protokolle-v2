@@ -205,12 +205,3 @@ export function getVehiclePhotoUrl(vehicleId: string): string {
     .getPublicUrl(`vehicle-kartei/${vehicleId}.jpg`)
   return data.publicUrl
 }
-
-/** Deletes the vehicle photo from storage. */
-export async function deleteVehiclePhoto(vehicleId: string): Promise<void> {
-  requireOnline()
-  const { error } = await supabase.storage
-    .from('vehicle-photos')
-    .remove([`vehicle-kartei/${vehicleId}.jpg`])
-  if (error) throw error
-}
