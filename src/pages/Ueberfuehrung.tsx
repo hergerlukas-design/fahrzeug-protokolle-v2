@@ -17,6 +17,8 @@ import {
   type Checkliste,
   type DamageItem,
   type OfflineEntry,
+  type ReceiverAbsent,
+  receiverAbsentValid,
   updateProtocol,
 } from '../lib/protocols'
 import { errorText } from '../lib/supabase'
@@ -28,6 +30,7 @@ import CarDamageSelector from '../components/CarDamageSelector'
 import SignatureCanvas from '../components/SignatureCanvas'
 import PhotoSourceSheet from '../components/PhotoSourceSheet'
 import ExtraPhotosPicker from '../components/ExtraPhotosPicker'
+import ReceiverAbsentPicker from '../components/ReceiverAbsentPicker'
 import { WizardProgress, WizardIntro, WizardFooter, PhotoTile, WizardPrimary } from '../components/Wizard'
 import {
   extraPhotoBlobs, extraPhotoPreviews, extraPhotosFrom, isExtraPhotoKey, uploadExtraPhotos, type ExtraPhoto,
@@ -53,6 +56,7 @@ export interface ProtocolEditData {
   photos: Record<string, string>
   receiver_name?: string
   transfer_type?: string
+  receiver_absent?: ReceiverAbsent
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -432,6 +436,11 @@ export default function Ueberfuehrung() {
   const canvasRefReceiver = useRef<HTMLCanvasElement>(null)
   const [hasSigReceiver, setHasSigReceiver] = useState(false)
   const [receiverName, setReceiverName] = useState(ed?.receiver_name ?? '')
+  // Niemand zur Übergabe da: dann zählt statt der Unterschrift, wo der Schlüssel ist.
+  const [receiverAbsent, setReceiverAbsent] = useState<ReceiverAbsent | null>(ed?.receiver_absent ?? null)
+  const absentOk = receiverAbsentValid(receiverAbsent)
+  /** Fertig statt Entwurf: Fahrer hat unterschrieben, und der Empfänger auch – oder war nicht da. */
+  const canFinish = hasSig && (receiverAbsent ? absentOk : hasSigReceiver)
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -539,8 +548,12 @@ export default function Ueberfuehrung() {
 
     const sigDataUrl =
       hasSig && canvasRef.current ? canvasRef.current.toDataURL('image/png') : null
+    // Ohne Empfänger gibt es auch keine Empfänger-Unterschrift – das Feld ist dann ausgeblendet.
     const sigReceiverDataUrl =
-      hasSigReceiver && canvasRefReceiver.current ? canvasRefReceiver.current.toDataURL('image/png') : null
+      !receiverAbsent && hasSigReceiver && canvasRefReceiver.current ? canvasRefReceiver.current.toDataURL('image/png') : null
+    const absent = receiverAbsentValid(receiverAbsent)
+      ? { reason: receiverAbsent.reason, ...(receiverAbsent.note?.trim() ? { note: receiverAbsent.note.trim() } : {}) }
+      : undefined
 
     // location field stores "Abholort → Zielort" for transfer protocols
     const locationString = [abholort.trim(), zielort.trim()].filter(Boolean).join(' → ')
@@ -553,7 +566,7 @@ export default function Ueberfuehrung() {
       fuel_level: fuel,
       remarks: remarks.trim(),
       inspection_date: new Date().toISOString(),
-      status: (sigDataUrl && sigReceiverDataUrl ? 'final' : 'draft') as 'final' | 'draft',
+      status: (sigDataUrl && (sigReceiverDataUrl || absent) ? 'final' : 'draft') as 'final' | 'draft',
       protocol_type: 'transfer' as const,
       condition_data: {
         battery,
@@ -563,6 +576,7 @@ export default function Ueberfuehrung() {
         checkliste: checklist,
         receiver_name: receiverName.trim() || undefined,
         transfer_type: transferType || undefined,
+        receiver_absent: absent,
       },
     }
 
@@ -708,6 +722,7 @@ export default function Ueberfuehrung() {
         checkliste: basePayload.condition_data.checkliste,
         receiver_name: receiverName.trim() || undefined,
         transfer_type: transferType || undefined,
+        receiver_absent: absent,
       })
       setSuccess(true)
     } catch (err: unknown) {
@@ -1151,21 +1166,29 @@ export default function Ueberfuehrung() {
             className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
           />
         </div>
-        <p className="text-xs text-gray-500 mb-1">
-          {t('ueberfuehrung.sig_disclaimer')}{' '}
-          <a href="/datenschutz" className="text-green-600 underline">
-            {t('ueberfuehrung.privacy_link')}
-          </a>
-        </p>
-        <p className="text-xs text-gray-500">{t('ueberfuehrung.receiver_sig_hint')}</p>
-        <SignatureCanvas canvasRef={canvasRefReceiver} onHasStroke={setHasSigReceiver} />
+        {!receiverAbsent && (
+          <>
+            <p className="text-xs text-gray-500 mb-1">
+              {t('ueberfuehrung.sig_disclaimer')}{' '}
+              <a href="/datenschutz" className="text-green-600 underline">
+                {t('ueberfuehrung.privacy_link')}
+              </a>
+            </p>
+            <p className="text-xs text-gray-500">{t('ueberfuehrung.receiver_sig_hint')}</p>
+            <SignatureCanvas canvasRef={canvasRefReceiver} onHasStroke={setHasSigReceiver} />
+          </>
+        )}
+        <ReceiverAbsentPicker
+          value={receiverAbsent}
+          onChange={(v) => { setReceiverAbsent(v); if (v) setHasSigReceiver(false) }}
+        />
       </Card>
       </>
       )}
 
       {/* ── Step navigation ── */}
       <WizardFooter
-        note={isLastStep && !(hasSig && hasSigReceiver) && (
+        note={isLastStep && !canFinish && (
           <p className="text-xs text-gray-500 text-center mt-2">
             {t('ueberfuehrung.no_sig_hint')}
           </p>
@@ -1188,7 +1211,9 @@ export default function Ueberfuehrung() {
           >
             {saving
               ? t('ueberfuehrung.saving')
-              : hasSig && hasSigReceiver
+              : canFinish && receiverAbsent
+              ? <><CheckCircle2 size={18} /> {t('receiver_absent.save')}</>
+              : canFinish
               ? <><CheckCircle2 size={18} /> {t('ueberfuehrung.save_final')}</>
               : <><Save size={18} /> {t('ueberfuehrung.save_draft')}</>}
           </WizardPrimary>
