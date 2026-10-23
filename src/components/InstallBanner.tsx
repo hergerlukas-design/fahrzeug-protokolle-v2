@@ -10,7 +10,11 @@ interface BeforeInstallPromptEvent extends Event {
 export default function InstallBanner() {
   const { t } = useTranslation()
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
-  const [showIosTip, setShowIosTip] = useState(false)
+  const [showIosTip, setShowIosTip] = useState(() => {
+    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+    return isIos && !isStandalone
+  })
   const [dismissed, setDismissed] = useState(() => sessionStorage.getItem('vpp_install_dismissed') === '1')
 
   useEffect(() => {
@@ -19,11 +23,6 @@ export default function InstallBanner() {
       setDeferredPrompt(e as BeforeInstallPromptEvent)
     }
     window.addEventListener('beforeinstallprompt', handler)
-
-    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent)
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
-    if (isIos && !isStandalone) setShowIosTip(true)
-
     return () => window.removeEventListener('beforeinstallprompt', handler)
   }, [])
 

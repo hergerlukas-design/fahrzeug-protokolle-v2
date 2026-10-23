@@ -49,7 +49,7 @@ import {
 } from '../lib/calendarPairs'
 import { unknownPlate, expectedVehicles, type NewVehicle, type ExpectedVehicles } from '../lib/calendarPlate'
 import Plate from '../components/Plate'
-import { todayISO, telHref, mapsHref, protocolKindOf, needsAcceptance } from '../lib/transferHelpers'
+import { todayISO, telHref, mapsHref, protocolKindOf, needsAcceptance, missingProtocol, isRoundTrip } from '../lib/transferHelpers'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -613,7 +613,13 @@ function TransferDetails({
   // Protokoll dieser Fahrt, die leere Zeile für ein gewöhnliches entfällt.
   const acceptance = needsAcceptance(transfer)
   // Ohne Fahrzeug gibt es noch nichts zu protokollieren – zuerst wird es erfasst.
-  const rows = attached.length > 0 || acceptance || !v ? attached : (['pickup'] as ProtocolRole[])
+  // Sonst steht eine leere Zeile da, solange ein Protokoll fehlt: bei einer
+  // Hin- und Rückfahrt auch nach dem Hinbringen noch die für die Rücknahme.
+  const missing = v && !acceptance ? missingProtocol(transfer) : null
+  const roundTrip = isRoundTrip(transfer)
+  const rows = (['pickup', 'dropoff'] as ProtocolRole[]).filter(
+    (role) => attached.includes(role) || missing?.role === role
+  )
 
   /** Ein Feld des Termins, wie es sich lesen lässt. */
   const valueOf = (field: ChangeKey, from: DateSpan & { summary: string | null; location: string | null }) => {
@@ -783,7 +789,7 @@ function TransferDetails({
             ließen aussehen, als brauchte jede Fahrt beide. Ältere Fahrten, an
             denen zwei hängen, zeigen weiter beide. */}
         <div className="pt-1">
-          <DetailHeading>{t(attached.length > 1 ? 'transfers.protocols' : 'transfers.protocol_single')}</DetailHeading>
+          <DetailHeading>{t(rows.length > 1 ? 'transfers.protocols' : 'transfers.protocol_single')}</DetailHeading>
           <div className="space-y-1.5">
             {rows.map((role) => {
               const proto = role === 'pickup' ? transfer.pickup_protocol : transfer.dropoff_protocol
@@ -842,6 +848,7 @@ function TransferDetails({
                     <FilePlus size={15} className="text-gray-400 flex-shrink-0" />
                     <span className="flex-1 min-w-0 text-sm text-gray-500 truncate">
                       {t('transfers.create_protocol', { which: label })}
+                      {roundTrip && missing && <span className="text-gray-400"> · {missing.kind}</span>}
                     </span>
                   </button>
                   {/* Für Protokolle, die es schon gibt – etwa unterwegs angelegt. */}
@@ -2949,10 +2956,13 @@ export default function Ueberfuehrungen() {
    *
    * Es gibt eines je Fahrt; ob hin oder zurück, steht im Protokoll selbst und
    * wird aus dem Titel vorgeschlagen. Gespeichert wird es in der Spalte für das
-   * Abholprotokoll – mit ihm ist die Fahrt unterwegs.
+   * Abholprotokoll – mit ihm ist die Fahrt unterwegs. Eine Hin- und Rückfahrt
+   * bekommt danach noch die Rücknahme in der zweiten Spalte, und mit ihr ist
+   * die Fahrt angekommen.
    */
   async function handleCreateProtocol(transfer: Transfer) {
-    const role: ProtocolRole = 'pickup'
+    const missing = missingProtocol(transfer)
+    const role: ProtocolRole = missing?.role ?? 'pickup'
     setBusyId(transfer.id)
     setError(null)
     try {
@@ -2970,7 +2980,7 @@ export default function Ueberfuehrungen() {
             vehicle_id: vehicle.id,
             status: transfer.status,
             role,
-            transfer_type: protocolKindOf(transfer),
+            transfer_type: missing?.kind ?? protocolKindOf(transfer),
             driver_name: transfer.driver_name,
             location_from: transfer.location_from,
             location_to: transfer.location_to,
@@ -3507,7 +3517,10 @@ export default function Ueberfuehrungen() {
         onLinkTransfer={(x) => setTransferLinkTarget(x)}
         onUnlinkTransfer={handleUnlinkTransfer}
         onOpenTransfer={handleOpenTransfer}
-        onLinkProtocol={(x) => setLinkTarget({ transfer: x, role: x.pickup_protocol ? 'dropoff' : 'pickup' })}
+        onLinkProtocol={(x) => setLinkTarget({
+          transfer: x,
+          role: missingProtocol(x)?.role ?? (x.pickup_protocol ? 'dropoff' : 'pickup'),
+        })}
         onUnlinkProtocol={handleUnlink}
         onOpenProtocol={(protocolId) => navigate('/archiv', { state: { protocol_id: protocolId } })}
         onEdit={(x) => openForm({ target: x })}

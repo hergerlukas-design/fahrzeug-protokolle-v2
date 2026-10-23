@@ -41,6 +41,7 @@
     "pin_label": "PIN eingeben",
     "submit": "Anmelden",
     "wrong_pin": "Falscher PIN!",
+    "failed": "Anmeldung fehlgeschlagen – Verbindung prüfen.",
     "erase": "Letzte Ziffer löschen",
     "pin_entered_one": "{{count}} Ziffer eingegeben",
     "pin_entered_other": "{{count}} Ziffern eingegeben"
@@ -674,7 +675,7 @@
     "pin_new": "Neuer PIN",
     "pin_confirm": "Neuer PIN bestätigen",
     "pin_save": "PIN speichern",
-    "pin_min_length": "Neuer PIN muss mindestens 4 Zeichen haben.",
+    "pin_min_length": "Neuer PIN muss mindestens 6 Ziffern haben.",
     "pin_mismatch": "Neuer PIN und Bestätigung stimmen nicht überein.",
     "pin_wrong": "Aktueller PIN ist falsch.",
     "pin_success": "PIN erfolgreich geändert.",

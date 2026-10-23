@@ -7,7 +7,7 @@ primary_region = 'fra'
 [build]
   # Die VITE_*-Werte landen zur Build-Zeit im Client-Bundle und werden vom
   # Deploy-Workflow als --build-arg aus den GitHub-Actions-Secrets übergeben
-  # (VITE_SUPABASE_URL, VITE_SUPABASE_KEY, VITE_APP_PASSWORD).
+  # (VITE_SUPABASE_URL, VITE_SUPABASE_KEY).
   # Lokal: flyctl deploy --build-arg VITE_SUPABASE_URL=… (siehe CLAUDE.md)
 
 

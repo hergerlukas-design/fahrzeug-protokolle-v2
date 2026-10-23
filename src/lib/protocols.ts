@@ -87,27 +87,6 @@ export const DEFAULT_CHECKLISTE: Checkliste = {
   card: false,
 }
 
-export const DAMAGE_POSITIONS = [
-  'Stoßfänger vorne',
-  'Stoßfänger hinten',
-  'Motorhaube',
-  'Dach',
-  'Kotflügel vorne links',
-  'Kotflügel vorne rechts',
-  'Kotflügel hinten links',
-  'Kotflügel hinten rechts',
-  'Tür vorne links',
-  'Tür vorne rechts',
-  'Tür hinten links',
-  'Tür hinten rechts',
-  'Windschutzscheibe',
-  'Heckscheibe',
-  'Seitenscheibe links',
-  'Seitenscheibe rechts',
-  'Felge / Reifen',
-  'Sonstiges',
-]
-
 export const DAMAGE_TYPES = ['Kratzer', 'Delle', 'Riss', 'Bruch', 'Abplatzer', 'Fehlend']
 
 export const DAMAGE_INTENSITIES = ['Oberflächlich', 'Mittel', 'Tief']
