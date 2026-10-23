@@ -727,7 +727,7 @@ async function buildPhotoPage(
   const labelH = mm(6)
 
   // Track row bottoms per column so we know where to place next image
-  let rowBot = [cursorY, cursorY]   // top of current row for each column
+  const rowBot = [cursorY, cursorY]   // top of current row for each column
 
   // Row boundaries: row 0 = portrait (95mm), row 1 = landscape (58mm), row 2 = landscape (58mm)
   const rowMaxH = [mm(95), mm(58), mm(58)]

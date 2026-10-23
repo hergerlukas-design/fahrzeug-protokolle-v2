@@ -33,7 +33,7 @@ export interface Vehicle {
 }
 
 export function normalizeKennzeichen(kz: string): string {
-  return kz.toUpperCase().trim().replace(/[\s\-]/g, '')
+  return kz.toUpperCase().trim().replace(/[\s-]/g, '')
 }
 
 export async function fetchVehicles(): Promise<Vehicle[]> {
