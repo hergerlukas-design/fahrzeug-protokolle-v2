@@ -213,8 +213,34 @@ function buildEvent(props: Record<string, Prop>): CalendarEvent | null {
 // Handler
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * verify_jwt prüft nur, dass das Token echt ist – das ist auch der öffentliche
+ * Anon-Key. Den Kalender bekommt nur, wer in app_members steht; das fragt
+ * is_member() mit dem Token des Aufrufers ab (anon darf sie nicht aufrufen).
+ */
+async function isMember(req: Request): Promise<boolean> {
+  const url = Deno.env.get('SUPABASE_URL')
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
+  const authorization = req.headers.get('Authorization')
+  if (!url || !anonKey || !authorization) return false
+  try {
+    const res = await fetch(`${url}/rest/v1/rpc/is_member`, {
+      method: 'POST',
+      headers: { Authorization: authorization, apikey: anonKey, 'Content-Type': 'application/json' },
+      body: '{}',
+    })
+    return res.ok && (await res.json()) === true
+  } catch {
+    return false
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+
+  if (!(await isMember(req))) {
+    return json({ error: 'Nicht angemeldet.' }, 403)
+  }
 
   const feedUrl = Deno.env.get('TRANSFER_CALENDAR_URL')
   if (!feedUrl) {
