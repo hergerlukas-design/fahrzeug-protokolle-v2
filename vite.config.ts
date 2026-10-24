@@ -66,12 +66,25 @@ export default defineConfig({
             },
           },
           {
-            urlPattern: /\.supabase\.co\/storage\/v1\/object\/public\//,
+            // Fotos aus dem privaten Bucket kommen über signierte Links, deren
+            // Token sich bei jedem Signieren ändert. Abgelegt wird deshalb unter
+            // der Adresse ohne Token – sonst fände offline kein Foto mehr in den
+            // Speicher, und jede neue Signatur legte das Bild ein weiteres Mal ab.
+            urlPattern: /\.supabase\.co\/storage\/v1\/object\/(public|sign)\//,
             handler: 'CacheFirst',
             options: {
               cacheName: 'supabase-storage',
               expiration: { maxEntries: 500, maxAgeSeconds: 30 * 24 * 60 * 60 },
               cacheableResponse: { statuses: [0, 200] },
+              plugins: [
+                {
+                  cacheKeyWillBeUsed: async ({ request }) => {
+                    const url = new URL(request.url)
+                    url.searchParams.delete('token')
+                    return url.href
+                  },
+                },
+              ],
             },
           },
         ],

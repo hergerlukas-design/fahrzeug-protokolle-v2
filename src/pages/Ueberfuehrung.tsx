@@ -38,6 +38,7 @@ import {
 import type { PdfData } from '../lib/generatePdf'
 import { updateVehicle, updateVehicleKnownDamages, type DamageRecord } from '../lib/vehicles'
 import { linkProtocolToTransfer, type ProtocolRole, type TransferStatus } from '../lib/transfers'
+import StorageImage from '../components/StorageImage'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Edit-mode data (passed via location.state when opening an existing protocol)
@@ -306,7 +307,7 @@ function DamageRow({
       <div className="flex items-center gap-2">
         {item.previewUrl || item.photo_url ? (
           <div className="relative">
-            <img
+            <StorageImage
               src={item.previewUrl ?? item.photo_url}
               alt={t('annahme.damage_label', { count: index + 1 })}
               className="w-16 h-16 object-cover rounded-lg border border-gray-200"

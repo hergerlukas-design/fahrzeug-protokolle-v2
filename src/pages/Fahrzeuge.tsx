@@ -49,6 +49,7 @@ import {
 } from '../lib/projects'
 import { DAMAGE_TYPES, DAMAGE_INTENSITIES } from '../lib/protocols'
 import { fetchTransfersForVehicle, type Transfer } from '../lib/transfers'
+import StorageImage from '../components/StorageImage'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared UI helpers
@@ -78,7 +79,7 @@ function VehicleAvatar({ vehicleId, size = 48 }: { vehicleId: string; size?: num
     )
   }
   return (
-    <img
+    <StorageImage
       src={url}
       alt=""
       className="rounded-lg object-cover flex-shrink-0"
@@ -1739,7 +1740,7 @@ function VehicleDetail({
                   <button type="button" onClick={() => handleDamageDelete(i)} className="text-red-400 hover:text-red-600 active:text-red-800 p-1 flex-shrink-0" aria-label={t('common.delete')}><Trash2 size={15} /></button>
                 </div>
                 {d.photo_url && (
-                  <img src={d.photo_url} alt="Schadenfoto" className="mt-2 w-full max-h-40 object-cover rounded-lg border border-amber-200" loading="lazy" />
+                  <StorageImage src={d.photo_url} alt="Schadenfoto" className="mt-2 w-full max-h-40 object-cover rounded-lg border border-amber-200" loading="lazy" />
                 )}
               </div>
             ))}
@@ -1767,7 +1768,7 @@ function VehicleDetail({
                 <div className="flex items-center gap-2">
                   {formPhotoPreview ? (
                     <div className="relative flex-shrink-0">
-                      <img src={formPhotoPreview} alt="Vorschau" className="w-16 h-16 object-cover rounded-lg border border-gray-200" />
+                      <StorageImage src={formPhotoPreview} alt="Vorschau" className="w-16 h-16 object-cover rounded-lg border border-gray-200" />
                       <button type="button" onClick={() => { setFormPhotoFile(null); setFormPhotoPreview(null) }} className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center"><X size={12} /></button>
                     </div>
                   ) : (
@@ -1977,7 +1978,7 @@ function VehicleForm({
             <label className="block text-sm font-medium text-gray-700 mb-2">{t('vehicles.vehicle_photo_label')} <span className="text-gray-400 font-normal">{t('create_wizard.brand_model_optional')}</span></label>
             {photoPreview ? (
               <div className="relative inline-block">
-                <img src={photoPreview} alt="Vorschau" className="w-32 h-32 object-cover rounded-xl border border-gray-200" />
+                <StorageImage src={photoPreview} alt="Vorschau" className="w-32 h-32 object-cover rounded-xl border border-gray-200" />
                 <button type="button" onClick={() => { setPhotoFile(null); setPhotoPreview(null) }} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center"><X size={14} /></button>
               </div>
             ) : (

@@ -12,6 +12,7 @@ import {
 } from '../lib/projects'
 import { errorText } from '../lib/supabase'
 import { fetchVehicles, createVehicle, getVehiclePhotoUrl, type Vehicle } from '../lib/vehicles'
+import StorageImage from './StorageImage'
 
 export const CREATE_EVENT = 'vp-open-create'
 
@@ -35,7 +36,7 @@ function VehicleAvatar({ vehicleId, size = 40 }: { vehicleId: string; size?: num
     )
   }
   return (
-    <img
+    <StorageImage
       src={url}
       alt=""
       className="rounded-lg object-cover flex-shrink-0"
