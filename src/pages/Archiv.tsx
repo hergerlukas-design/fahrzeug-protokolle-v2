@@ -30,6 +30,7 @@ import {
   getProjectStats,
   type ProjectWithCount,
 } from '../lib/projects'
+import StorageImage from '../components/StorageImage'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -548,7 +549,7 @@ export default function Archiv() {
                     .filter(([key]) => key !== 'signature')
                     .map(([key, url]) => (
                       <div key={key}>
-                        <img
+                        <StorageImage
                           src={url}
                           alt={key}
                           className="w-full h-28 object-cover rounded-lg"

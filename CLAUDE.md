@@ -69,9 +69,20 @@ erlaubte `anon` alles — mit dem Anon-Key aus dem Bundle kam jeder an alle Date
   ((SELECT public.is_member())) WITH CHECK (…)`). Keine Policy mit `true`, und
   nichts für `anon`: Supabase gibt `anon` auf neuen Tabellen von sich aus
   Rechte, davor schützt nur RLS.
-- **Fotos:** Der Bucket `vehicle-photos` bleibt öffentlich lesbar über die
-  (nicht erratbaren) Links, damit Bilder und PDF ohne Umbau laden. Auflisten,
-  Hochladen und Löschen nur für Mitglieder.
+- **Fotos:** Der Bucket `vehicle-photos` ist privat
+  (`20261024_private_photos.sql`): Fotos und Unterschriften lädt nur, wer
+  Mitglied ist, auch mit bekanntem Link. In der Datenbank stehen weiter die
+  öffentlichen Adressen (`…/object/public/vehicle-photos/<pfad>`) – nur noch
+  als Kennung. Zum Anzeigen tauscht `src/lib/photoUrls.ts` sie gegen
+  signierte Links (6 Stunden gültig), gebündelt in einem Aufruf je
+  Renderdurchgang. Bilder zeigt deshalb `<StorageImage>` statt `<img>`, und das
+  PDF signiert vor dem Laden. Vorschauen (`blob:`) und Logos gehen unverändert
+  durch. **Neues Foto in der Oberfläche? `StorageImage` nehmen** – ein
+  `<img>` mit der gespeicherten Adresse bleibt leer.
+- **Fotos offline:** Der Service Worker legt Fotos unter ihrer Adresse ohne
+  Token ab (`vite.config.ts`), sonst fände er sie mit dem nächsten Token nicht
+  wieder. Ohne Netz fällt `photoUrls` auf genau diese Adresse zurück; was schon
+  einmal geladen war, erscheint so auch offline.
 - **`.invalid`** wird nie zugestellt: über "Passwort vergessen" kann niemand das
   Konto übernehmen.
 - **PIN ändern** geht in den Einstellungen und gilt für alle Geräte; Supabase
@@ -193,7 +204,8 @@ Passwort zu behandeln: wer ihn hat, sieht alle Termine des Kalenders.
 
 Die Edge Function `transfer-calendar` liest den Feed serverseitig — nötig,
 weil die URL geheim ist und iCloud keine CORS-Header liefert. Sie gibt die
-Termine als JSON zurück und rührt die Datenbank nicht an.
+Termine als JSON zurück. Die Datenbank liest sie nur für eine Frage: ob der
+Aufrufer zum Team gehört (`is_member()`, siehe "Login und Zugriffsschutz").
 
 Die App ordnet das Fahrzeug über das Kennzeichen im Termintitel zu und merkt
 sich in `transfers.calendar_uid`, welcher Termin schon übernommen wurde.
