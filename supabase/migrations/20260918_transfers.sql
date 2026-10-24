@@ -131,14 +131,12 @@ CREATE INDEX IF NOT EXISTS transfers_date_from_idx  ON transfers (date_from);
 CREATE INDEX IF NOT EXISTS transfers_status_idx     ON transfers (status);
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- Row Level Security – wie bei projects: Zugriff über Anon Key + App-PIN
+-- Row Level Security – wie bei projects: nur für Mitglieder (siehe unten)
 -- ─────────────────────────────────────────────────────────────────────────────
 
 ALTER TABLE transfers ENABLE ROW LEVEL SECURITY;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='transfers' AND policyname='allow_all') THEN
-    CREATE POLICY allow_all ON transfers FOR ALL USING (true) WITH CHECK (true);
-  END IF;
-END $$;
+-- Früher stand hier eine Policy allow_all (USING true) für jeden mit dem
+-- Anon-Key. Sie ist entfernt, damit ein erneuter Lauf dieser Datei den
+-- Zugriff nicht wieder öffnet. Ohne Policy ist die Tabelle zu; Zugriff gibt
+-- die Policy "members" aus 20261023_team_login.sql.
