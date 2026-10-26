@@ -781,3 +781,27 @@ git diff main --name-only | grep supabase/migrations
 | `npm run dev` | Lokaler Dev-Server (http://localhost:5173) |
 | `npm run build` | Produktions-Build (TypeScript + Vite) |
 | `npm run lint` | ESLint |
+| `npm test` | Tests (Vitest, einmal durchlaufen) |
+
+## Tests
+
+`npm test` führt die Tests in `src/**/*.test.ts` aus (Vitest, Konfiguration in
+`vitest.config.ts`). Sie laufen ohne Browser und ohne Supabase; die Umgebungs-
+variablen für den Client setzt die Konfiguration auf Platzhalter, es wird nie
+eine Verbindung aufgebaut. Die Tests liegen neben dem Code und gelangen nicht
+ins Bundle — `tsc -b` prüft sie aber mit.
+
+Abgedeckt ist die Kalender-Logik, weil dort das Regelwerk sitzt und ein Fehler
+erst auffällt, wenn eine Fahrt falsch angelegt wurde:
+
+| Datei | Prüft |
+|-------|-------|
+| `calendarPairs.test.ts` | Art eines Termins, Bündeln zu einer Fahrt, Tausch teilen, Termine zusammenführen |
+| `calendarContact.test.ts` | Ansprechpartner und Telefon aus den Notizen, Datum/Uhrzeit/Auftragsnummer ≠ Rufnummer, Anschriften aussortieren |
+| `calendarPlate.test.ts` | Kennzeichen im Titel, neues Fahrzeug, Anzahl und Modell bei Fahrten ohne Kennzeichen |
+| `calendarChanges.test.ts` | Hat sich ein übernommener Termin geändert |
+
+`calendarTestUtils.ts` baut Termine und Schnappschüsse mit Vorgaben, damit ein
+Test nur nennt, worauf es ankommt. **Ändert sich eine Regel im Kalender-Text**
+(oben, "Kalender-Import"), gehört der Test dazu: erst den Fall als Test
+festhalten, dann den Code anpassen.
