@@ -1,6 +1,7 @@
 import { PDFDocument, rgb, StandardFonts, degrees, type PDFPage, type PDFFont, type PDFImage } from 'pdf-lib'
 import type { Checkliste, DamageItem, ReceiverAbsent, ReceiverAbsentReason } from './protocols'
 import { extraPhotoEntries } from './extraPhotos'
+import { signedPhotoUrl } from './photoUrls'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PDF label strings (DE / EN)
@@ -224,10 +225,13 @@ export interface PdfData {
 // Image utilities
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Fetch image URL, scale to ≤maxPx, re-encode as JPEG. Returns null on failure. */
+/**
+ * Fetch image URL, scale to ≤maxPx, re-encode as JPEG. Returns null on failure.
+ * Stored photo addresses point into the private bucket and are signed first.
+ */
 async function fetchJpeg(url: string, maxPx = 700, quality = 0.72): Promise<Uint8Array | null> {
   try {
-    const resp = await fetch(url)
+    const resp = await fetch(await signedPhotoUrl(url))
     if (!resp.ok) return null
     const blob = await resp.blob()
     const bmp = await createImageBitmap(blob)
@@ -253,7 +257,7 @@ async function fetchJpeg(url: string, maxPx = 700, quality = 0.72): Promise<Uint
 /** Fetch PNG bytes verbatim (used for signature). */
 async function fetchPng(url: string): Promise<Uint8Array | null> {
   try {
-    const r = await fetch(url)
+    const r = await fetch(await signedPhotoUrl(url))
     if (!r.ok) return null
     return new Uint8Array(await r.arrayBuffer())
   } catch {

@@ -8,8 +8,9 @@
 // Die Feed-URL steht als Secret TRANSFER_CALENDAR_URL
 // (Dashboard -> Edge Functions -> Secrets).
 //
-// Bewusst ohne Datenbankzugriff: die Zuordnung zum Fahrzeug und das Erkennen
-// bereits übernommener Termine macht die App, die beides ohnehin geladen hat.
+// Die Daten der App liest sie nicht: die Zuordnung zum Fahrzeug und das
+// Erkennen bereits übernommener Termine macht die App, die beides ohnehin
+// geladen hat. Gefragt wird nur, ob der Aufrufer zum Team gehört (isMember).
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { Camera, Check, X } from 'lucide-react'
+import StorageImage from './StorageImage'
 
 /**
  * Bausteine der Protokoll-Assistenten (Überführung, Annahme): Fortschritt in
@@ -97,7 +98,7 @@ export function PhotoTile({
   if (src) {
     return (
       <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-gray-800">
-        <img src={src} alt={label} className="w-full h-full object-cover" />
+        <StorageImage src={src} alt={label} className="w-full h-full object-cover" />
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2.5 pt-6 pb-2">
           <span className="text-[13px] font-extrabold text-white">{label}</span>
         </div>

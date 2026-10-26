@@ -3,6 +3,7 @@ import { Camera, Plus, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import PhotoSourceSheet from './PhotoSourceSheet'
 import type { ExtraPhoto } from '../lib/extraPhotos'
+import StorageImage from './StorageImage'
 
 type Props = {
   items: ExtraPhoto[]
@@ -45,7 +46,7 @@ export default function ExtraPhotosPicker({ items, onChange, accent = 'brand' }:
       <div className="grid grid-cols-3 gap-3">
         {items.map((item, i) => (
           <div key={item.key} className="relative aspect-square">
-            <img
+            <StorageImage
               src={item.previewUrl ?? item.url}
               alt={t('extra_photos.label', { count: i + 1 })}
               className="w-full h-full object-cover rounded-xl border border-gray-200"
