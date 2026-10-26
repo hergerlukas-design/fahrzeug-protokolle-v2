@@ -109,8 +109,12 @@ const COUNT = new RegExp(
   'gi'
 )
 
-/** Wo nach dem Modell der Ort oder das Datum beginnt. */
-const MODEL_END = /\s(?:in|nach|von|bei|aus|ab|am|für|fuer)\s|\s\d{1,2}\.\d{1,2}\.|[,(?]|\s[-–]\s/i
+/**
+ * Wo nach dem Modell der Ort oder das Datum beginnt. Auch am Textanfang: bleibt
+ * nach dem Entfernen der Anzahl nur "in Hamburg" übrig ("3 Fahrzeuge in
+ * Hamburg"), ist das kein Modell.
+ */
+const MODEL_END = /(?:^|\s)(?:in|nach|von|bei|aus|ab|am|für|fuer)\s|\s\d{1,2}\.\d{1,2}\.|[,(?]|\s[-–]\s/i
 
 /**
  * Wie viele Fahrzeuge welcher Art der Titel nennt – für Termine ohne
